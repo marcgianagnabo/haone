@@ -15,7 +15,8 @@ export const columns: ColumnDef<JournalRecord>[] = [
   {
     id: "select",
     header: ({ table }) => renderComponent(DataTableSelectHeader, { table }),
-    cell: ({ row }) => renderComponent(DataTableSelectCell, { row }),
+    cell: ({ row }) =>
+      renderComponent(DataTableSelectCell, { row, disabled: !!row.original.wasAudited }),
     enableSorting: false,
     enableHiding: false
   },
@@ -82,6 +83,22 @@ export const columns: ColumnDef<JournalRecord>[] = [
         };
       });
       return renderSnippet(detailsSnippet, { record: row.original });
+    }
+  },
+  {
+    id: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const statusSnippet = createRawSnippet<[{ record: JournalRecord }]>((p) => {
+        const r = p().record;
+        return {
+          render: () =>
+            r.wasAudited
+              ? `<span data-slot="badge" class="inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent bg-primary px-2 py-0.5 text-xs font-medium whitespace-nowrap text-primary-foreground">AUDITED</span>`
+              : `<span class="text-xs text-muted-foreground">&#8212;</span>`
+        };
+      });
+      return renderSnippet(statusSnippet, { record: row.original });
     }
   },
   {

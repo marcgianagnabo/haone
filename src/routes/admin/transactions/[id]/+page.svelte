@@ -60,7 +60,7 @@
       "This transaction will be locked and cannot be edited or reverted.",
       undefined,
       async () => {
-        if (!transaction?.id) {
+        if (!transaction?.id || transaction.wasAudited) {
           return;
         }
         try {

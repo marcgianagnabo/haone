@@ -32,8 +32,8 @@
 
   // Filters
   const tableSync = new TableSync({
-    initialFilters: { search: "", type: "ALL", mop: "ALL" },
-    paramMap: { search: "q", type: "type", mop: "mop" },
+    initialFilters: { search: "", type: "ALL", mop: "ALL", status: "UNAUDITED" },
+    paramMap: { search: "q", type: "type", mop: "mop", status: "status" },
     searchKey: "search"
   });
 
@@ -80,8 +80,11 @@
   }
 
   async function confirmBatchAudit() {
-    const count = selectedIds.size;
+    const auditedMap = new Map(journal.map((r) => [r.id, r.wasAudited === true]));
+    const pendingIds = Array.from(selectedIds).filter((id) => !auditedMap.get(id));
+    const count = pendingIds.length;
     if (count === 0) {
+      toast.info("Selected transactions are already audited.");
       return;
     }
 
@@ -98,7 +101,7 @@
       undefined,
       async () => {
         try {
-          await batchAuditEntries(Array.from(selectedIds));
+          await batchAuditEntries(pendingIds);
           toast.success(
             count === 1
               ? "Transaction marked as audited."
@@ -133,6 +136,11 @@
     ...TRANSACTION_TYPE_OPTIONS
   ]);
   const mopOptions = $derived([{ value: "ALL", label: "All Methods" }, ...mopTypes]);
+  const statusOptions = $derived([
+    { value: "UNAUDITED", label: "Unaudited only" },
+    { value: "AUDITED", label: "Audited only" },
+    { value: "ALL_STATUSES", label: "All Statuses" }
+  ]);
 
   const filteredJournal = $derived.by(() => {
     return journal
@@ -146,7 +154,14 @@
         );
       })
       .filter((r) => tableSync.filters!.type === "ALL" || r.type === tableSync.filters!.type)
-      .filter((r) => tableSync.filters!.mop === "ALL" || r.mop === tableSync.filters!.mop);
+      .filter((r) => tableSync.filters!.mop === "ALL" || r.mop === tableSync.filters!.mop)
+      .filter((r) => {
+        const status = tableSync.filters!.status;
+        if (status === "ALL_STATUSES") {
+          return true;
+        }
+        return status === "AUDITED" ? r.wasAudited === true : !r.wasAudited;
+      });
   });
 
   function resetFilters() {
@@ -185,11 +200,12 @@
     <FilterDrawer
       activeCount={Number(tableSync.filters!.search !== "") +
         Number(tableSync.filters!.type !== "ALL") +
-        Number(tableSync.filters!.mop !== "ALL")}
+        Number(tableSync.filters!.mop !== "ALL") +
+        Number(tableSync.filters!.status !== "UNAUDITED")}
       onClear={resetFilters}
     >
-      <div class="grid gap-2 lg:grid-cols-9">
-        <div class="space-y-1 lg:col-span-5">
+      <div class="grid gap-2 lg:grid-cols-12">
+        <div class="space-y-1 lg:col-span-6">
           <Label>Search</Label>
           <InputGroup.Root class="h-9 text-sm">
             <InputGroup.Input
@@ -210,6 +226,11 @@
         <div class="space-y-1 lg:col-span-2">
           <Label>Payment Processor</Label>
           <Combobox bind:value={tableSync.filters!.mop} options={mopOptions} class="h-9" />
+        </div>
+
+        <div class="space-y-1 lg:col-span-2">
+          <Label>Status</Label>
+          <Combobox bind:value={tableSync.filters!.status} options={statusOptions} class="h-9" />
         </div>
       </div>
     </FilterDrawer>
