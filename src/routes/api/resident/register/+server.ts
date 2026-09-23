@@ -1,8 +1,7 @@
 import { authenticateResident, getSheetsClient } from "$api/services/auth-service";
 import { appendSheetValue, getSheetValues, serverError } from "$api/services/server-sheets-service";
-import { getFeatureFlagValueMulti } from "$api/utils/feature-flags";
 import { PUBLIC_GS_AW_ID, PUBLIC_GS_RR_ID } from "$env/static/public";
-import { AccountType, CURR_COL, FeatureFlagKey, USER_COL } from "$lib/types";
+import { AccountType, CURR_COL } from "$lib/types";
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 
@@ -50,29 +49,6 @@ export const POST: RequestHandler = async ({ request }) => {
         return r[0] === "TERM_CURR";
       })?.[1] || "";
 
-    // check if feature flags allow for specific account types
-    const [allowUHO, allowAlumni] = getFeatureFlagValueMulti(
-      [FeatureFlagKey.ONBOARDING_ACCTYPE_UHO, FeatureFlagKey.ONBOARDING_ACCTYPE_ALUMNI],
-      true
-    );
-    if (
-      !allowUHO &&
-      (accountType == AccountType.STAFF ||
-        accountType == AccountType.REPS ||
-        accountType == AccountType.FACULTY)
-    ) {
-      return json({ error: "Invalid account type." }, { status: 403 });
-    }
-    if (!allowAlumni && accountType == AccountType.ALUMNUS) {
-      return json({ error: "Invalid account type." }, { status: 403 });
-    }
-
-    // Fetch users sheet to check if already registered
-    const userRows = await getSheetValues(client, PUBLIC_GS_RR_ID, "users!A:P");
-    const isAlreadyRegistered = userRows.some(
-      (r: any) => (r[USER_COL.EMAIL] || "").toLowerCase() === targetEmail
-    );
-
     // Generate random code for temporary student number if resident is not a student
     // and the student number field is empty
     let finalStudentNo = studentNo;
@@ -93,8 +69,7 @@ export const POST: RequestHandler = async ({ request }) => {
     newRow[CURR_COL.PROGRAM] = program;
     newRow[CURR_COL.STUDENT_NO] = finalStudentNo;
     newRow[CURR_COL.CHECK_IN_DATE] = checkInDate || "";
-    newRow[CURR_COL.EVALUATED] =
-      resolvedAccountType === AccountType.ALUMNUS && isAlreadyRegistered ? "TRUE" : "FALSE";
+    newRow[CURR_COL.EVALUATED] = "FALSE";
     newRow[CURR_COL.TERM] = activeTerm;
     newRow[CURR_COL.ACCOUNT_TYPE] = resolvedAccountType;
     newRow[CURR_COL.SUFFIX] = (suffix || "").trim().toUpperCase();

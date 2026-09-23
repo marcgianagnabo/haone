@@ -134,8 +134,7 @@
 
   // Reactive total calculation
   $effect(() => {
-    feeData.total =
-      (feeData.assoc || 0) + (feeData.water || 0) + (feeData.maintenance || 0);
+    feeData.total = (feeData.assoc || 0) + (feeData.water || 0) + (feeData.maintenance || 0);
   });
 
   async function saveFees() {

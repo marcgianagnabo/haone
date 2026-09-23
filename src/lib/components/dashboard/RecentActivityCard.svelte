@@ -14,7 +14,12 @@
     ShieldCheckIcon,
     MapPinIcon
   } from "@lucide/svelte";
-  import { formatCurrency, formatDate, formatTimeRange, laundryMachineLabel } from "$utils/formatters";
+  import {
+    formatCurrency,
+    formatDate,
+    formatTimeRange,
+    laundryMachineLabel
+  } from "$utils/formatters";
   import { parseTime } from "$utils/parsers";
   import { translateTransactionType } from "$utils/translators";
   import { fetchLaundryReservations } from "$api/controllers/laundry-controller";

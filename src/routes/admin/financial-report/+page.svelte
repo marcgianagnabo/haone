@@ -483,10 +483,7 @@
                         )}</Table.Cell
                       >
                     </Table.Row>
-                    {#each Object.entries(fundSummary.feeTypeMopSummary.MAINTENANCE) as [
-                      mop,
-                      data
-                    ]}
+                    {#each Object.entries(fundSummary.feeTypeMopSummary.MAINTENANCE) as [mop, data]}
                       <Table.Row>
                         <Table.Cell class="pl-6 uppercase"
                           >{availableMops.find((m) => m.value === mop)?.label ||
@@ -691,7 +688,9 @@
                     <Table.Row class="font-bold">
                       <Table.Cell>LESS: COLLECTION REFUNDS</Table.Cell>
                       <Table.Cell class="text-right"
-                        >{formatAccounting(maintenanceColl.resident - maintenanceColl.refunds)}</Table.Cell
+                        >{formatAccounting(
+                          maintenanceColl.resident - maintenanceColl.refunds
+                        )}</Table.Cell
                       >
                     </Table.Row>
                     <Table.Row class="font-bold">

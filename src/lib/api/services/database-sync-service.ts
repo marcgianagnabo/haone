@@ -29,7 +29,6 @@ import { sheetsLaundryService } from "./sheets/laundry-service";
 import { sheetsOfficerService } from "./sheets/officer-service";
 import { sheetsPaymentRequestService } from "./sheets/payment-request-service";
 import { sheetsResidentService } from "./sheets/resident-service";
-import { sheetsSettingsService } from "./sheets/settings-service";
 import { supabaseAchievementService } from "./supabase/achievement-service";
 import { supabaseAnnouncementService } from "./supabase/announcement-service";
 import { supabaseConstantsService } from "./supabase/constants-service";
@@ -39,7 +38,6 @@ import { supabaseLaundryService } from "./supabase/laundry-service";
 import { supabaseOfficerService } from "./supabase/officer-service";
 import { supabasePaymentRequestService } from "./supabase/payment-request-service";
 import { supabaseResidentService } from "./supabase/resident-service";
-import { supabaseSettingsService } from "./supabase/settings-service";
 
 export type SyncDirection = "toSupabase" | "toGSheets";
 
@@ -1157,7 +1155,8 @@ export async function syncFridgeItems(direction: SyncDirection): Promise<SyncRes
 
     return syncEntity(
       "Fridge Items",
-      async () => extractList(await sheetsFridgeService.fetchFridgeItems(undefined, undefined, true)),
+      async () =>
+        extractList(await sheetsFridgeService.fetchFridgeItems(undefined, undefined, true)),
       async () => extractList(await supabaseFridgeService.fetchFridgeItems()),
       async (items) => {
         if (!supabase) {
@@ -1201,7 +1200,8 @@ export async function syncFridgeItems(direction: SyncDirection): Promise<SyncRes
     return syncEntity(
       "Fridge Items",
       async () => extractList(await supabaseFridgeService.fetchFridgeItems()),
-      async () => extractList(await sheetsFridgeService.fetchFridgeItems(undefined, undefined, true)),
+      async () =>
+        extractList(await sheetsFridgeService.fetchFridgeItems(undefined, undefined, true)),
       async (items) => {
         const { settings } = await import("$state/settings.svelte");
         const spreadsheetId = settings.sharedRecordsId;
@@ -1304,91 +1304,81 @@ export async function syncUserSettings(direction: SyncDirection): Promise<SyncRe
   if (direction === "toSupabase") {
     const validUserIds = await getValidUserUuidSet();
 
-    return syncEntity(
-      "Settings",
-      fetchSheetsSettings,
-      fetchSupabaseSettings,
-      async (items) => {
-        if (!supabase) {
-          throw new Error("Supabase client not initialized");
-        }
-        const payload = items
-          .filter((item) => isUuid(item.id) && validUserIds.has(item.id))
-          .map((item) => ({
-            resident_id: item.id,
-            is_public_achievement_list: item.isPublicAchievementList,
-            resident_nav: item.residentNav,
-            admin_nav: item.adminNav,
-            density: item.density,
-            typography: item.typography,
-            theme: item.theme,
-            is_reduced_motion: item.isReducedMotion,
-            clock_format: item.clockFormat,
-            calendar_view: item.calendarView
-          }));
+    return syncEntity("Settings", fetchSheetsSettings, fetchSupabaseSettings, async (items) => {
+      if (!supabase) {
+        throw new Error("Supabase client not initialized");
+      }
+      const payload = items
+        .filter((item) => isUuid(item.id) && validUserIds.has(item.id))
+        .map((item) => ({
+          resident_id: item.id,
+          is_public_achievement_list: item.isPublicAchievementList,
+          resident_nav: item.residentNav,
+          admin_nav: item.adminNav,
+          density: item.density,
+          typography: item.typography,
+          theme: item.theme,
+          is_reduced_motion: item.isReducedMotion,
+          clock_format: item.clockFormat,
+          calendar_view: item.calendarView
+        }));
 
-        if (payload.length > 0) {
-          const { error } = await supabase
-            .from("user_settings")
-            .upsert(payload, { onConflict: "resident_id" });
-          if (error) {
-            throw error;
-          }
+      if (payload.length > 0) {
+        const { error } = await supabase
+          .from("user_settings")
+          .upsert(payload, { onConflict: "resident_id" });
+        if (error) {
+          throw error;
         }
       }
-    );
+    });
   } else {
-    return syncEntity(
-      "Settings",
-      fetchSupabaseSettings,
-      fetchSheetsSettings,
-      async (items) => {
-        const { settings } = await import("$state/settings.svelte");
-        const spreadsheetId = settings.sharedRecordsId;
-        if (!spreadsheetId) {
-          throw new Error("Shared records ID not configured");
-        }
-        const rows = await fetchSheetRowsRaw(spreadsheetId, "settings!A:J");
+    return syncEntity("Settings", fetchSupabaseSettings, fetchSheetsSettings, async (items) => {
+      const { settings } = await import("$state/settings.svelte");
+      const spreadsheetId = settings.sharedRecordsId;
+      if (!spreadsheetId) {
+        throw new Error("Shared records ID not configured");
+      }
+      const rows = await fetchSheetRowsRaw(spreadsheetId, "settings!A:J");
 
-        const updates: { range: string; values: any[][] }[] = [];
-        const newRows: string[][] = [];
+      const updates: { range: string; values: any[][] }[] = [];
+      const newRows: string[][] = [];
 
-        for (const item of items) {
-          const rowIndex = rows.findIndex(
-            (r) => (r[USER_SETTINGS_COL.RESIDENT_ID] || "").trim() === item.id
-          );
-          const row = new Array(10).fill("");
-          row[USER_SETTINGS_COL.RESIDENT_ID] = item.id;
-          row[USER_SETTINGS_COL.IS_PUBLIC_ACHIEVEMENT_LIST] = item.isPublicAchievementList
-            ? "TRUE"
-            : "FALSE";
-          row[USER_SETTINGS_COL.RESIDENT_NAV] = item.residentNav || "";
-          row[USER_SETTINGS_COL.ADMIN_NAV] = item.adminNav || "";
-          row[USER_SETTINGS_COL.DENSITY] = item.density || "default";
-          row[USER_SETTINGS_COL.TYPOGRAPHY] = item.typography || "default";
-          row[USER_SETTINGS_COL.THEME] = item.theme || "system";
-          row[USER_SETTINGS_COL.IS_REDUCED_MOTION] = item.isReducedMotion ? "TRUE" : "FALSE";
-          row[USER_SETTINGS_COL.CLOCK_FORMAT] = item.clockFormat || "12h";
-          row[USER_SETTINGS_COL.CALENDAR_VIEW] = item.calendarView || "week";
+      for (const item of items) {
+        const rowIndex = rows.findIndex(
+          (r) => (r[USER_SETTINGS_COL.RESIDENT_ID] || "").trim() === item.id
+        );
+        const row = new Array(10).fill("");
+        row[USER_SETTINGS_COL.RESIDENT_ID] = item.id;
+        row[USER_SETTINGS_COL.IS_PUBLIC_ACHIEVEMENT_LIST] = item.isPublicAchievementList
+          ? "TRUE"
+          : "FALSE";
+        row[USER_SETTINGS_COL.RESIDENT_NAV] = item.residentNav || "";
+        row[USER_SETTINGS_COL.ADMIN_NAV] = item.adminNav || "";
+        row[USER_SETTINGS_COL.DENSITY] = item.density || "default";
+        row[USER_SETTINGS_COL.TYPOGRAPHY] = item.typography || "default";
+        row[USER_SETTINGS_COL.THEME] = item.theme || "system";
+        row[USER_SETTINGS_COL.IS_REDUCED_MOTION] = item.isReducedMotion ? "TRUE" : "FALSE";
+        row[USER_SETTINGS_COL.CLOCK_FORMAT] = item.clockFormat || "12h";
+        row[USER_SETTINGS_COL.CALENDAR_VIEW] = item.calendarView || "week";
 
-          if (rowIndex !== -1) {
-            updates.push({
-              range: `settings!A${rowIndex + 1}:J${rowIndex + 1}`,
-              values: [row]
-            });
-          } else {
-            newRows.push(row);
-          }
-        }
-
-        if (updates.length > 0) {
-          await batchUpdateValues(spreadsheetId, updates);
-        }
-        if (newRows.length > 0) {
-          await appendSheetRow(spreadsheetId, "settings!A:J", newRows);
+        if (rowIndex !== -1) {
+          updates.push({
+            range: `settings!A${rowIndex + 1}:J${rowIndex + 1}`,
+            values: [row]
+          });
+        } else {
+          newRows.push(row);
         }
       }
-    );
+
+      if (updates.length > 0) {
+        await batchUpdateValues(spreadsheetId, updates);
+      }
+      if (newRows.length > 0) {
+        await appendSheetRow(spreadsheetId, "settings!A:J", newRows);
+      }
+    });
   }
 }
 

@@ -11,7 +11,14 @@ import {
 } from "$api/services/server-sheets-service";
 import { getFeatureFlagValue } from "$api/utils/feature-flags";
 import { PUBLIC_GS_SR_ID } from "$env/static/public";
-import { ACCOUNT_COL, DEFAULT_LAUNDRY_MACHINE, FeatureFlagKey, LAUNDRY_COL, LaundryStatus, USER_COL } from "$lib/types";
+import {
+  ACCOUNT_COL,
+  DEFAULT_LAUNDRY_MACHINE,
+  FeatureFlagKey,
+  LAUNDRY_COL,
+  LaundryStatus,
+  USER_COL
+} from "$lib/types";
 import { formatTime } from "$utils/formatters";
 import { parseTimeMinutes } from "$utils/parsers";
 import { json } from "@sveltejs/kit";

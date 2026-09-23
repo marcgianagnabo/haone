@@ -53,8 +53,6 @@ export async function fetchFridgeItems(
   return { items, currentResidentId };
 }
 
-
-
 export async function addFridgeItem(data: Partial<FridgeItemRecord>): Promise<void> {
   await checkFeatureEnabled();
   return await fridgeService.addFridgeItem(data);

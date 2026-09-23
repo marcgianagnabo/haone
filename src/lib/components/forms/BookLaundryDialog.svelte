@@ -10,14 +10,14 @@
   import { ResponsiveDialog } from "$ui/haone";
   import { Label } from "$components/ui/label";
   import * as TimePicker from "$components/ui/time-picker";
-import { Combobox } from "$ui/combobox";
-import {
-  DEFAULT_LAUNDRY_MACHINE,
-  LAUNDRY_MACHINES,
-  LaundryStatus,
-  type LaundryRecord
-} from "$lib/types";
-import { formatTime } from "$utils/formatters";
+  import { Combobox } from "$ui/combobox";
+  import {
+    DEFAULT_LAUNDRY_MACHINE,
+    LAUNDRY_MACHINES,
+    LaundryStatus,
+    type LaundryRecord
+  } from "$lib/types";
+  import { formatTime } from "$utils/formatters";
   import { parseTime } from "$utils/parsers";
   import { CircleXIcon, ClockIcon, SlidersHorizontalIcon } from "@lucide/svelte";
   import { toast } from "svelte-sonner";

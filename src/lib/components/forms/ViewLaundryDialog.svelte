@@ -3,8 +3,8 @@
   import { Button } from "$components/ui/button";
   import { checkIsPast, generateIcsFile, getGoogleCalendarUrl } from "$utils/calendar";
   import { brandingState } from "$state/branding.svelte";
-import { ResponsiveDialog } from "$ui/haone";
-import { formatTimeRange, formatDate, laundryMachineLabel } from "$utils/formatters";
+  import { ResponsiveDialog } from "$ui/haone";
+  import { formatTimeRange, formatDate, laundryMachineLabel } from "$utils/formatters";
   import { settings } from "$state/settings.svelte";
 
   let {

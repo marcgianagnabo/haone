@@ -407,7 +407,8 @@
         if (selectedResident) {
           const limitW = selectedResident.waterBal + (mode === "edit" ? initialData.water : 0);
           const limitA = selectedResident.assocBal + (mode === "edit" ? initialData.assoc : 0);
-          const limitM = (selectedResident.maintenanceBal || 0) +
+          const limitM =
+            (selectedResident.maintenanceBal || 0) +
             (mode === "edit" ? initialData.maintenance || 0 : 0);
           if (
             initialData.water > limitW + 0.01 ||
@@ -1059,7 +1060,8 @@
                               size="icon"
                               class="h-9 w-9 shrink-0"
                               {...props}
-                              onclick={() => (formData.maintenanceFee = maintenanceLimit.toString())}
+                              onclick={() =>
+                                (formData.maintenanceFee = maintenanceLimit.toString())}
                               disabled={maintenanceLimit <= 0 || isSubmitting}
                             >
                               <ArrowLeftToLine class="h-4 w-4" />
