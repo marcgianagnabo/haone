@@ -172,6 +172,27 @@ export const sheetsResidentService: ResidentServiceInterface = {
       .filter((u) => u.id !== "");
   },
 
+  async isStudentNoTaken(studentNo: string): Promise<boolean> {
+    if (!studentNo) {
+      return false;
+    }
+    const { settings } = await import("$state/settings.svelte");
+    if (!settings.residentRecordsId) {
+      return false;
+    }
+    const userRows = await fetchSheetRowsRaw(settings.residentRecordsId, "users!A:P");
+    const needle = studentNo.trim().toLowerCase();
+    if (!needle) {
+      return false;
+    }
+    return userRows
+      .slice(1)
+      .some(
+        (row) =>
+          (row[USER_COL.STUDENT_NO] || "").trim().toLowerCase() === needle
+      );
+  },
+
   async updateUser(userId: string, data: Partial<UserRecord>): Promise<void> {
     const { settings } = await import("$state/settings.svelte");
     if (!settings.residentRecordsId) {

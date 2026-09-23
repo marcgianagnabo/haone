@@ -117,10 +117,13 @@ class ResidentState {
     if (this.status.currEntry?.accountType === AccountType.ALUMNUS) {
       return !this.status.isRegistered;
     }
-    return (
-      !!(this.status.isRegistered && this.status.hasActiveAccount && this.status.account?.bed) ===
-      false
-    );
+    // Onboarded when an active account exists, OR once the registration has
+    // been approved (evaluated) with a bed assigned. This keeps an approved
+    // resident off the onboarding form even before their account row exists.
+    const s = this.status;
+    const hasActiveAccount = !!(s.hasActiveAccount && s.account?.bed);
+    const hasApprovedEntry = !!(s.currEntry?.isEvaluated && s.currEntry?.bed);
+    return !(s.isRegistered && (hasActiveAccount || hasApprovedEntry));
   }
 }
 

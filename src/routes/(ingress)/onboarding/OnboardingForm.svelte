@@ -11,8 +11,6 @@
     Star,
     GraduationCap,
     Clock,
-    Building,
-    RotateCcwClockIcon,
     CircleAlert,
     LogOut
   } from "@lucide/svelte";
@@ -24,10 +22,7 @@
   import { goto } from "$app/navigation";
   import { auth } from "$state/auth.svelte";
   import { ACCOUNT_TYPE_LABELS, AccountType } from "$lib/types";
-  import {
-    determineAllowedAccountOptions,
-    registerResident
-  } from "$api/controllers/resident-controller";
+  import { isStudentNoTaken, registerResident } from "$api/controllers/resident-controller";
 
   import { residentState, type ResidentStatus } from "$state/resident-state.svelte";
   import { roomsState } from "$state/rooms.svelte";
@@ -56,11 +51,7 @@
   let allowedAccountTypes = $state<AccountType[]>([
     AccountType.STUDENT,
     AccountType.TRANSIENT,
-    AccountType.BOOTCAMP,
-    AccountType.ALUMNUS,
-    AccountType.FACULTY,
-    AccountType.STAFF,
-    AccountType.REPS
+    AccountType.BOOTCAMP
   ]);
 
   let accountType = $state(AccountType.STUDENT);
@@ -78,10 +69,7 @@
         value: AccountType.BOOTCAMP,
         label: ACCOUNT_TYPE_LABELS.BOOTCAMP,
         disabled: blockStudentNoChange
-      },
-      { value: AccountType.FACULTY, label: ACCOUNT_TYPE_LABELS.FACULTY },
-      { value: AccountType.STAFF, label: ACCOUNT_TYPE_LABELS.STAFF },
-      { value: AccountType.REPS, label: ACCOUNT_TYPE_LABELS.REPS }
+      }
     ].filter((opt) => allowedAccountTypes.includes(opt.value))
   );
 
@@ -104,69 +92,25 @@
       accountType = AccountType.TRANSIENT;
       allowedAccountTypes = [AccountType.TRANSIENT];
       step = 2;
-    } else if (optionId === 3) {
-      accountType = AccountType.FACULTY;
-      allowedAccountTypes = [AccountType.FACULTY, AccountType.STAFF, AccountType.REPS];
-      // Default to Faculty
-      accountType = AccountType.FACULTY;
-      step = 2;
-    } else if (optionId === 4) {
-      accountType = AccountType.ALUMNUS;
-      allowedAccountTypes = [AccountType.ALUMNUS];
-      formData.room = "";
-      formData.bed = "";
-      formData.checkInDate = "";
-      formData.college = "";
-      formData.program = "";
-
-      if (status.isRegistered) {
-        isSubmitting = true;
-        step = 4; // Go directly to the evaluation step to avoid spamming
-        try {
-          await registerResident({
-            ...formData,
-            firstName: status.profile?.firstName || "",
-            lastName: status.profile?.lastName || "",
-            studentNo: status.profile?.studentNo || "",
-            accountType: AccountType.ALUMNUS,
-            email: status.profile?.email || auth.user?.email,
-            term: status.systemActiveTerm
-          });
-          residentState.forceOnboarding = false;
-          await onSuccess();
-        } catch (e: any) {
-          globalDialog.show(
-            "Registration Failed",
-            e.message || "An error occurred while submitting your registration."
-          );
-          isSubmitting = false;
-          step = 1;
-        }
-      } else {
-        formData.college = "No College Information";
-        formData.program = "No Degree Program Information";
-        step = 2;
-      }
     }
   }
 
   async function handleCheckStatus() {
     isSubmitting = false;
     await residentState.refresh();
+    if (residentState.error) {
+      toast.error(residentState.error);
+      return;
+    }
     if (residentState.status) {
-      if (residentState.status.hasActiveAccount) {
+      if (residentState.status.hasActiveAccount || !residentState.status.waitingForConfirmation) {
         goto("/resident");
-      } else if (!residentState.status.waitingForConfirmation) {
-        isSubmitting = false;
-        step = 1;
       }
     }
   }
 
   let requireSocialMedia = $derived(
-    accountType === AccountType.STUDENT ||
-      accountType === AccountType.ALUMNUS ||
-      accountType === AccountType.BOOTCAMP
+    accountType === AccountType.STUDENT || accountType === AccountType.BOOTCAMP
   );
 
   $effect(() => {
@@ -178,11 +122,7 @@
         const firstEnabled = accountTypeOptions.find((opt) => !opt.disabled);
         if (firstEnabled) {
           accountType = firstEnabled.value;
-          if (
-            accountType !== AccountType.STUDENT &&
-            accountType !== AccountType.BOOTCAMP &&
-            accountType !== AccountType.ALUMNUS
-          ) {
+          if (accountType !== AccountType.STUDENT && accountType !== AccountType.BOOTCAMP) {
             hasStudentNo = false;
           }
         }
@@ -225,14 +165,28 @@
         (status.profile?.program || "").split(":").pop()?.trim() ||
         "";
       formData.firstName =
-        formData.firstName || status.currEntry?.firstName || status.profile?.firstName || "";
+        formData.firstName ||
+        status.currEntry?.firstName ||
+        status.profile?.firstName ||
+        auth.user?.firstName ||
+        "";
       formData.lastName =
-        formData.lastName || status.currEntry?.lastName || status.profile?.lastName || "";
-      formData.suffix = formData.suffix || status.currEntry?.suffix || status.profile?.suffix || "";
+        formData.lastName ||
+        status.currEntry?.lastName ||
+        status.profile?.lastName ||
+        auth.user?.lastName ||
+        "";
+      formData.suffix =
+        formData.suffix ||
+        status.currEntry?.suffix ||
+        status.profile?.suffix ||
+        auth.user?.suffix ||
+        "";
       formData.overrideName =
         formData.overrideName ||
         status.currEntry?.overrideName ||
         status.profile?.overrideName ||
+        auth.user?.overrideName ||
         "";
       if (formData.overrideName) {
         useLivedName = true;
@@ -242,15 +196,7 @@
   });
 
   async function handleSubmit() {
-    if (accountType === AccountType.ALUMNUS) {
-      formData.room = "";
-      formData.bed = "";
-      formData.checkInDate = "";
-    }
-
-    const isStudentNoRequired =
-      accountType === AccountType.STUDENT || accountType === AccountType.ALUMNUS || hasStudentNo;
-    const isRoomRequired = accountType !== AccountType.ALUMNUS;
+    const isStudentNoRequired = accountType === AccountType.STUDENT || hasStudentNo;
 
     if (!useLivedName) {
       formData.overrideName = "";
@@ -262,7 +208,9 @@
     }
 
     if (
-      (isRoomRequired && (!formData.room || !formData.bed || !formData.checkInDate)) ||
+      !formData.room ||
+      !formData.bed ||
+      !formData.checkInDate ||
       (!formData.studentNo && isStudentNoRequired) ||
       !formData.college ||
       !formData.program ||
@@ -275,6 +223,18 @@
 
     isSubmitting = true;
     try {
+      if (isStudentNoRequired && formData.studentNo) {
+        const taken = await isStudentNoTaken(formData.studentNo);
+        if (taken) {
+          globalDialog.show(
+            "Student Number Already Used",
+            `Student number ${formData.studentNo.toUpperCase()} is already registered to another resident. Please double-check your student number.`
+          );
+          isSubmitting = false;
+          return;
+        }
+      }
+
       await registerResident({
         ...formData,
         studentNo: isStudentNoRequired ? formData.studentNo : "",
@@ -341,9 +301,10 @@
 
   const isRoomComplete = $derived(!!(formData.room && formData.bed && formData.checkInDate));
   const isProfileComplete = $derived.by(() => {
-    const isStudentNoRequired =
-      accountType === AccountType.STUDENT || accountType === AccountType.ALUMNUS || hasStudentNo;
-    if (!status.isRegistered) {
+    const isStudentNoRequired = accountType === AccountType.STUDENT || hasStudentNo;
+    const needsNameEntry =
+      !status.isRegistered || !status.profile?.firstName || !status.profile?.lastName;
+    if (needsNameEntry) {
       if (!formData.firstName || !formData.lastName) return false;
     }
     if (useLivedName && !formData.overrideName.trim()) return false;
@@ -425,28 +386,6 @@
               icon={Clock}
               selected={selectedOption === "2"}
             />
-            {#await determineAllowedAccountOptions()}
-              <p>Please wait...</p>
-            {:then [allowUHO, allowAlumni]}
-              {#if allowUHO}
-                <RadioGroup.Card
-                  value="3"
-                  title="UHO Beneficiary"
-                  description="Register as Faculty, Staff, or REPS."
-                  icon={Building}
-                  selected={selectedOption === "3"}
-                />
-              {/if}
-              {#if allowAlumni && !residentState.forceOnboarding}
-                <RadioGroup.Card
-                  value="4"
-                  title="Former Resident or Alum"
-                  description="Access clearances, history, and achievements."
-                  icon={RotateCcwClockIcon}
-                  selected={selectedOption === "4"}
-                />
-              {/if}
-            {/await}
           </RadioGroup.Root>
 
           <div class="flex items-center justify-between pt-6">
@@ -478,14 +417,14 @@
               icon={ChevronRight}
               iconPosition="right"
             >
-              {selectedOption === "4" && status.isRegistered ? "Submit" : "Next"}
+              Next
             </Button>
           </div>
         </div>
       {:else if step === 2}
         <div class="space-y-6">
           <div class="space-y-4">
-            {#if !status.isRegistered}
+            {#if !status.isRegistered || !status.profile?.firstName || !status.profile?.lastName}
               <div class="grid gap-4 md:grid-cols-3">
                 <div class="space-y-2">
                   <Label for="firstName">First Name</Label>
@@ -537,7 +476,7 @@
               />
             </div>
 
-            {#if !blockStudentNoChange && accountType !== AccountType.STUDENT && accountType !== AccountType.ALUMNUS}
+            {#if !blockStudentNoChange && accountType !== AccountType.STUDENT}
               <div class="flex items-center space-x-3 py-2">
                 <Checkbox id="hasStudentNo" bind:checked={hasStudentNo} />
                 <Label for="hasStudentNo" class="cursor-pointer text-sm font-medium">
@@ -546,7 +485,7 @@
               </div>
             {/if}
 
-            {#if hasStudentNo || accountType === AccountType.STUDENT || accountType === AccountType.ALUMNUS}
+            {#if hasStudentNo || accountType === AccountType.STUDENT}
               <div class="space-y-2">
                 <Label for="studentNo">Student Number</Label>
                 <Input
@@ -614,12 +553,8 @@
                     <Checkbox id="fb-page" bind:checked={formData.likedFBPage} />
                     <Label for="fb-page" class="text-sm leading-none font-medium">
                       <span
-                        >I have liked the <a
-                          href="https://www.facebook.com/atintcrha.uplb"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="text-primary underline hover:text-primary/80"
-                          >Official Facebook Page</a
+                        >I have liked the <span class="text-primary underline hover:text-primary/80"
+                          >Official Facebook Page</span
                         > of the Association</span
                       >
                     </Label>
@@ -628,12 +563,9 @@
                     <Checkbox id="fb-group" bind:checked={formData.joinedFBGroup} />
                     <Label for="fb-group" class="text-sm leading-none font-medium">
                       <span
-                        >I have joined the <a
-                          href="https://www.facebook.com/share/g/19hjZodpeg/"
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        >I have joined the <span
                           class="text-primary underline hover:text-primary/80"
-                          >Official Facebook Group</a
+                          >Official Facebook Group</span
                         > of the Association</span
                       >
                     </Label>
@@ -642,12 +574,9 @@
                     <Checkbox id="fb-chat" bind:checked={formData.joinedFBChat} />
                     <Label for="fb-chat" class="text-sm leading-none font-medium">
                       <span
-                        >I have joined the <a
-                          href="https://m.me/cm/AbaBWk2ZB-a2OA7y/"
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        >I have joined the <span
                           class="text-primary underline hover:text-primary/80"
-                          >Official Facebook Messenger Group Chat</a
+                          >Official Facebook Messenger Group Chat</span
                         > of the Residence Hall</span
                       >
                     </Label>
@@ -662,44 +591,14 @@
             {/if}
           </div>
           <div class="flex justify-between pt-6">
-            {#if accountType === AccountType.ALUMNUS}
-              <Button
-                variant="ghost"
-                disabled={isSubmitting}
-                onclick={() => {
-                  step = 1;
-                  allowedAccountTypes = [
-                    AccountType.STUDENT,
-                    AccountType.TRANSIENT,
-                    AccountType.BOOTCAMP,
-                    AccountType.ALUMNUS,
-                    AccountType.FACULTY,
-                    AccountType.STAFF,
-                    AccountType.REPS
-                  ];
-                }}
-              >
-                <ChevronLeft class="mr-2 h-4 w-4" />
-                Back
-              </Button>
-              <Button
-                onclick={handleSubmit}
-                isLoading={isSubmitting}
-                icon={ChevronRight}
-                iconPosition="right"
-              >
-                {isSubmitting ? "Submitting…" : "Submit"}
-              </Button>
-            {:else}
-              <Stepper.Previous disabled={isSubmitting}>
-                <ChevronLeft class="mr-2 h-4 w-4" />
-                Back
-              </Stepper.Previous>
-              <Stepper.Next disabled={!isProfileComplete}>
-                Next
-                <ChevronRight class="ml-2 h-4 w-4" />
-              </Stepper.Next>
-            {/if}
+            <Stepper.Previous disabled={isSubmitting}>
+              <ChevronLeft class="mr-2 h-4 w-4" />
+              Back
+            </Stepper.Previous>
+            <Stepper.Next disabled={!isProfileComplete}>
+              Next
+              <ChevronRight class="ml-2 h-4 w-4" />
+            </Stepper.Next>
           </div>
         </div>
       {:else if step === 3}
@@ -751,19 +650,22 @@
         <div class="space-y-6">
           <div class="space-y-4">
             <p class="leading-relaxed">
-              {#if status.currEntry?.accountType === AccountType.ALUMNUS}
-                We've received your registration for an <strong>alumni account</strong>.
-              {:else}
-                We've received your registration for <strong
-                  >{translatePeriod(status.activeTerm) || "the current term"}</strong
-                >.
-              {/if}
+              We've received your registration for
+              <strong>{translatePeriod(status.activeTerm) || "the current term"}</strong>.
             </p>
             <p>
               An administrator is currently reviewing your assignment. This usually takes less than
               24 hours. You'll be able to access the dashboard once your record is evaluated.
             </p>
           </div>
+
+          {#if residentState.error}
+            <div
+              class="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              Couldn't refresh your status: {residentState.error}. Please try again.
+            </div>
+          {/if}
 
           <Button
             onclick={handleCheckStatus}

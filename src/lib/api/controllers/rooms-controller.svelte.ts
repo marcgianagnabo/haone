@@ -87,9 +87,12 @@ export async function getSyncPreview(currentTerm: string): Promise<SyncPreviewAc
 
     let user = userMapByStNo.get(curr.studentNo) || userMapByEmail.get(curr.email);
     let userId = user?.id;
-    let residentName = user
-      ? `${user.lastName.toUpperCase()}, ${user.firstName.toUpperCase()}`
-      : `${curr.lastName.toUpperCase()}, ${curr.firstName.toUpperCase()}`;
+    // A matched users row may be a blank placeholder (no names yet). Fall back
+    // to the registration's names so the admin can see who this is.
+    let residentName =
+      user && (user.lastName || user.firstName)
+        ? `${(user.lastName || "").toUpperCase()}, ${(user.firstName || "").toUpperCase()}`
+        : `${(curr.lastName || "").toUpperCase()}, ${(curr.firstName || "").toUpperCase()}`;
 
     const isEmptyRoomBed =
       !curr.room ||
@@ -250,7 +253,13 @@ export async function getSyncPreview(currentTerm: string): Promise<SyncPreviewAc
         curr.program !== lastProgram ||
         (curr.suffix !== undefined && curr.suffix !== (user.suffix || "")) ||
         (curr.overrideName !== undefined && curr.overrideName !== (user.overrideName || ""));
-      if (needsUpdate) {
+      // A pre-existing users row may be a blank/placeholder profile (e.g. from
+      // an earlier sync when the registration itself had no names). Fill in
+      // missing names/student number so the profile isn't left blank.
+      const needsNameFill =
+        (curr.firstName && !user.firstName) || (curr.lastName && !user.lastName);
+      const needsStudentNoFill = !!curr.studentNo && curr.studentNo !== (user.studentNo || "");
+      if (needsUpdate || needsNameFill || needsStudentNoFill) {
         const newColleges = curr.college !== lastCollege ? [...colleges, curr.college] : colleges;
         const newPrograms = curr.program !== lastProgram ? [...programs, curr.program] : programs;
 
@@ -258,7 +267,7 @@ export async function getSyncPreview(currentTerm: string): Promise<SyncPreviewAc
           type: "UPDATE_USER",
           residentName,
           email: user.email,
-          studentNo: user.studentNo,
+          studentNo: curr.studentNo || user.studentNo,
           college: curr.college,
           program: curr.program,
           room: curr.room,
@@ -266,13 +275,22 @@ export async function getSyncPreview(currentTerm: string): Promise<SyncPreviewAc
           checkInDate: curr.checkInDate,
           accountType: curr.accountType || AccountType.STUDENT,
           currIndex: curr.rowIndex,
-          details: `Update profile`,
+          details: needsNameFill
+            ? `Fill in name on profile`
+            : needsStudentNoFill
+              ? `Fill in student number on profile`
+              : `Update profile`,
           payload: {
             id: user.id,
             college: newColleges.join(","),
             program: newPrograms.join(":"),
             suffix: curr.suffix || "",
-            overrideName: curr.overrideName || ""
+            overrideName: curr.overrideName || "",
+            ...(needsNameFill && {
+              firstName: curr.firstName.toUpperCase(),
+              lastName: curr.lastName.toUpperCase()
+            }),
+            ...(needsStudentNoFill && { studentNo: curr.studentNo })
           }
         });
       }
@@ -290,7 +308,7 @@ export async function getSyncPreview(currentTerm: string): Promise<SyncPreviewAc
             type: "UPDATE_ACCOUNT",
             residentName,
             email: user.email,
-            studentNo: user.studentNo,
+            studentNo: curr.studentNo || user.studentNo,
             college: curr.college,
             program: curr.program,
             room: curr.room,
@@ -318,7 +336,7 @@ export async function getSyncPreview(currentTerm: string): Promise<SyncPreviewAc
               type: "EVALUATE_ONLY",
               residentName,
               email: user.email,
-              studentNo: user.studentNo,
+              studentNo: curr.studentNo || user.studentNo,
               college: curr.college,
               program: curr.program,
               room: curr.room,
@@ -336,7 +354,7 @@ export async function getSyncPreview(currentTerm: string): Promise<SyncPreviewAc
             type: "CREATE_ACCOUNT",
             residentName,
             email: user.email,
-            studentNo: user.studentNo,
+            studentNo: curr.studentNo || user.studentNo,
             college: curr.college,
             program: curr.program,
             room: curr.room,

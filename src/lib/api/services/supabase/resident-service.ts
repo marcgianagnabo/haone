@@ -255,7 +255,7 @@ export const supabaseResidentService: ResidentServiceInterface = {
     const activeTerm = getConst("TERM_CURR");
     const targetTerm = term || activeTerm;
 
-    const [accRes, journalList, currRes, termAccRes] = await Promise.all([
+    const [accRes, journalList, currRes, occupiedBedsRes] = await Promise.all([
       userRow
         ? supabase.from("accounts").select("*").eq("resident_id", userRow.id)
         : Promise.resolve({ data: [], error: null }),
@@ -277,7 +277,7 @@ export const supabaseResidentService: ResidentServiceInterface = {
         .order("timestamp", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      supabase.from("accounts").select("resident_id, room, bed, period").eq("period", targetTerm)
+      supabase.rpc("get_occupied_beds")
     ]);
     if (accRes.error) {
       handleSupabaseError(accRes.error);
@@ -285,8 +285,16 @@ export const supabaseResidentService: ResidentServiceInterface = {
     if (currRes.error) {
       handleSupabaseError(currRes.error);
     }
-    if (termAccRes.error) {
-      handleSupabaseError(termAccRes.error);
+    // Non-fatal: occupied-bed labels are a UI nicety. A missing/unavailable
+    // get_occupied_beds RPC must never fail the whole status fetch and wedge
+    // residents on the onboarding "waiting for approval" screen.
+    let occupiedBeds: { room: string; bed: string }[] = [];
+    if (occupiedBedsRes.error) {
+      console.error("[ResidentStatus] get_occupied_beds failed:", occupiedBedsRes.error.message);
+    } else {
+      occupiedBeds = (occupiedBedsRes.data || [])
+        .filter((a: any) => a.room && a.bed)
+        .map((a: any) => ({ room: (a.room || "").trim(), bed: (a.bed || "").trim() }));
     }
 
     const currentUser = userRow || null;
@@ -454,12 +462,21 @@ export const supabaseResidentService: ResidentServiceInterface = {
           }
         : null,
       transactions: sortedTransactions.reverse(),
-      // NOTE: under RLS, residents only see their own account rows, so this
-      // list is only complete for officers.
-      occupiedBeds: (termAccRes.data || [])
-        .filter((a: any) => a.room && a.bed && (!currentUser || a.resident_id !== currentUser.id))
-        .map((a: any) => ({ room: (a.room || "").trim(), bed: (a.bed || "").trim() }))
+      occupiedBeds
     };
+  },
+
+  async isStudentNoTaken(studentNo: string): Promise<boolean> {
+    if (!supabase || !studentNo) {
+      return false;
+    }
+    const { data, error } = await supabase.rpc("student_no_taken", {
+      student_no: studentNo.trim()
+    });
+    if (error) {
+      handleSupabaseError(error);
+    }
+    return !!data;
   },
 
   async changeAccountType(residentId: string, period: string, newType: string): Promise<void> {
@@ -593,6 +610,57 @@ export const supabaseResidentService: ResidentServiceInterface = {
 
     const isAlreadyRegistered = (userRows || []).length > 0;
 
+    // Guard: an approved (evaluated) registration OR an active account means
+    // this email is truly onboarded — the form shouldn't be reachable at all.
+    // Surface that instead of silently dropping the submission.
+    const { data: approvedReg, error: approvedErr } = await supabase
+      .from("registrations")
+      .select("id")
+      .eq("email", targetEmail)
+      .eq("term", activeTerm)
+      .eq("evaluated", true)
+      .limit(1);
+    if (approvedErr) {
+      handleSupabaseError(approvedErr);
+    }
+    if ((approvedReg || []).length > 0) {
+      throw new Error(
+        "Your registration for this term is already approved. Contact the administrator to update your details."
+      );
+    }
+
+    if (isAlreadyRegistered) {
+      const { data: existingAccount, error: accountErr } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("resident_id", userRows![0].id)
+        .eq("period", activeTerm)
+        .limit(1);
+      if (accountErr) {
+        handleSupabaseError(accountErr);
+      }
+      if ((existingAccount || []).length > 0) {
+        throw new Error(
+          "You already have an active account for this term. Contact the administrator to update your details."
+        );
+      }
+    }
+
+    // A pending (unevaluated) registration may already exist for this term from
+    // an earlier submit. Refresh that row with the latest form data instead of
+    // inserting a duplicate, so corrections (name / student number / bed) reach
+    // the sync page for the admin.
+    const { data: pendingReg, error: pendingErr } = await supabase
+      .from("registrations")
+      .select("id")
+      .eq("email", targetEmail)
+      .eq("term", activeTerm)
+      .eq("evaluated", false)
+      .limit(1);
+    if (pendingErr) {
+      handleSupabaseError(pendingErr);
+    }
+
     let finalStudentNo = data.studentNo;
     if (resolvedAccountType !== AccountType.STUDENT && !data.studentNo) {
       const randomUuid = crypto.randomUUID();
@@ -601,7 +669,7 @@ export const supabaseResidentService: ResidentServiceInterface = {
 
     const evaluated = resolvedAccountType === AccountType.ALUMNUS && isAlreadyRegistered;
 
-    const { error: currErr } = await supabase.from("registrations").insert({
+    const payload = {
       email: targetEmail,
       room: data.room || "",
       bed: data.bed || "",
@@ -611,13 +679,24 @@ export const supabaseResidentService: ResidentServiceInterface = {
       program: data.program || "",
       student_no: finalStudentNo || "",
       check_in_date: parseDbDate(data.checkInDate),
-      evaluated: evaluated,
       term: activeTerm,
       account_type: resolvedAccountType,
       suffix: (data.suffix || "").trim().toUpperCase(),
       override_name: (data.overrideName || "").trim().toUpperCase()
-    });
+    };
 
+    if ((pendingReg || []).length > 0) {
+      const { error: updErr } = await supabase
+        .from("registrations")
+        .update(payload)
+        .eq("id", pendingReg![0].id);
+      if (updErr) {
+        handleSupabaseError(updErr);
+      }
+      return;
+    }
+
+    const { error: currErr } = await supabase.from("registrations").insert({ ...payload, evaluated });
     if (currErr) {
       handleSupabaseError(currErr);
     }

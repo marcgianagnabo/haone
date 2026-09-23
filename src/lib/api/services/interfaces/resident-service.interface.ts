@@ -14,4 +14,5 @@ export interface ResidentServiceInterface {
     data: { refNo: string; dateString: string; publicLink: string; issuerId: string }
   ): Promise<void>;
   registerResident(data: Record<string, any>): Promise<void>;
+  isStudentNoTaken(studentNo: string): Promise<boolean>;
 }

@@ -7,8 +7,23 @@
   import { onMount } from "svelte";
   import { pageState } from "$state/page-info.svelte";
   import { LoaderCircleIcon } from "@lucide/svelte";
+  import { namecase } from "@compwright/namecase";
 
   let isChecking = $state(true);
+
+  const residentName = $derived.by(() => {
+    const profile = residentState.status?.profile;
+    const curr = residentState.status?.currEntry;
+    const raw =
+      profile?.overrideName ||
+      profile?.firstName ||
+      curr?.overrideName ||
+      curr?.firstName ||
+      auth.user?.overrideName ||
+      auth.user?.firstName ||
+      "";
+    return namecase(raw.trim());
+  });
 
   onMount(async () => {
     pageState.title = "Onboarding";
@@ -48,8 +63,11 @@
   <div class="w-full space-y-6">
     <div class="space-y-2 text-center md:text-left">
       <h1 class="font-['Archivo'] text-2xl font-black tracking-tight text-foreground sm:text-3xl">
-        Onboarding
+        {#if residentName}Welcome, {residentName}{:else}Onboarding{/if}
       </h1>
+      <p class="text-sm text-muted-foreground">
+        Complete the steps below to register for residency.
+      </p>
     </div>
 
     <OnboardingForm status={residentState.status} onSuccess={handleSuccess} />
