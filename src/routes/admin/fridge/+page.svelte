@@ -30,7 +30,9 @@
       await checkFeatureEnabled(bypassCache);
       const res = await fetchFridgeItems(bypassCache);
       items = res.items;
-      currentResidentId = res.currentResidentId;
+      // Empty string keeps the admin "Other Items" list unfiltered (shows every resident's items).
+      // Action handlers fall back to the signed-in user id for actionBy.
+      currentResidentId = "";
     } catch (e: any) {
       error = e.message || "Failed to load fridge items.";
     } finally {

@@ -139,7 +139,10 @@ export async function fetchLaundryReservations(
 ): Promise<{ reservations: LaundryRecord[]; currentResidentId: string }> {
   await checkFeatureEnabled();
   const currentResidentId = await getSignedInUserId();
-  const res = await laundryService.fetchReservations(currentResidentId, undefined, bypassCache);
+  // Fetch every booking so residents can see occupied slots and the overlap
+  // guard covers other residents' bookings. Which rows the resident can read
+  // is governed by the laundry_select RLS policy.
+  const res = await laundryService.fetchReservations(undefined, undefined, bypassCache);
   const list = Array.isArray(res) ? res : res.items;
   return {
     reservations: list,

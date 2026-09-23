@@ -11,39 +11,49 @@ export async function checkFeatureEnabled(bypassCache = false) {
   }
 }
 
+async function enrichItems(
+  items: FridgeItemRecord[],
+  bypassCache = false
+): Promise<FridgeItemRecord[]> {
+  // Enrich with user names and rooms if not already provided (e.g. Supabase or direct fetch)
+  // FIXME: This is really inefficient and should be optimized to avoid fetching all users and accounts every time.
+  if (items.length === 0) {
+    return items;
+  }
+  const [users, accounts] = await Promise.all([
+    fetchUsers(bypassCache),
+    roomsService.fetchAccounts(bypassCache)
+  ]);
+  const userMap = new Map(users.map((u) => [u.id, u.displayName]));
+  const roomMap = new Map(accounts.map((a) => [a.residentId, a.room]));
+
+  items.forEach((item) => {
+    if (!item.residentName) {
+      item.residentName = userMap.get(item.residentId);
+    }
+    if (!item.room) {
+      item.room = roomMap.get(item.residentId) || "";
+    }
+    if (item.actionBy) {
+      item.actionByName = userMap.get(item.actionBy) || item.actionBy;
+    }
+  });
+  return items;
+}
+
 export async function fetchFridgeItems(
   bypassCache = false
 ): Promise<{ items: FridgeItemRecord[]; currentResidentId: string }> {
   await checkFeatureEnabled(bypassCache);
   const currentResidentId = await getSignedInUserId();
-  const res = await fridgeService.fetchFridgeItems(currentResidentId, undefined, bypassCache);
-  const items = Array.isArray(res) ? res : res.items;
-
-  // Enrich with user names and rooms if not already provided (e.g. Supabase or direct fetch)
-  // FIXME: This is really inefficient and should be optimized to avoid fetching all users and accounts every time.
-  if (items.length > 0) {
-    const [users, accounts] = await Promise.all([
-      fetchUsers(bypassCache),
-      roomsService.fetchAccounts(bypassCache)
-    ]);
-    const userMap = new Map(users.map((u) => [u.id, u.displayName]));
-    const roomMap = new Map(accounts.map((a) => [a.residentId, a.room]));
-
-    items.forEach((item) => {
-      if (!item.residentName) {
-        item.residentName = userMap.get(item.residentId);
-      }
-      if (!item.room) {
-        item.room = roomMap.get(item.residentId) || "";
-      }
-      if (item.actionBy) {
-        item.actionByName = userMap.get(item.actionBy) || item.actionBy;
-      }
-    });
-  }
-
+  // Fetch every stored item so the shared fridge board shows everyone's items.
+  // The fridge_items_select RLS policy already lets residents read all rows.
+  const res = await fridgeService.fetchFridgeItems(undefined, undefined, bypassCache);
+  const items = await enrichItems(Array.isArray(res) ? res : res.items, bypassCache);
   return { items, currentResidentId };
 }
+
+
 
 export async function addFridgeItem(data: Partial<FridgeItemRecord>): Promise<void> {
   await checkFeatureEnabled();

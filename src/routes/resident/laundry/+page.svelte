@@ -153,6 +153,7 @@
       users={calendarUsers}
       currentUserId={currentResidentId}
       isAdminView={false}
+      canSeeNames={false}
       onCancelReservation={(id) => {
         cancelLaundryDialog?.open(id);
       }}

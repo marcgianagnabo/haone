@@ -182,20 +182,22 @@
     {/snippet}
   </EmptyView>
 {:else}
-  <h2 class="h2-base">My Items</h2>
-  {#if filteredUserItems.length === 0}
-    <EmptyView
-      title="No fridge items found"
-      description={searchQuery || filterCompartment !== "ALL" || filterStatus !== "ACTIVE"
-        ? "Try adjusting your search query or filters."
-        : "Items you have stored in the refrigerator or freezer will appear here."}
-    >
-      {#snippet icon()}
-        <Refrigerator class="h-10 w-10 text-muted-foreground" />
-      {/snippet}
-    </EmptyView>
-  {:else}
-    {@render fridgeItemGrid(filteredUserItems)}
+  {#if !isAdmin}
+    <h2 class="h2-base">My Items</h2>
+    {#if filteredUserItems.length === 0}
+      <EmptyView
+        title="No fridge items found"
+        description={searchQuery || filterCompartment !== "ALL" || filterStatus !== "ACTIVE"
+          ? "Try adjusting your search query or filters."
+          : "Items you have stored in the refrigerator or freezer will appear here."}
+      >
+        {#snippet icon()}
+          <Refrigerator class="h-10 w-10 text-muted-foreground" />
+        {/snippet}
+      </EmptyView>
+    {:else}
+      {@render fridgeItemGrid(filteredUserItems)}
+    {/if}
   {/if}
 
   <h2 class="h2-base">Other Items</h2>
