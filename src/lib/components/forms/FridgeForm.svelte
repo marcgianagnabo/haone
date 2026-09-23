@@ -18,7 +18,7 @@
     fetchFridgeItems,
     checkFeatureEnabled
   } from "$api/controllers/fridge-controller";
-  import { fetchResidents } from "$api/controllers/resident-controller";
+  import { fetchResidents, getSignedInUserId } from "$api/controllers/resident-controller";
   import { fetchServer } from "$utils/api-client";
   import { settings } from "$state/settings.svelte";
   import { toast } from "svelte-sonner";
@@ -86,6 +86,8 @@
       await checkFeatureEnabled();
       if (isAdmin) {
         accounts = await fetchResidents(false, settings.currentTerm);
+      } else if (!itemId) {
+        formData.residentId = await getSignedInUserId();
       }
 
       if (itemId) {
@@ -139,8 +141,10 @@
   }
 
   async function handleSubmit() {
-    if (isAdmin && !formData.residentId) {
-      toast.error("Please select a resident for this item.");
+    if (!formData.residentId) {
+      toast.error(
+        isAdmin ? "Please select a resident for this item." : "Could not identify your account."
+      );
       return;
     }
 

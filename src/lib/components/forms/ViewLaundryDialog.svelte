@@ -4,15 +4,16 @@
   import { checkIsPast, generateIcsFile, getGoogleCalendarUrl } from "$utils/calendar";
   import { brandingState } from "$state/branding.svelte";
   import { ResponsiveDialog } from "$ui/haone";
-  import { auth } from "$state/auth.svelte";
   import { formatTimeRange, formatDate } from "$utils/formatters";
   import { settings } from "$state/settings.svelte";
 
   let {
     isAdminView = false,
+    currentUserId = "",
     onCancelReservation
   }: {
     isAdminView?: boolean;
+    currentUserId?: string;
     onCancelReservation?: (id: string) => void;
   } = $props();
 
@@ -35,7 +36,7 @@
 
 <ResponsiveDialog.Root bind:open={isDialogOpen}>
   <ResponsiveDialog.Content class="sm:max-w-xl">
-    {@const isMine = selectedReservation.residentId === auth.userId}
+    {@const isMine = currentUserId && selectedReservation.residentId === currentUserId}
     {@const showActions = isMine || isAdminView}
 
     <ResponsiveDialog.Header>

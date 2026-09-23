@@ -4,6 +4,7 @@
     checkFeatureEnabled,
     validateLaundryReservation
   } from "$api/controllers/laundry-controller";
+  import { getSignedInUserId } from "$api/controllers/resident-controller";
   import { Button } from "$components/ui/button";
   import * as DatePicker from "$components/ui/date-picker";
   import { ResponsiveDialog } from "$ui/haone";
@@ -11,7 +12,6 @@
   import * as TimePicker from "$components/ui/time-picker";
   import { Combobox } from "$ui/combobox";
   import { LaundryStatus, type LaundryRecord } from "$lib/types";
-  import { auth } from "$state/auth.svelte";
   import { formatTime } from "$utils/formatters";
   import { parseTime } from "$utils/parsers";
   import { CircleXIcon, ClockIcon, SlidersHorizontalIcon } from "@lucide/svelte";
@@ -39,7 +39,22 @@
     residentId: ""
   });
 
-  const targetUserId = $derived(isAdmin ? newReservation.residentId : auth.userId);
+  let myResidentId = $state("");
+
+  const targetUserId = $derived(isAdmin ? newReservation.residentId : myResidentId);
+
+  function resolveMyResidentId() {
+    if (isAdmin || myResidentId) {
+      return;
+    }
+    getSignedInUserId()
+      .then((id) => {
+        myResidentId = id;
+      })
+      .catch(() => {
+        myResidentId = "";
+      });
+  }
 
   function calculateEndTime(start: string, durationMinutes: number): string {
     const parts = (start || "05:00").split(":");
@@ -82,7 +97,11 @@
       isLoading = true;
       await checkFeatureEnabled();
 
-      if (!targetUserId) {
+      if (!isAdmin && !targetUserId) {
+        myResidentId = await getSignedInUserId();
+      }
+      const residentIdToBook = targetUserId;
+      if (!residentIdToBook) {
         throw new Error(
           isAdmin ? "Please select a resident." : "Could not find your resident record."
         );
@@ -91,7 +110,7 @@
       await addLaundryReservation(
         {
           id: crypto.randomUUID(),
-          residentId: targetUserId,
+          residentId: residentIdToBook,
           date: newReservation.date,
           timeStart: formatTime(newReservation.timeStart),
           timeEnd: formatTime(newReservation.timeEnd),
@@ -121,6 +140,7 @@
 
   export function open() {
     isDialogOpen = true;
+    resolveMyResidentId();
   }
 
   export function handleSelectSlot(date: string, hour: number) {

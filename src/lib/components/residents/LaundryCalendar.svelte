@@ -660,4 +660,4 @@
   {/if}
 </div>
 
-<ViewLaundryDialog bind:this={viewLaundryDialog} {isAdminView} {onCancelReservation} />
+<ViewLaundryDialog bind:this={viewLaundryDialog} {currentUserId} {isAdminView} {onCancelReservation} />

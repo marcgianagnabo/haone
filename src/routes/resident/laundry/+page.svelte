@@ -1,6 +1,5 @@
 <script lang="ts">
   import { cn } from "$lib/utils";
-  import { auth } from "$state/auth.svelte";
   import { brandingState } from "$state/branding.svelte";
   import { onMount } from "svelte";
   import { Button } from "$ui/button";
@@ -23,6 +22,7 @@
 
   let reservations = $state<LaundryRecord[]>([]);
   let users = $state<UserRecord[]>([]);
+  let currentResidentId = $state("");
   let isLoading = $state(true);
   let error = $state<string | null>(null);
   let cancelLaundryDialog = $state<CancelLaundryDialog | null>(null);
@@ -43,6 +43,7 @@
         reservations = resResult;
       } else {
         reservations = resResult.reservations;
+        currentResidentId = resResult.currentResidentId;
       }
       users = userData;
     } catch (e: any) {
@@ -62,10 +63,10 @@
   });
 
   let userReservations = $derived.by(() => {
-    if (!auth.userId) {
+    if (!currentResidentId) {
       return [];
     }
-    return reservations.filter((r) => r.residentId === auth.userId);
+    return reservations.filter((r) => r.residentId === currentResidentId);
   });
 
   const userMap = $derived(
@@ -132,7 +133,7 @@
       {reservations}
       deprecatedMappedReservations={mappedUserReservations}
       {users}
-      currentUserId={auth.userId}
+      currentUserId={currentResidentId}
       isAdminView={false}
       onCancelReservation={(id) => {
         cancelLaundryDialog?.open(id);
