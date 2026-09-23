@@ -147,7 +147,9 @@ export const JOURNAL_COL = {
   RECEIPT_URL: 18,
   ID: 19,
   CREATOR_ID: 20,
-  ACCOUNT_ID: 21
+  ACCOUNT_ID: 21,
+  MAINTENANCE: 22,
+  GAS: 23
 } as const;
 
 export const ACCOUNT_COL = {
