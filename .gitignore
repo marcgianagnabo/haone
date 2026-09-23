@@ -26,4 +26,10 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # Wrangler config file (go make this one yourself lol)
-wrangler.jsonc
+wrangler.jsoncGoogle_OAuth_Client.json 
+dev-server.log 
+dev-server.err.log 
+
+
+Google_OAuth_Client.json 
+
