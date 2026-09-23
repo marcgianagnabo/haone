@@ -5,6 +5,7 @@ import {
 } from "$env/static/public";
 import { auth } from "$state/auth.svelte";
 import { brandingState } from "$state/branding.svelte";
+import { isUuid } from "$utils/parsers";
 import { createClient } from "@supabase/supabase-js";
 
 export const isSupabase = PUBLIC_DB_PROVIDER === "supabase";
@@ -74,7 +75,7 @@ export const supabase =
         global: {
           fetch: async (url, options) => {
             const response = await fetch(url, options);
-            // Only a 401 means the Supabase session/JWT is invalid. A 403 is an
+            // Only a 401 means the session/JWT is invalid. A 403 is an
             // RLS denial for the current action and must NOT end the session.
             if (response.status === 401) {
               auth.signOutWithMessage(
@@ -87,6 +88,56 @@ export const supabase =
         }
       })
     : null;
+
+/**
+ * Resolves a user reference (UUID, email, or student number) to a real
+ * public.users id. `emailFallback` is only tried when the primary value does
+ * not resolve (e.g. a dummy id minted by the token endpoint for a user with no
+ * users row). Returns null when nothing matches so callers can store NULL in
+ * journal.creator_id / journal.account_id instead of tripping the FK.
+ */
+export async function resolveSupabaseUserId(
+  value?: string | null,
+  emailFallback?: string | null
+): Promise<string | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  const candidates: string[] = [];
+  const primary = (value || "").trim();
+  if (primary) {
+    candidates.push(primary);
+  }
+  const fallback = (emailFallback || "").trim();
+  if (fallback && fallback !== primary) {
+    candidates.push(fallback);
+  }
+
+  for (const candidate of candidates) {
+    if (isUuid(candidate)) {
+      const { data } = await supabase
+        .from("users_view")
+        .select("id")
+        .eq("id", candidate)
+        .maybeSingle();
+      if (data?.id) {
+        return data.id;
+      }
+    } else {
+      const { data } = await supabase
+        .from("users_view")
+        .select("id")
+        .or(`email.ilike.${candidate},student_no.ilike.${candidate}`)
+        .maybeSingle();
+      if (data?.id) {
+        return data.id;
+      }
+    }
+  }
+
+  return null;
+}
 
 // ── GSheets API Client ───────────────────────────────────────────────────────
 

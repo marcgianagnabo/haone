@@ -6,6 +6,7 @@ import {
   assertSupabaseFound,
   fetchAllSupabaseRows,
   handleSupabaseError,
+  resolveSupabaseUserId,
   supabase
 } from "../common";
 import type {
@@ -147,43 +148,14 @@ export const supabaseJournalService: JournalServiceInterface = {
       return;
     }
 
-    let creatorId = data.creatorId;
-    if (!creatorId && data.creator) {
-      if (isUuid(data.creator)) {
-        creatorId = data.creator;
-      } else {
-        const { data: u } = await supabase
-          .from("users_view")
-          .select("id")
-          .ilike("email", data.creator.trim())
-          .maybeSingle();
-        if (u?.id) {
-          creatorId = u.id;
-        }
-      }
-    }
-
-    let accountId = data.accountId;
-    if (!accountId && data.account) {
-      if (isUuid(data.account)) {
-        accountId = data.account;
-      } else {
-        const { data: u } = await supabase
-          .from("users_view")
-          .select("id")
-          .or(`email.ilike.${data.account.trim()},student_no.ilike.${data.account.trim()}`)
-          .maybeSingle();
-        if (u?.id) {
-          accountId = u.id;
-        }
-      }
-    }
+    const creatorId = await resolveSupabaseUserId(data.creatorId || data.creator, auth.user?.email);
+    const accountId = await resolveSupabaseUserId(data.accountId || data.account);
 
     const { error } = await supabase.from("journal").insert({
       id: data.id || crypto.randomUUID(),
       date: parseDbDate(data.date) || getLocalDateString(),
-      creator_id: creatorId && isUuid(creatorId) ? creatorId : null,
-      account_id: accountId && isUuid(accountId) ? accountId : null,
+      creator_id: creatorId,
+      account_id: accountId,
       water: data.water ?? 0,
       assoc: data.assoc ?? 0,
       misc: data.misc ?? 0,

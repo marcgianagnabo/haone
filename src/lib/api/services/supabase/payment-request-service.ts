@@ -5,11 +5,13 @@ import type {
   PaymentRequestRecord
 } from "$lib/types";
 import { PaymentRequestStatus } from "$lib/types";
+import { auth } from "$state/auth.svelte";
 import { isUuid, parseDbDate } from "$utils/parsers";
 import {
   assertSupabaseFound,
   fetchAllSupabaseRows,
   handleSupabaseError,
+  resolveSupabaseUserId,
   supabase
 } from "../common";
 import type { PaymentRequestServiceInterface } from "../interfaces/payment-request-service.interface";
@@ -161,13 +163,17 @@ export const supabasePaymentRequestService: PaymentRequestServiceInterface = {
     }
     assertSupabaseFound(approved, "Payment record not found or is no longer pending");
 
+    const creatorId = await resolveSupabaseUserId(
+      journalData.creatorId || journalData.creator,
+      auth.user?.email
+    );
+    const accountId = await resolveSupabaseUserId(journalData.accountId || journalData.account);
+
     const { error: jError } = await supabase.from("journal").insert({
       id: crypto.randomUUID(),
       date: journalData.date,
-      creator_id:
-        journalData.creatorId && isUuid(journalData.creatorId) ? journalData.creatorId : null,
-      account_id:
-        journalData.accountId && isUuid(journalData.accountId) ? journalData.accountId : null,
+      creator_id: creatorId,
+      account_id: accountId,
       water: journalData.water ?? 0,
       assoc: journalData.assoc ?? 0,
       misc: journalData.misc ?? 0,
