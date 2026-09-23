@@ -209,6 +209,37 @@
       });
   }
 
+  // In the All-machines view, same-time bookings on different machines are
+  // rendered side-by-side (50/50 lanes, ordered by machine). Non-overlapping
+  // bookings keep the full column width.
+  function computeOverlapLanes(dayReservations: ReturnType<typeof getActiveReservationsForDay>) {
+    const lanes = new Map<string, { leftPct: number; widthPct: number }>();
+    if (activeMachineFilter) {
+      for (const r of dayReservations) {
+        lanes.set(r.id, { leftPct: 0, widthPct: 100 });
+      }
+      return lanes;
+    }
+
+    const hasOverlap = (r: (typeof dayReservations)[number]) =>
+      dayReservations.some(
+        (o) => o.id !== r.id && r.startHour < o.endHour && o.startHour < r.endHour
+      );
+
+    for (const r of dayReservations) {
+      if (!hasOverlap(r)) {
+        lanes.set(r.id, { leftPct: 0, widthPct: 100 });
+      }
+    }
+    for (const r of dayReservations) {
+      if (!hasOverlap(r)) continue;
+      const machineIdx = LAUNDRY_MACHINES.findIndex((m) => m.value === r.machine);
+      const lane = machineIdx >= 0 ? machineIdx : 0;
+      lanes.set(r.id, { leftPct: lane * 50, widthPct: 50 });
+    }
+    return lanes;
+  }
+
   function next() {
     const d = new Date(selectedDate);
     if (viewMode === "month") {
@@ -482,8 +513,7 @@
                       day.getDate() === now.getDate()
                     ? hour < now.getHours()
                     : day < now)}
-              onclick={() =>
-                onSelectSlot?.(dateStr, hour, activeMachineFilter || undefined)}
+              onclick={() => onSelectSlot?.(dateStr, hour, activeMachineFilter || undefined)}
               aria-label="Select slot for {dateStr} at {hour}:00"
             ></button>
           {/each}
@@ -512,11 +542,14 @@
         <!-- Actual Reservations (Overlaid) -->
         {#each weekDays as day, dayIdx}
           {@const dateStr = formatDate(day)}
+          {@const dayReservations = getActiveReservationsForDay(dateStr)}
+          {@const lanes = computeOverlapLanes(dayReservations)}
           <div
             class="pointer-events-none relative"
             style="grid-row: 2 / span {hours.length}; grid-column: {dayIdx + 2};"
           >
-            {#each getActiveReservationsForDay(dateStr) as res}
+            {#each dayReservations as res}
+              {@const lane = lanes.get(res.id) || { leftPct: 0, widthPct: 100 }}
               {@const startMin = (res.startHour - startHour) * 60}
               {@const durationMin = res.duration * 60}
               {@const isMine = res.residentId === currentUserId}
@@ -526,14 +559,17 @@
                 <button
                   type="button"
                   class={cn(
-                    "pointer-events-auto absolute right-2 left-1 z-10 flex cursor-pointer flex-col justify-center overflow-hidden rounded-md border-0 p-2 text-left transition-all",
+                    "pointer-events-auto absolute z-10 flex cursor-pointer flex-col justify-center overflow-hidden rounded-md border-0 p-2 text-left transition-all",
                     isPast
                       ? "bg-emerald-100 dark:bg-emerald-950"
                       : isMine
                         ? "bg-brand"
                         : "bg-emerald-700 dark:bg-emerald-900"
                   )}
-                  style="top: {startMin + 3}px; height: {Math.max(durationMin - 6, 24)}px;"
+                  style="top: {startMin + 3}px; height: {Math.max(
+                    durationMin - 6,
+                    24
+                  )}px; left: calc({lane.leftPct}% + 4px); width: calc({lane.widthPct}% - 6px);"
                   onclick={() => handleReservationClick(res)}
                 >
                   <div
@@ -659,7 +695,9 @@
                       <span class="flex-1 truncate font-medium">
                         {formatTimeRange(`${res.timeStart}-${res.timeEnd}`, settings.clockFormat)}
                       </span>
-                      <span class="w-16 shrink truncate font-semibold tracking-wide uppercase opacity-75">
+                      <span
+                        class="w-16 shrink truncate font-semibold tracking-wide uppercase opacity-75"
+                      >
                         {res.machineLabel}
                       </span>
                       <span class="flex-2 truncate">
@@ -728,4 +766,9 @@
   {/if}
 </div>
 
-<ViewLaundryDialog bind:this={viewLaundryDialog} {currentUserId} {isAdminView} {onCancelReservation} />
+<ViewLaundryDialog
+  bind:this={viewLaundryDialog}
+  {currentUserId}
+  {isAdminView}
+  {onCancelReservation}
+/>
