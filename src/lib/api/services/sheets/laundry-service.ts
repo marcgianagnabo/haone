@@ -1,4 +1,5 @@
 import {
+  DEFAULT_LAUNDRY_MACHINE,
   LAUNDRY_COL,
   type LaundryRecord,
   LaundryStatus,
@@ -27,7 +28,7 @@ export const sheetsLaundryService: LaundryServiceInterface = {
     if (!settings.sharedRecordsId) {
       return [];
     }
-    const rows = await fetchSheetRowsRaw(settings.sharedRecordsId, "laundry!A:I", shouldRefresh);
+    const rows = await fetchSheetRowsRaw(settings.sharedRecordsId, "laundry!A:J", shouldRefresh);
     let items = rows.slice(1).map((row) => ({
       id: (row[LAUNDRY_COL.ID] || "").trim(),
       residentId: (row[LAUNDRY_COL.RESIDENT_ID] || "").trim(),
@@ -36,6 +37,7 @@ export const sheetsLaundryService: LaundryServiceInterface = {
       timeEnd: (row[LAUNDRY_COL.TIME_END] || "").trim(),
       status: (row[LAUNDRY_COL.STATUS] || LaundryStatus.ACTIVE).trim(),
       cancelReason: (row[LAUNDRY_COL.CANCEL_REASON] || "").trim(),
+      machine: (row[LAUNDRY_COL.MACHINE] || DEFAULT_LAUNDRY_MACHINE).trim(),
       creationTimestamp: (row[LAUNDRY_COL.CREATION_TIMESTAMP] || "").trim(),
       cancelTimestamp: (row[LAUNDRY_COL.CANCEL_TIMESTAMP] || "").trim(),
       raw: row
@@ -60,7 +62,7 @@ export const sheetsLaundryService: LaundryServiceInterface = {
     if (!settings.sharedRecordsId) {
       throw new Error("Shared Records ID not configured");
     }
-    const row = new Array(9).fill("");
+    const row = new Array(10).fill("");
     row[LAUNDRY_COL.ID] = data.id || crypto.randomUUID();
     row[LAUNDRY_COL.RESIDENT_ID] = data.residentId || "";
     row[LAUNDRY_COL.DATE] = data.date || "";
@@ -68,9 +70,10 @@ export const sheetsLaundryService: LaundryServiceInterface = {
     row[LAUNDRY_COL.TIME_END] = data.timeEnd || "";
     row[LAUNDRY_COL.STATUS] = data.status || LaundryStatus.ACTIVE;
     row[LAUNDRY_COL.CANCEL_REASON] = data.cancelReason || "";
+    row[LAUNDRY_COL.MACHINE] = data.machine || DEFAULT_LAUNDRY_MACHINE;
     row[LAUNDRY_COL.CREATION_TIMESTAMP] = data.creationTimestamp || new Date().toISOString();
     row[LAUNDRY_COL.CANCEL_TIMESTAMP] = data.cancelTimestamp || "";
-    await appendSheetRow(settings.sharedRecordsId, "laundry!A:I", [row]);
+    await appendSheetRow(settings.sharedRecordsId, "laundry!A:J", [row]);
   },
 
   async addReservationsBatch(entries: Partial<LaundryRecord>[]): Promise<void> {
@@ -79,7 +82,7 @@ export const sheetsLaundryService: LaundryServiceInterface = {
       throw new Error("Shared Records ID not configured");
     }
     const rows = entries.map((data) => {
-      const row = new Array(9).fill("");
+      const row = new Array(10).fill("");
       row[LAUNDRY_COL.ID] = data.id || crypto.randomUUID();
       row[LAUNDRY_COL.RESIDENT_ID] = data.residentId || "";
       row[LAUNDRY_COL.DATE] = data.date || "";
@@ -87,11 +90,12 @@ export const sheetsLaundryService: LaundryServiceInterface = {
       row[LAUNDRY_COL.TIME_END] = data.timeEnd || "";
       row[LAUNDRY_COL.STATUS] = data.status || LaundryStatus.ACTIVE;
       row[LAUNDRY_COL.CANCEL_REASON] = data.cancelReason || "";
+      row[LAUNDRY_COL.MACHINE] = data.machine || DEFAULT_LAUNDRY_MACHINE;
       row[LAUNDRY_COL.CREATION_TIMESTAMP] = data.creationTimestamp || new Date().toISOString();
       row[LAUNDRY_COL.CANCEL_TIMESTAMP] = data.cancelTimestamp || "";
       return row;
     });
-    await appendSheetRow(settings.sharedRecordsId, "laundry!A:I", rows);
+    await appendSheetRow(settings.sharedRecordsId, "laundry!A:J", rows);
   },
 
   async cancelReservation(id: string, reason: string): Promise<void> {
@@ -108,7 +112,7 @@ export const sheetsLaundryService: LaundryServiceInterface = {
     if (!settings.sharedRecordsId) {
       throw new Error("Shared Records ID not configured");
     }
-    const rows = await fetchSheetRowsRaw(settings.sharedRecordsId, "laundry!A:I");
+    const rows = await fetchSheetRowsRaw(settings.sharedRecordsId, "laundry!A:J");
     const rowIndex = rows.findIndex((r) => (r[LAUNDRY_COL.ID] || "").trim() === id);
     if (rowIndex === -1) {
       throw new Error("Reservation not found");

@@ -14,7 +14,7 @@
     ShieldCheckIcon,
     MapPinIcon
   } from "@lucide/svelte";
-  import { formatCurrency, formatDate, formatTimeRange } from "$utils/formatters";
+  import { formatCurrency, formatDate, formatTimeRange, laundryMachineLabel } from "$utils/formatters";
   import { parseTime } from "$utils/parsers";
   import { translateTransactionType } from "$utils/translators";
   import { fetchLaundryReservations } from "$api/controllers/laundry-controller";
@@ -42,7 +42,10 @@
 
   let reservations = $state<LaundryRecord[]>([]);
   let users = $state<UserRecord[]>([]);
+  let currentResidentId = $state("");
   let isLaundryLoading = $state(true);
+
+  const residentId = $derived(currentResidentId || auth.userId);
 
   async function loadLaundry() {
     try {
@@ -55,6 +58,7 @@
         reservations = resResult;
       } else if (resResult?.reservations) {
         reservations = resResult.reservations;
+        currentResidentId = resResult.currentResidentId || "";
       }
       users = userData || [];
     } catch {
@@ -120,10 +124,11 @@
 
       if (nowMs >= startMs && nowMs < endMs) {
         const resId = (r.residentId || "").trim();
-        const isMine = resId === auth.userId;
+        const isMine = resId === residentId;
         return {
           ...r,
           isMine,
+          machineLabel: laundryMachineLabel(r.machine),
           name: isMine ? "You" : getDisplayName(resId, r.displayName),
           room: getDisplayRoom(resId, r.room)
         };
@@ -134,7 +139,7 @@
 
   // Find next upcoming reservation for the current user
   const upcomingUserReservation = $derived.by(() => {
-    if (!auth.userId) {
+    if (!residentId) {
       return null;
     }
     const nowMs = new Date().getTime();
@@ -144,7 +149,7 @@
         if (r.status !== "ACTIVE") {
           return false;
         }
-        if ((r.residentId || "").trim() !== auth.userId) {
+        if ((r.residentId || "").trim() !== residentId) {
           return false;
         }
         const startH = parseTime(r.timeStart);
@@ -189,6 +194,10 @@
                 ({currentLaundrySlot.room})
               {/if}
             </p>
+            <p class="flex items-center gap-1 text-xs text-muted-foreground">
+              <MapPinIcon class="h-3 w-3" />
+              {currentLaundrySlot.machineLabel}
+            </p>
           {:else}
             <p>Area is currently available</p>
           {/if}
@@ -221,6 +230,10 @@
             <p class="text-xs font-semibold uppercase">Your Upcoming Reservation</p>
             <p class="truncate">
               {formatDate(upcomingUserReservation.date)}
+            </p>
+            <p class="flex items-center gap-1 text-xs text-muted-foreground">
+              <MapPinIcon class="h-3 w-3" />
+              {laundryMachineLabel(upcomingUserReservation.machine)}
             </p>
           {:else}
             <p>No upcoming reservation</p>

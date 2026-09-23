@@ -10,9 +10,14 @@
   import { ResponsiveDialog } from "$ui/haone";
   import { Label } from "$components/ui/label";
   import * as TimePicker from "$components/ui/time-picker";
-  import { Combobox } from "$ui/combobox";
-  import { LaundryStatus, type LaundryRecord } from "$lib/types";
-  import { formatTime } from "$utils/formatters";
+import { Combobox } from "$ui/combobox";
+import {
+  DEFAULT_LAUNDRY_MACHINE,
+  LAUNDRY_MACHINES,
+  LaundryStatus,
+  type LaundryRecord
+} from "$lib/types";
+import { formatTime } from "$utils/formatters";
   import { parseTime } from "$utils/parsers";
   import { CircleXIcon, ClockIcon, SlidersHorizontalIcon } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
@@ -36,7 +41,8 @@
     date: new Date().toISOString().split("T")[0],
     timeStart: "05:00",
     timeEnd: "07:00",
-    residentId: ""
+    residentId: "",
+    machine: DEFAULT_LAUNDRY_MACHINE
   });
 
   let myResidentId = $state("");
@@ -83,6 +89,7 @@
       timeEnd: newReservation.timeEnd,
       residentId: targetUserId,
       isAdmin,
+      machine: newReservation.machine,
       existingReservations: reservations
     });
   });
@@ -115,6 +122,7 @@
           timeStart: formatTime(newReservation.timeStart),
           timeEnd: formatTime(newReservation.timeEnd),
           status: LaundryStatus.ACTIVE,
+          machine: newReservation.machine,
           cancelReason: ""
         },
         isAdmin
@@ -143,18 +151,31 @@
     resolveMyResidentId();
   }
 
-  export function handleSelectSlot(date: string, hour: number) {
-    // Check if already occupied
-    const isOccupied = reservations.some((r: LaundryRecord) => {
+  function isHourlyOccupied(date: string, hour: number, machine?: string) {
+    return reservations.some((r: LaundryRecord) => {
       if (r.status !== "ACTIVE" || r.date !== date) return false;
+      if (machine && (r.machine || DEFAULT_LAUNDRY_MACHINE) !== machine) return false;
       const start = parseTime(r.timeStart);
       const end = parseTime(r.timeEnd);
       return hour >= start && hour < end;
     });
+  }
 
-    if (isOccupied) {
-      toast.error("This slot is already booked.");
-      return;
+  export function handleSelectSlot(date: string, hour: number, machine?: string) {
+    if (machine) {
+      if (isHourlyOccupied(date, hour, machine)) {
+        toast.error("This machine slot is already booked.");
+        return;
+      }
+      newReservation.machine = machine;
+    } else {
+      // All-machines view: block only when every machine is occupied.
+      const firstFree = LAUNDRY_MACHINES.find((m) => !isHourlyOccupied(date, hour, m.value));
+      if (!firstFree) {
+        toast.error("All machine slots are booked for this time.");
+        return;
+      }
+      newReservation.machine = firstFree.value;
     }
 
     newReservation.date = date;
@@ -246,6 +267,23 @@
             <span class="font-semibold text-foreground">{formatTime(newReservation.timeEnd)}</span>
           </div>
         {/if}
+      </div>
+
+      <div class="space-y-2">
+        <Label>Machine / Area</Label>
+        <div class="grid grid-cols-2 gap-2">
+          {#each LAUNDRY_MACHINES as m}
+            <Button
+              type="button"
+              variant={newReservation.machine === m.value ? "default" : "outline"}
+              size="default"
+              class="h-10 text-sm font-medium"
+              onclick={() => (newReservation.machine = m.value)}
+            >
+              {m.label}
+            </Button>
+          {/each}
+        </div>
       </div>
       {#if validationError}
         <div class="flex items-center gap-2 px-1 text-xs font-bold text-destructive uppercase">

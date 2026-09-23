@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { LaundryRecord, UserRecord } from "$lib/types";
+  import { DEFAULT_LAUNDRY_MACHINE, LAUNDRY_MACHINES } from "$lib/types";
   import { cn } from "$lib/utils";
   import {
     ChevronLeft,
@@ -12,7 +13,7 @@
   import * as Tooltip from "$ui/tooltip";
   import { Button } from "$ui/button";
   import { parseTime } from "$utils/parsers";
-  import { formatTimeRange } from "$utils/formatters";
+  import { formatTimeRange, laundryMachineLabel } from "$utils/formatters";
   import { settings } from "$state/settings.svelte";
   import ViewLaundryDialog from "$components/forms/ViewLaundryDialog.svelte";
   import { twMerge } from "tailwind-merge";
@@ -34,12 +35,15 @@
     currentUserId?: string;
     isAdminView?: boolean;
     canSeeNames?: boolean;
-    onSelectSlot?: (date: string, hour: number) => void;
+    onSelectSlot?: (date: string, hour: number, machine?: string) => void;
     onCancelReservation?: (id: string) => void;
   } = $props();
 
   let selectedDate = $state(new Date());
   let viewMode = $state<"month" | "week" | "day" | "history">(settings.calendarView || "week");
+  let machineFilter = $state<"ALL" | (typeof LAUNDRY_MACHINES)[number]["value"]>("ALL");
+
+  const activeMachineFilter = $derived(machineFilter === "ALL" ? "" : machineFilter);
 
   const startHour = 0;
   const opStartHour = 5;
@@ -148,8 +152,36 @@
     return map;
   });
 
+  // Machines occupied for a given date/hour slot (e.g. "LEFT_WING").
+  function machinesOccupiedAt(dateStr: string, hour: number): Set<string> {
+    const occupied = new Set<string>();
+    for (const r of reservations) {
+      if (r.status !== "ACTIVE" || r.date !== dateStr) continue;
+      const start = parseTime(r.timeStart);
+      const end = parseTime(r.timeEnd);
+      if (hour < end && hour + 1 > start) {
+        occupied.add(r.machine || DEFAULT_LAUNDRY_MACHINE);
+      }
+    }
+    return occupied;
+  }
+
+  // A slot is unavailable when the filtered machine is taken, or — in the
+  // all-machines view — when every machine is taken at that time.
+  function isSlotOccupied(dateStr: string, hour: number): boolean {
+    const occupied = machinesOccupiedAt(dateStr, hour);
+    if (activeMachineFilter) {
+      return occupied.has(activeMachineFilter);
+    }
+    return LAUNDRY_MACHINES.every((m) => occupied.has(m.value));
+  }
+
   function getActiveReservationsForDay(date: string) {
     return (reservationsByDate.get(date) || [])
+      .filter((r: LaundryRecord) => {
+        if (!activeMachineFilter) return true;
+        return (r.machine || DEFAULT_LAUNDRY_MACHINE) === activeMachineFilter;
+      })
       .map((r: LaundryRecord) => {
         const start = parseTime(r.timeStart);
         const end = parseTime(r.timeEnd);
@@ -163,6 +195,8 @@
 
         return {
           ...r,
+          machine: r.machine || DEFAULT_LAUNDRY_MACHINE,
+          machineLabel: laundryMachineLabel(r.machine),
           startHour: start,
           endHour: end,
           duration: end - start,
@@ -315,6 +349,31 @@
   </DropdownMenu.Root>
 {/snippet}
 
+{#snippet machineSwitcher()}
+  <div class="flex flex-wrap items-center gap-1.5">
+    <Button
+      type="button"
+      variant={machineFilter === "ALL" ? "default" : "outline"}
+      size="sm"
+      class="h-9 rounded-full"
+      onclick={() => (machineFilter = "ALL")}
+    >
+      All Machines
+    </Button>
+    {#each LAUNDRY_MACHINES as m}
+      <Button
+        type="button"
+        variant={machineFilter === m.value ? "default" : "outline"}
+        size="sm"
+        class="h-9 rounded-full"
+        onclick={() => (machineFilter = m.value)}
+      >
+        {m.label}
+      </Button>
+    {/each}
+  </div>
+{/snippet}
+
 {#snippet legend()}
   <div class="flex flex-wrap items-center gap-4 text-xs font-semibold tracking-widest uppercase">
     {#each legendItems as item}
@@ -400,6 +459,7 @@
             {@const dateStr = formatDate(day)}
             {@const isOutsideHours = hour < opStartHour || hour >= opEndHour}
             {@const isBlocked = !isAdminView && isOutsideHours}
+            {@const isSlotOccupiedByMachine = isSlotOccupied(dateStr, hour)}
             <!-- Slot Button (Background) -->
             <button
               type="button"
@@ -414,14 +474,7 @@
               )}
               style="grid-row: {hourIdx + 2}; grid-column: {dayIdx + 2};"
               disabled={isBlocked ||
-                reservations.some((r: LaundryRecord) => {
-                  if (r.status !== "ACTIVE" || r.date !== dateStr) {
-                    return false;
-                  }
-                  const start = parseTime(r.timeStart);
-                  const end = parseTime(r.timeEnd);
-                  return hour < end && hour + 1 > start;
-                }) ||
+                isSlotOccupiedByMachine ||
                 (isAdminView
                   ? false
                   : day.getFullYear() === now.getFullYear() &&
@@ -429,7 +482,8 @@
                       day.getDate() === now.getDate()
                     ? hour < now.getHours()
                     : day < now)}
-              onclick={() => onSelectSlot?.(dateStr, hour)}
+              onclick={() =>
+                onSelectSlot?.(dateStr, hour, activeMachineFilter || undefined)}
               aria-label="Select slot for {dateStr} at {hour}:00"
             ></button>
           {/each}
@@ -493,10 +547,18 @@
                     {/if}
                     <span class="truncate">{res.name}</span>
                   </div>
+                  <div
+                    class={cn(
+                      "mt-1 flex w-full items-center gap-1 text-[10px] font-semibold tracking-wider uppercase",
+                      isPast ? "text-muted-foreground" : "text-white/90"
+                    )}
+                  >
+                    <span class="truncate">{res.machineLabel}</span>
+                  </div>
                   {#if res.room}
                     <div
                       class={cn(
-                        "mt-1 text-xs tracking-wider uppercase",
+                        "mt-0.5 text-xs tracking-wider uppercase",
                         isPast ? "text-muted-foreground" : "text-white"
                       )}
                     >
@@ -597,6 +659,9 @@
                       <span class="flex-1 truncate font-medium">
                         {formatTimeRange(`${res.timeStart}-${res.timeEnd}`, settings.clockFormat)}
                       </span>
+                      <span class="w-16 shrink truncate font-semibold tracking-wide uppercase opacity-75">
+                        {res.machineLabel}
+                      </span>
                       <span class="flex-2 truncate">
                         {res.name}
                       </span>
@@ -653,10 +718,13 @@
       isAdmin={isAdminView}
       onRowClick={(row) => handleReservationClick(row)}
     />
-  {:else if viewMode === "month"}
-    {@render monthCalendar()}
   {:else}
-    {@render calendar()}
+    {@render machineSwitcher()}
+    {#if viewMode === "month"}
+      {@render monthCalendar()}
+    {:else}
+      {@render calendar()}
+    {/if}
   {/if}
 </div>
 

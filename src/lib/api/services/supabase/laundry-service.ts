@@ -1,6 +1,6 @@
 import { canAccessLaundry } from "$api/controllers/resident-controller";
 import type { LaundryRecord, PaginatedResponse, PaginationOptions } from "$lib/types";
-import { LaundryStatus } from "$lib/types";
+import { DEFAULT_LAUNDRY_MACHINE, LaundryStatus } from "$lib/types";
 import { auth } from "$state/auth.svelte";
 import { formatTime } from "$utils/formatters";
 import { isUuid, parseDbUuid, parseTimeMinutes } from "$utils/parsers";
@@ -87,6 +87,7 @@ export const supabaseLaundryService: LaundryServiceInterface = {
       timeEnd: row.time_end,
       status: (row.status || LaundryStatus.ACTIVE).trim(),
       cancelReason: row.cancel_reason || "",
+      machine: row.machine || DEFAULT_LAUNDRY_MACHINE,
       creationTimestamp: row.created_at,
       cancelTimestamp: row.cancelled_at || "",
       raw: row
@@ -154,19 +155,23 @@ export const supabaseLaundryService: LaundryServiceInterface = {
 
       const { data: existingRows, error: fetchError } = await supabase
         .from("laundry")
-        .select("resident_id, date, time_start, time_end, status")
+        .select("resident_id, date, time_start, time_end, status, machine")
         .not("status", "in", `(${INACTIVE_STATUSES.join(",")})`);
       if (fetchError) {
         handleSupabaseError(fetchError);
       }
 
+      const machine = data.machine || DEFAULT_LAUNDRY_MACHINE;
       const activeReservations = existingRows || [];
 
-      // NOTE: under RLS a resident only sees their own rows, so cross-resident
-      // slot clashes cannot be detected client-side. The check below still
-      // catches self-overlap; full clash detection requires an officer or an RPC.
+      // Slots are per machine: a clash only applies to the same machine/area.
+      // Legacy rows without a machine are treated as the default machine.
       for (const res of activeReservations) {
         if (res.date !== date) {
+          continue;
+        }
+        const exMachine = res.machine || DEFAULT_LAUNDRY_MACHINE;
+        if (exMachine !== machine) {
           continue;
         }
         const exStart = parseTimeMinutes(res.time_start);
@@ -174,7 +179,7 @@ export const supabaseLaundryService: LaundryServiceInterface = {
         if (!isNaN(exStart) && !isNaN(exEnd)) {
           if (startMinutes < exEnd && endMinutes > exStart) {
             throw new Error(
-              `Slot Unavailable: Clashes with reservation from ${formatTime(res.time_start)} to ${formatTime(res.time_end)}`
+              `Slot Unavailable: ${machine} clashes with reservation from ${formatTime(res.time_start)} to ${formatTime(res.time_end)}`
             );
           }
         }
@@ -188,7 +193,8 @@ export const supabaseLaundryService: LaundryServiceInterface = {
       time_start: data.timeStart,
       time_end: data.timeEnd,
       status: data.status || LaundryStatus.ACTIVE,
-      cancel_reason: data.cancelReason
+      cancel_reason: data.cancelReason,
+      machine: data.machine || DEFAULT_LAUNDRY_MACHINE
     });
     if (error) {
       handleSupabaseError(error);
@@ -206,7 +212,8 @@ export const supabaseLaundryService: LaundryServiceInterface = {
       time_start: r.timeStart,
       time_end: r.timeEnd,
       status: r.status || LaundryStatus.ACTIVE,
-      cancel_reason: r.cancelReason
+      cancel_reason: r.cancelReason,
+      machine: r.machine || DEFAULT_LAUNDRY_MACHINE
     }));
     const { error } = await supabase.from("laundry").insert(rows);
     if (error) {

@@ -1,3 +1,5 @@
+import { DEFAULT_LAUNDRY_MACHINE, LAUNDRY_MACHINES } from "$lib/types";
+
 export function formatCurrency(amount: number) {
   if (amount === undefined || amount === null || isNaN(amount)) {
     console.warn("formatCurrency: invalid amount");
@@ -138,4 +140,10 @@ export function pluralize(count: number, singular: string, plural: string) {
   const type = pr.select(count);
   const word = type === "one" ? singular : plural;
   return `${count} ${word}`;
+}
+
+export function laundryMachineLabel(machine?: string | null): string {
+  const value = machine || DEFAULT_LAUNDRY_MACHINE;
+  const found = LAUNDRY_MACHINES.find((m) => m.value === value);
+  return found?.label || value;
 }

@@ -687,7 +687,8 @@ export async function syncLaundry(direction: SyncDirection): Promise<SyncResult>
             time_start: item.timeStart,
             time_end: item.timeEnd,
             status: item.status,
-            cancel_reason: item.cancelReason
+            cancel_reason: item.cancelReason,
+            machine: item.machine
           };
         });
         const { error } = await supabase.from("laundry").upsert(payload);
@@ -707,14 +708,14 @@ export async function syncLaundry(direction: SyncDirection): Promise<SyncResult>
         if (!spreadsheetId) {
           throw new Error("Shared records ID not configured");
         }
-        const rows = await fetchSheetRowsRaw(spreadsheetId, "laundry!A:I");
+        const rows = await fetchSheetRowsRaw(spreadsheetId, "laundry!A:J");
 
         const updates: { range: string; values: any[][] }[] = [];
         const newRows: string[][] = [];
 
         for (const item of items) {
           const rowIndex = rows.findIndex((r) => r[LAUNDRY_COL.ID] === item.id);
-          const row = new Array(9).fill("");
+          const row = new Array(10).fill("");
           row[LAUNDRY_COL.ID] = item.id;
           row[LAUNDRY_COL.RESIDENT_ID] = item.residentId || "";
           row[LAUNDRY_COL.DATE] = item.date || "";
@@ -722,11 +723,12 @@ export async function syncLaundry(direction: SyncDirection): Promise<SyncResult>
           row[LAUNDRY_COL.TIME_END] = item.timeEnd || "";
           row[LAUNDRY_COL.STATUS] = item.status || "ACTIVE";
           row[LAUNDRY_COL.CANCEL_REASON] = item.cancelReason || "";
+          row[LAUNDRY_COL.MACHINE] = item.machine || "LEFT_WING";
           row[LAUNDRY_COL.CREATION_TIMESTAMP] = item.creationTimestamp || "";
           row[LAUNDRY_COL.CANCEL_TIMESTAMP] = item.cancelTimestamp || "";
 
           if (rowIndex !== -1) {
-            updates.push({ range: `laundry!A${rowIndex + 1}:I${rowIndex + 1}`, values: [row] });
+            updates.push({ range: `laundry!A${rowIndex + 1}:J${rowIndex + 1}`, values: [row] });
           } else {
             newRows.push(row);
           }
@@ -736,7 +738,7 @@ export async function syncLaundry(direction: SyncDirection): Promise<SyncResult>
           await batchUpdateValues(spreadsheetId, updates);
         }
         if (newRows.length > 0) {
-          await appendSheetRow(spreadsheetId, "laundry!A:I", newRows);
+          await appendSheetRow(spreadsheetId, "laundry!A:J", newRows);
         }
       }
     );

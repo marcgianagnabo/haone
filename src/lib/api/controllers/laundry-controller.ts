@@ -4,6 +4,7 @@ import {
   type LaundryRecord,
   type PaginatedResponse,
   type PaginationOptions,
+  DEFAULT_LAUNDRY_MACHINE,
   FeatureFlagKey,
   LaundryStatus
 } from "$lib/types";
@@ -17,6 +18,7 @@ export interface ValidateLaundryOptions {
   timeEnd: string;
   residentId?: string;
   isAdmin?: boolean;
+  machine?: string;
   existingReservations?: LaundryRecord[];
 }
 
@@ -28,8 +30,11 @@ export function validateLaundryReservation(options: ValidateLaundryOptions): str
       timeEnd,
       residentId,
       isAdmin = false,
+      machine,
       existingReservations = []
     } = options;
+
+    const targetMachine = machine || DEFAULT_LAUNDRY_MACHINE;
 
     if (!date) {
       return "Please select a date";
@@ -113,6 +118,10 @@ export function validateLaundryReservation(options: ValidateLaundryOptions): str
       if (r.status !== LaundryStatus.ACTIVE || r.date !== date) {
         return false;
       }
+      const rMachine = r.machine || DEFAULT_LAUNDRY_MACHINE;
+      if (rMachine !== targetMachine) {
+        return false;
+      }
       const rStart = parseTimeMinutes(r.timeStart);
       const rEnd = parseTimeMinutes(r.timeEnd);
       return startMinutes < rEnd && endMinutes > rStart;
@@ -179,6 +188,7 @@ export async function addLaundryReservation(
   }
 
   const currentResidentId = data.residentId || (await getSignedInUserId());
+  const machine = data.machine || DEFAULT_LAUNDRY_MACHINE;
   const res = await laundryService.fetchReservations();
   const list = Array.isArray(res) ? res : res.items;
   const active = list.filter(
@@ -209,6 +219,7 @@ export async function addLaundryReservation(
       r.date === date &&
       r.timeStart === timeStart &&
       r.timeEnd === timeEnd &&
+      (r.machine || DEFAULT_LAUNDRY_MACHINE) === machine &&
       r.residentId === currentResidentId
   );
   if (sameSlotUser) {
@@ -218,6 +229,7 @@ export async function addLaundryReservation(
   return laundryService.addReservation({
     ...data,
     residentId: currentResidentId,
+    machine,
     status: LaundryStatus.ACTIVE
   });
 }

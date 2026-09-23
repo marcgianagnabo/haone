@@ -3,7 +3,7 @@
   import { settings } from "$state/settings.svelte";
   import DataTableColumnHeader from "$ui/data-table/data-table-column-header.svelte";
   import { renderComponent, renderSnippet, type ColumnDef } from "$ui/data-table/index.js";
-  import { formatDate, formatTimeRange } from "$utils/formatters";
+  import { formatDate, formatTimeRange, laundryMachineLabel } from "$utils/formatters";
   import { parseTime, parseDateWeight } from "$utils/parsers";
   import { createRawSnippet } from "svelte";
   import DataTable from "$ui/data-table/data-table.svelte";
@@ -87,6 +87,18 @@
             `
           }));
           return renderSnippet(snippet, { date, start, end });
+        }
+      },
+      {
+        accessorKey: "machine",
+        header: ({ column }) =>
+          renderComponent(DataTableColumnHeader, { column, title: "Machine" }),
+        cell: ({ row }) => {
+          const label = laundryMachineLabel(row.original.machine);
+          const snippet = createRawSnippet<[{ label: string }]>((p) => ({
+            render: () => `<span class="font-medium">${p().label}</span>`
+          }));
+          return renderSnippet(snippet, { label });
         }
       },
       {

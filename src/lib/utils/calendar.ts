@@ -55,6 +55,8 @@ export function formatCalendarTime(resDate: string, resTime: string) {
 export function generateIcsFile(res: any, brandingShortName: string) {
   const start = formatCalendarTime(res.date, res.timeStart);
   const end = formatCalendarTime(res.date, res.timeEnd);
+  const machineLabel = res.machineLabel || res.machine || "";
+  const location = ["Laundry Area", machineLabel].filter(Boolean).join(" - ");
 
   const content = [
     "BEGIN:VCALENDAR",
@@ -66,8 +68,8 @@ export function generateIcsFile(res: any, brandingShortName: string) {
     `SUMMARY:${brandingShortName} | Laundry Reservation (${res.name})`,
     `DTSTART:${start}`,
     `DTEND:${end}`,
-    `DESCRIPTION:Laundry slot for ${res.name} (Room ${res.room})`,
-    `LOCATION:Laundry Area`,
+    `DESCRIPTION:Laundry slot for ${res.name} (${machineLabel})`,
+    `LOCATION:${location}`,
     "END:VEVENT",
     "END:VCALENDAR"
   ].join("\r\n");
@@ -86,8 +88,10 @@ export function generateIcsFile(res: any, brandingShortName: string) {
 export function getGoogleCalendarUrl(res: any, brandingShortName: string) {
   const start = formatCalendarTime(res.date, res.timeStart);
   const end = formatCalendarTime(res.date, res.timeEnd);
-  const details = `Laundry slot for ${res.name} (Room ${res.room})`;
+  const machineLabel = res.machineLabel || res.machine || "";
+  const location = ["Laundry Area", machineLabel].filter(Boolean).join(" - ");
+  const details = `Laundry slot for ${res.name} (${machineLabel})`;
   const title = `${brandingShortName} | Laundry Reservation`;
   const timezone = "Asia/Manila";
-  return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${start}/${end}&details=${encodeURIComponent(details)}&location=${encodeURIComponent("Laundry Area")}&ctz=${timezone}`;
+  return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${start}/${end}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(location)}&ctz=${timezone}`;
 }

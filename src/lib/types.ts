@@ -213,8 +213,18 @@ export const LAUNDRY_COL = {
   STATUS: 5,
   CANCEL_REASON: 6,
   CREATION_TIMESTAMP: 7,
-  CANCEL_TIMESTAMP: 8
+  CANCEL_TIMESTAMP: 8,
+  MACHINE: 9
 } as const;
+
+export const LAUNDRY_MACHINES = [
+  { value: "LEFT_WING", label: "Left Wing" },
+  { value: "RIGHT_WING", label: "Right Wing" }
+] as const;
+
+export type LaundryMachineValue = (typeof LAUNDRY_MACHINES)[number]["value"];
+
+export const DEFAULT_LAUNDRY_MACHINE: LaundryMachineValue = "LEFT_WING";
 
 export const PAYMENT_REQUEST_COL = {
   ID: 0,
@@ -421,6 +431,7 @@ export interface LaundryRecord {
   timeEnd: string;
   status: LaundryStatus | string;
   cancelReason: string;
+  machine: string;
   creationTimestamp?: string;
   cancelTimestamp?: string;
   displayName?: string;
@@ -922,8 +933,5 @@ export interface CustomServiceItem {
 
 export enum FeatureFlagKey {
   LAUNDRY_SERVICE = "services.laundry",
-  FRIDGE_SERVICE = "services.fridge",
-
-  ONBOARDING_ACCTYPE_UHO = "onboarding.accountType.uho",
-  ONBOARDING_ACCTYPE_ALUMNI = "onboarding.accountType.alumni"
+  FRIDGE_SERVICE = "services.fridge"
 }
