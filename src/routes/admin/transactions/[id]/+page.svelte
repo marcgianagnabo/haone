@@ -162,6 +162,7 @@
       ? [
           { name: "Water Fee", amount: transaction.water },
           { name: "Association Fee", amount: transaction.assoc },
+          { name: "Maintenance & Gas Fee", amount: transaction.maintenance || 0 },
           { name: "Miscellaneous", amount: transaction.misc }
         ].filter((f) => f.amount !== 0)
       : []

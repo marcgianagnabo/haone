@@ -164,14 +164,23 @@ export const supabaseResidentService: ResidentServiceInterface = {
           .filter((j: any) => isWaivedEntry(j.type || ""))
           .reduce((sum: number, j: any) => sum + parseCSVAmount(j.assoc), 0);
 
+        const maintenancePaid = filtered
+          .filter((j: any) => !isWaivedEntry(j.type || ""))
+          .reduce((sum: number, j: any) => sum + parseCSVAmount(j.maintenance), 0);
+        const maintenanceWaived = filtered
+          .filter((j: any) => isWaivedEntry(j.type || ""))
+          .reduce((sum: number, j: any) => sum + parseCSVAmount(j.maintenance), 0);
+
         const waterBase = parseCSVAmount(getConst(`FEES_${period}_WATER`));
         const assocBase = parseCSVAmount(getConst(`FEES_${period}_ASSOC`));
+        const maintenanceBase = parseCSVAmount(getConst(`FEES_${period}_MAINTENANCE`));
 
         const waterBal = waterBase - waterPaid - waterWaived;
         const assocBal = assocBase - assocPaid - assocWaived;
-        const totalBase = waterBase + assocBase;
-        const paid = waterPaid + assocPaid;
-        const waived = waterWaived + assocWaived;
+        const maintenanceBal = maintenanceBase - maintenancePaid - maintenanceWaived;
+        const totalBase = waterBase + assocBase + maintenanceBase;
+        const paid = waterPaid + assocPaid + maintenancePaid;
+        const waived = waterWaived + assocWaived + maintenanceWaived;
         const bal = totalBase - paid - waived;
 
         return {
@@ -198,6 +207,10 @@ export const supabaseResidentService: ResidentServiceInterface = {
           assocPaid,
           assocWaived,
           assocBal,
+          maintenanceBase,
+          maintenancePaid,
+          maintenanceWaived,
+          maintenanceBal,
           totalBase,
           paid,
           waived,
@@ -287,7 +300,11 @@ export const supabaseResidentService: ResidentServiceInterface = {
         id: j.id,
         date: j.date,
         type: j.type || "",
-        amount: parseCSVAmount(j.water) + parseCSVAmount(j.assoc) + parseCSVAmount(j.misc),
+        amount:
+          parseCSVAmount(j.water) +
+          parseCSVAmount(j.assoc) +
+          parseCSVAmount(j.misc) +
+          parseCSVAmount(j.maintenance),
         period: j.period || "",
         mop: j.mop || "",
         notes: j.notes || "",
@@ -324,11 +341,19 @@ export const supabaseResidentService: ResidentServiceInterface = {
       .filter((j: any) => j.type === pmtWaived)
       .reduce((sum: number, j: any) => sum + parseCSVAmount(j.assoc), 0);
 
+    const maintenancePaid = termJournals
+      .filter((j: any) => j.type !== pmtWaived)
+      .reduce((sum: number, j: any) => sum + parseCSVAmount(j.maintenance), 0);
+    const maintenanceWaived = termJournals
+      .filter((j: any) => j.type === pmtWaived)
+      .reduce((sum: number, j: any) => sum + parseCSVAmount(j.maintenance), 0);
+
     const waterBase = parseCSVAmount(getConst(`FEES_${targetTerm}_WATER`));
     const assocBase = parseCSVAmount(getConst(`FEES_${targetTerm}_ASSOC`));
-    const totalBase = waterBase + assocBase;
-    const paid = waterPaid + assocPaid;
-    const waived = waterWaived + assocWaived;
+    const maintenanceBase = parseCSVAmount(getConst(`FEES_${targetTerm}_MAINTENANCE`));
+    const totalBase = waterBase + assocBase + maintenanceBase;
+    const paid = waterPaid + assocPaid + maintenancePaid;
+    const waived = waterWaived + assocWaived + maintenanceWaived;
     const bal = totalBase - paid - waived;
 
     const targetAccount = userAccounts.find((a: any) => a.period === targetTerm) || null;
@@ -390,6 +415,10 @@ export const supabaseResidentService: ResidentServiceInterface = {
             assocPaid,
             assocWaived,
             assocBal: assocBase - assocPaid - assocWaived,
+            maintenanceBase,
+            maintenancePaid,
+            maintenanceWaived,
+            maintenanceBal: maintenanceBase - maintenancePaid - maintenanceWaived,
             totalBase,
             paid,
             waived,

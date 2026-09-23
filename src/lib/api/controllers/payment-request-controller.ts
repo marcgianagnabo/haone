@@ -41,6 +41,7 @@ export async function approvePaymentRequest(
     water: number;
     assoc: number;
     misc: number;
+    maintenance?: number;
     mop: string;
     period: string;
     type: string;
@@ -59,6 +60,7 @@ export async function approvePaymentRequest(
     water: journalData.water,
     assoc: journalData.assoc,
     misc: journalData.misc,
+    maintenance: journalData.maintenance,
     mop: journalData.mop,
     period: journalData.period,
     type: journalData.type,

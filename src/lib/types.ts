@@ -148,8 +148,7 @@ export const JOURNAL_COL = {
   ID: 19,
   CREATOR_ID: 20,
   ACCOUNT_ID: 21,
-  MAINTENANCE: 22,
-  GAS: 23
+  MAINTENANCE: 22
 } as const;
 
 export const ACCOUNT_COL = {
@@ -229,7 +228,8 @@ export const PAYMENT_REQUEST_COL = {
   PROOF_LINK: 8,
   STATUS: 9,
   NOTES: 10,
-  STATUS_REASON: 11
+  STATUS_REASON: 11,
+  MAINTENANCE_FEE: 12
 } as const;
 
 export const ANNOUNCEMENT_COL = {
@@ -335,6 +335,10 @@ export interface ResidentRecord {
   assocPaid: number;
   assocWaived: number;
   assocBal: number;
+  maintenanceBase?: number;
+  maintenancePaid?: number;
+  maintenanceWaived?: number;
+  maintenanceBal?: number;
   totalBase: number;
   paid: number;
   waived: number;
@@ -362,6 +366,7 @@ export interface JournalRecord {
   water: number;
   assoc: number;
   misc: number;
+  maintenance?: number;
   amount: number;
   mop: string;
   period: string;
@@ -430,6 +435,7 @@ export interface PaymentRequestRecord {
   waterFee: number;
   assocFee: number;
   misc: number;
+  maintenanceFee?: number;
   mop: string;
   type: string;
   proofLink: string;

@@ -68,6 +68,7 @@
           water: p.waterFee,
           assoc: p.assocFee,
           misc: p.misc,
+          maintenance: p.maintenanceFee || 0,
           mop: p.mop,
           period: settings.activeTerm,
           type:
@@ -87,7 +88,7 @@
           id: "",
           creatorId: auth.userId,
           accountId: p.residentId || user?.id || resident?.residentId || "",
-          amount: p.waterFee + p.assocFee + p.misc,
+          amount: p.waterFee + p.assocFee + p.misc + (p.maintenanceFee || 0),
           raw: []
         };
       });
@@ -147,6 +148,7 @@
         water: parseFloat(row[3] || "0"),
         assoc: parseFloat(row[4] || "0"),
         misc: parseFloat(row[5] || "0"),
+        maintenance: parseFloat(row[22] || "0"),
         mop: row[6] || "",
         period: row[7] || "",
         type: row[8] || "",
@@ -191,6 +193,7 @@
       water: parseFloat(formData.waterFee) || 0,
       assoc: parseFloat(formData.assocFee) || 0,
       misc: parseFloat(formData.miscFee) || 0,
+      maintenance: parseFloat(formData.maintenanceFee) || 0,
       mop: formData.mop,
       period: formData.period,
       type: formData.type,
@@ -292,6 +295,10 @@
                   <span>{formatAmount(currentPayment.assocFee)}</span>
                 </div>
                 <div class="flex justify-between text-sm">
+                  <span class="font-medium">Maintenance & Gas Fee:</span>
+                  <span>{formatAmount(currentPayment.maintenanceFee || 0)}</span>
+                </div>
+                <div class="flex justify-between text-sm">
                   <span class="font-medium">Miscellaneous:</span>
                   <span>{formatAmount(currentPayment.misc)}</span>
                 </div>
@@ -299,7 +306,10 @@
                   <span>Total:</span>
                   <span class="text-primary">
                     {formatAmount(
-                      currentPayment.waterFee + currentPayment.assocFee + currentPayment.misc
+                      currentPayment.waterFee +
+                        currentPayment.assocFee +
+                        currentPayment.misc +
+                        (currentPayment.maintenanceFee || 0)
                     )}
                   </span>
                 </div>

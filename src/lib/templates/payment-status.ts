@@ -14,6 +14,10 @@ export interface PaymentStatusData {
   assocPaid: number;
   assocWaived: number;
   assocBal: number;
+  maintenanceBase?: number;
+  maintenancePaid?: number;
+  maintenanceWaived?: number;
+  maintenanceBal?: number;
   totalBase: number;
   paid: number;
   waived: number;
@@ -191,6 +195,32 @@ export function generatePaymentStatusHtml(data: PaymentStatusData, branding: Bra
         <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; text-align: right; border-left: none; width: 100px; font-weight: bold;">${formatAmount(data.assocBal)}</td>
       </tr>
 
+      <!-- MAINTENANCE & GAS FEE SECTION -->
+      <tr style="border-top: 2px solid #000;">
+        <td rowspan="4" style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: top; width: 30%;">
+          <p style="font-weight: bold; margin-bottom: 2px;">Maintenance & Gas Fee</p>
+          <p style="font-size: 11px; color: #000; line-height: 1.4; margin: 0; font-style: italic;">for the entire semester</p>
+        </td>
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle;">Billed Amount</td>
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; border-right: none; width: 25px; padding-right: 0;"></td>
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; text-align: right; border-left: none; width: 100px;">${formatAccounting(data.maintenanceBase || 0)}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle;">Less: Total Amount Paid</td>
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; border-right: none; width: 25px; padding-right: 0;"></td>
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; text-align: right; border-left: none; width: 100px;">${formatAccounting(data.maintenancePaid || 0)}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle;">Less: Waived</td>
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; border-right: none; width: 25px; padding-right: 0;"></td>
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; text-align: right; border-left: none; width: 100px;">${formatAccounting(data.maintenanceWaived || 0)}</td>
+      </tr>
+      <tr style="background-color: #f8fafc;">
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; font-weight: bold;">Amount Due</td>
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; border-right: none; width: 25px; padding-right: 0; font-weight: bold;">₱</td>
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; text-align: right; border-left: none; width: 100px; font-weight: bold;">${formatAmount(data.maintenanceBal || 0)}</td>
+      </tr>
+
       <!-- SUMMARY SECTION -->
       <tr style="background-color: #000; color: #ffffff;">
         <td colspan="4" style="text-align: center; padding: 10px; font-size: 13px; letter-spacing: 1px; font-weight: bold;">SUMMARY</td>
@@ -287,7 +317,7 @@ export function generateStatementOfAccountHtml(data: PaymentStatusData, branding
   const content = `
     <p style="font-size: 16px; margin-bottom: 5px; font-weight: normal; display: block; color: #000;">Hi, <strong style="font-weight: bold;">${data.accountName}</strong> (Room ${data.room})</p>
 
-    <p style="font-size: 14px; color: #000; margin-bottom: 25px; line-height: 1.5; display: block;"> Please review the breakdown of your water and association fees for the current semester below:</p>
+    <p style="font-size: 14px; color: #000; margin-bottom: 25px; line-height: 1.5; display: block;"> Please review the breakdown of your water, association, and maintenance fees for the current semester below:</p>
 
     ${sectionRules}
 
@@ -318,6 +348,14 @@ export function generateStatementOfAccountHtml(data: PaymentStatusData, branding
         </td>
         <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; border-right: none; width: 25px; padding-right: 0;"></td>
         <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; text-align: right; border-left: none; width: 100px;">${formatAccounting(data.assocBase)}</td>
+      </tr>
+      <!-- MAINTENANCE & GAS FEE SECTION -->
+      <tr>
+        <td rowspan="1" style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: top; width: 30%;">
+          <p style="font-weight: bold; margin-bottom: 2px;">Maintenance & Gas Fee</p>
+        </td>
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; border-right: none; width: 25px; padding-right: 0;"></td>
+        <td style="padding: 10px 12px; border: 1px solid #000; font-size: 13px; vertical-align: middle; text-align: right; border-left: none; width: 100px;">${formatAccounting(data.maintenanceBase || 0)}</td>
       </tr>
       <!-- SUMMARY SECTION -->
       <tr>

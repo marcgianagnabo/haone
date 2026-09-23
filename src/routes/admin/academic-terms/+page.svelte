@@ -37,9 +37,11 @@
   let feeData = $state({
     assoc: 0,
     water: 0,
+    maintenance: 0,
     total: 0,
     assoc_cp: 0,
-    water_cp: 0
+    water_cp: 0,
+    maintenance_cp: 0
   });
 
   const termOptions = [
@@ -122,15 +124,18 @@
     feeData = {
       assoc: getVal("ASSOC"),
       water: getVal("WATER"),
+      maintenance: getVal("MAINTENANCE"),
       total: getVal("TOTAL"),
       assoc_cp: getVal("ASSOC_CP"),
-      water_cp: getVal("WATER_CP")
+      water_cp: getVal("WATER_CP"),
+      maintenance_cp: getVal("MAINTENANCE_CP")
     };
   }
 
   // Reactive total calculation
   $effect(() => {
-    feeData.total = (feeData.assoc || 0) + (feeData.water || 0);
+    feeData.total =
+      (feeData.assoc || 0) + (feeData.water || 0) + (feeData.maintenance || 0);
   });
 
   async function saveFees() {
@@ -144,9 +149,11 @@
     const updates = [
       { suffix: "ASSOC", val: feeData.assoc },
       { suffix: "WATER", val: feeData.water },
+      { suffix: "MAINTENANCE", val: feeData.maintenance },
       { suffix: "TOTAL", val: feeData.total },
       { suffix: "ASSOC_CP", val: feeData.assoc_cp },
-      { suffix: "WATER_CP", val: feeData.water_cp }
+      { suffix: "WATER_CP", val: feeData.water_cp },
+      { suffix: "MAINTENANCE_CP", val: feeData.maintenance_cp }
     ];
 
     try {

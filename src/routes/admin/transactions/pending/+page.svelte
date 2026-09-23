@@ -153,6 +153,7 @@
     return [
       { name: "Water Fee", amount: r.water },
       { name: "Association Fee", amount: r.assoc },
+      { name: "Maintenance & Gas Fee", amount: r.maintenance || 0 },
       { name: "Miscellaneous", amount: r.misc }
     ].filter((i) => i.amount !== 0);
   }

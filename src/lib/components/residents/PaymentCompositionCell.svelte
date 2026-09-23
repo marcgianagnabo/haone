@@ -15,6 +15,7 @@
     [
       { name: "Water Fee", amount: record.water },
       { name: "Association Fee", amount: record.assoc },
+      { name: "Maintenance & Gas Fee", amount: record.maintenance || 0 },
       { name: "Miscellaneous", amount: record.misc }
     ].filter((i) => i.amount !== 0)
   );

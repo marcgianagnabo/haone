@@ -39,6 +39,7 @@
     date: new Date().toISOString().split("T")[0],
     waterFee: "0",
     assocFee: "0",
+    maintenanceFee: "0",
     miscFee: "0",
     mop: "GCASH",
     proofLink: "",
@@ -47,6 +48,7 @@
 
   const waterLimit = $derived(resident?.waterBal || 0);
   const assocLimit = $derived(resident?.assocBal || 0);
+  const maintenanceLimit = $derived(resident?.maintenanceBal || 0);
 
   const currentWaterBal = $derived.by(() => {
     if (!resident) return 0;
@@ -56,6 +58,11 @@
   const currentAssocBal = $derived.by(() => {
     if (!resident) return 0;
     return assocLimit - (Number(formData.assocFee) || 0);
+  });
+
+  const currentMaintenanceBal = $derived.by(() => {
+    if (!resident) return 0;
+    return maintenanceLimit - (Number(formData.maintenanceFee) || 0);
   });
 
   import { fetchResidentStatus } from "$api/controllers/resident-controller";
@@ -87,9 +94,10 @@
 
     const water = parseFloat(formData.waterFee) || 0;
     const assoc = parseFloat(formData.assocFee) || 0;
+    const maintenance = parseFloat(formData.maintenanceFee) || 0;
     const misc = parseFloat(formData.miscFee) || 0;
 
-    if (water === 0 && assoc === 0 && misc === 0) {
+    if (water === 0 && assoc === 0 && maintenance === 0 && misc === 0) {
       toast.error("Please enter at least one fee amount");
       return;
     }
@@ -128,9 +136,13 @@
         date: formData.date,
         waterFee: water,
         assocFee: assoc,
+        maintenanceFee: maintenance,
         misc: misc,
         mop: formData.mop,
-        type: misc > 0 ? TransactionType.COLLECTION_OTHERS : TransactionType.COLLECTION,
+        type:
+          misc > 0 || maintenance > 0
+            ? TransactionType.COLLECTION_OTHERS
+            : TransactionType.COLLECTION,
         proofLink: finalProofLink,
         status: "PENDING",
         notes: formData.notes
@@ -291,6 +303,57 @@
                 </div>
               </div>
 
+              <!-- Maintenance Fee Row -->
+              <div class="grid gap-4 md:grid-cols-2">
+                <div class="space-y-1.5">
+                  <Label>Maintenance & Gas Fee</Label>
+                  <div class="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      bind:value={formData.maintenanceFee}
+                      disabled={isSubmitting}
+                      class="text-right font-mono"
+                    />
+                    <Tooltip.Root>
+                      <Tooltip.Trigger>
+                        {#snippet child({ props })}
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            class="h-9 w-9 shrink-0"
+                            {...props}
+                            onclick={() => (formData.maintenanceFee = maintenanceLimit.toString())}
+                            disabled={maintenanceLimit <= 0 || isSubmitting}
+                            icon={ArrowLeftToLine}
+                          />
+                        {/snippet}
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>
+                        <p class="text-xs font-bold">Pay remaining maintenance & gas balance</p>
+                      </Tooltip.Content>
+                    </Tooltip.Root>
+                  </div>
+                </div>
+                <div class="space-y-1.5">
+                  <Label>New Maintenance & Gas Balance</Label>
+                  <div class="flex h-9 items-center justify-between rounded-md bg-muted/20 px-3">
+                    {#if currentMaintenanceBal < 0}
+                      <Badge variant="destructive" class="font-bold">OVERPAID</Badge>
+                    {:else}
+                      <span></span>
+                    {/if}
+                    <div
+                      class="font-mono text-sm font-bold {currentMaintenanceBal > 0
+                        ? 'text-destructive'
+                        : 'text-primary'}"
+                    >
+                      {formatAccounting(currentMaintenanceBal)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <!-- Misc Fee Row -->
               <div class="space-y-1.5">
                 <Label>Misc / Other Payments</Label>
@@ -354,6 +417,7 @@
                 {formatCurrency(
                   (parseFloat(formData.waterFee) || 0) +
                     (parseFloat(formData.assocFee) || 0) +
+                    (parseFloat(formData.maintenanceFee) || 0) +
                     (parseFloat(formData.miscFee) || 0)
                 )}
               </p>

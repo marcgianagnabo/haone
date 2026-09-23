@@ -95,6 +95,7 @@
   });
   let waterColl = $derived(reportData.waterColl);
   let assocColl = $derived(reportData.assocColl);
+  let maintenanceColl = $derived(reportData.maintenanceColl);
 
   const chartConfig = {
     value: { label: "Amount" },
@@ -139,6 +140,7 @@
   let balanceTrendData = $derived.by(() => {
     let runningWater = 0;
     let runningAssoc = 0;
+    let runningMaintenance = 0;
     let runningMisc = 0;
 
     const points = processedJournal.map((j, idx) => {
@@ -146,6 +148,7 @@
       if (!isWaived) {
         runningWater += j.water;
         runningAssoc += j.assoc;
+        runningMaintenance += j.maintenance || 0;
         runningMisc += j.misc;
       }
 
@@ -164,7 +167,7 @@
         }
       }
 
-      const total = runningWater + runningAssoc + runningMisc;
+      const total = runningWater + runningAssoc + runningMaintenance + runningMisc;
 
       return {
         id: j.id || `pt-${idx}`,
@@ -174,6 +177,7 @@
         balance: Math.round(total * 100) / 100,
         water: Math.round(runningWater * 100) / 100,
         assoc: Math.round(runningAssoc * 100) / 100,
+        maintenance: Math.round(runningMaintenance * 100) / 100,
         misc: Math.round(runningMisc * 100) / 100
       };
     });
@@ -185,6 +189,7 @@
     { key: "balance", label: "Net Balance", color: "#10b981" },
     { key: "water", label: "Water Fee", color: "#06b6d4" },
     { key: "assoc", label: "Association Fee", color: "#3b82f6" },
+    { key: "maintenance", label: "Maintenance & Gas Fee", color: "#8b5cf6" },
     { key: "misc", label: "Miscellaneous", color: "#f59e0b" }
   ];
 
@@ -462,6 +467,41 @@
                       </Table.Row>
                     {/each}
 
+                    <!-- MAINTENANCE & GAS FEE Group -->
+                    <Table.Row class="font-bold">
+                      <Table.Cell>MAINTENANCE & GAS FEE</Table.Cell>
+                      <Table.Cell class="text-right"
+                        >{formatAccounting(fundSummary.feeSummary.MAINTENANCE.incoming)}</Table.Cell
+                      >
+                      <Table.Cell class="text-right"
+                        >{formatAccounting(fundSummary.feeSummary.MAINTENANCE.outgoing)}</Table.Cell
+                      >
+                      <Table.Cell class="text-right"
+                        >{formatAccounting(
+                          fundSummary.feeSummary.MAINTENANCE.incoming -
+                            fundSummary.feeSummary.MAINTENANCE.outgoing
+                        )}</Table.Cell
+                      >
+                    </Table.Row>
+                    {#each Object.entries(fundSummary.feeTypeMopSummary.MAINTENANCE) as [
+                      mop,
+                      data
+                    ]}
+                      <Table.Row>
+                        <Table.Cell class="pl-6 uppercase"
+                          >{availableMops.find((m) => m.value === mop)?.label ||
+                            translateMop(mop)}</Table.Cell
+                        >
+                        <Table.Cell class="text-right">{formatAccounting(data.incoming)}</Table.Cell
+                        >
+                        <Table.Cell class="text-right">{formatAccounting(data.outgoing)}</Table.Cell
+                        >
+                        <Table.Cell class="text-right"
+                          >{formatAccounting(data.incoming - data.outgoing)}</Table.Cell
+                        >
+                      </Table.Row>
+                    {/each}
+
                     <!-- MISCELLANEOUS Group -->
                     <Table.Row class="font-bold">
                       <Table.Cell>MISCELLANEOUS</Table.Cell>
@@ -619,6 +659,45 @@
                       <Table.Cell>OVERDUE ACCOUNTS²</Table.Cell>
                       <Table.Cell class="text-right"
                         >{formatAccounting(assocColl.overdue)}</Table.Cell
+                      >
+                    </Table.Row>
+                  {/if}
+
+                  <!-- MAINTENANCE & GAS FEE Group -->
+                  {#if maintenanceColl.target > 0}
+                    <Table.Row class="border-t">
+                      <Table.Cell rowspan={5} class="border-r align-middle font-bold"
+                        >MAINTENANCE & GAS FEE</Table.Cell
+                      >
+                      <Table.Cell class="text-foreground">TARGET</Table.Cell>
+                      <Table.Cell class="text-right"
+                        >{formatAccounting(maintenanceColl.target)}</Table.Cell
+                      >
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell class="text-foreground">LESS: WAIVED</Table.Cell>
+                      <Table.Cell class="text-right"
+                        >{formatAccounting(maintenanceColl.waived)}</Table.Cell
+                      >
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell class="text-foreground"
+                        >TOTAL COLLECTION FROM RESIDENTS</Table.Cell
+                      >
+                      <Table.Cell class="text-right"
+                        >{formatAccounting(maintenanceColl.resident)}</Table.Cell
+                      >
+                    </Table.Row>
+                    <Table.Row class="font-bold">
+                      <Table.Cell>LESS: COLLECTION REFUNDS</Table.Cell>
+                      <Table.Cell class="text-right"
+                        >{formatAccounting(maintenanceColl.resident - maintenanceColl.refunds)}</Table.Cell
+                      >
+                    </Table.Row>
+                    <Table.Row class="font-bold">
+                      <Table.Cell>OVERDUE ACCOUNTS²</Table.Cell>
+                      <Table.Cell class="text-right"
+                        >{formatAccounting(maintenanceColl.overdue)}</Table.Cell
                       >
                     </Table.Row>
                   {/if}

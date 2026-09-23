@@ -19,6 +19,7 @@
         water: parseFloat(r[3] || "0"),
         assoc: parseFloat(r[4] || "0"),
         misc: parseFloat(r[5] || "0"),
+        maintenance: parseFloat(r[22] || "0"),
         mop: r[6],
         period: r[7],
         type: r[8],

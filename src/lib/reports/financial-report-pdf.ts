@@ -72,7 +72,7 @@ export function computeFinancialReportData(
   let runningBalance = 0;
   const processedJournal = sortedJournal.map((j) => {
     const isWaived = j.type.toUpperCase().includes("WAIVED");
-    const amount = j.water + j.assoc + j.misc;
+    const amount = j.water + j.assoc + (j.maintenance || 0) + j.misc;
     const incoming = !isWaived && amount > 0 ? amount : 0;
     const outgoing = !isWaived && amount < 0 ? Math.abs(amount) : 0;
     if (!isWaived) {
@@ -107,6 +107,7 @@ export function computeFinancialReportData(
   const feeSummary = {
     WATER: { incoming: 0, outgoing: 0 },
     ASSOC: { incoming: 0, outgoing: 0 },
+    MAINTENANCE: { incoming: 0, outgoing: 0 },
     MISC: { incoming: 0, outgoing: 0 }
   };
 
@@ -114,6 +115,7 @@ export function computeFinancialReportData(
   const feeTypeMopSummary = {
     WATER: {} as Record<string, { incoming: number; outgoing: number }>,
     ASSOC: {} as Record<string, { incoming: number; outgoing: number }>,
+    MAINTENANCE: {} as Record<string, { incoming: number; outgoing: number }>,
     MISC: {} as Record<string, { incoming: number; outgoing: number }>
   };
 
@@ -162,6 +164,24 @@ export function computeFinancialReportData(
       }
     }
 
+    const maintenanceAmt = j.maintenance || 0;
+    if (maintenanceAmt !== 0) {
+      if (maintenanceAmt > 0) {
+        feeSummary.MAINTENANCE.incoming += maintenanceAmt;
+        if (!feeTypeMopSummary.MAINTENANCE[mopKey]) {
+          feeTypeMopSummary.MAINTENANCE[mopKey] = { incoming: 0, outgoing: 0 };
+        }
+        feeTypeMopSummary.MAINTENANCE[mopKey].incoming += maintenanceAmt;
+      } else {
+        const absVal = Math.abs(maintenanceAmt);
+        feeSummary.MAINTENANCE.outgoing += absVal;
+        if (!feeTypeMopSummary.MAINTENANCE[mopKey]) {
+          feeTypeMopSummary.MAINTENANCE[mopKey] = { incoming: 0, outgoing: 0 };
+        }
+        feeTypeMopSummary.MAINTENANCE[mopKey].outgoing += absVal;
+      }
+    }
+
     if (j.misc !== 0) {
       if (j.misc > 0) {
         feeSummary.MISC.incoming += j.misc;
@@ -198,11 +218,19 @@ export function computeFinancialReportData(
     ),
     overdue: accounts.reduce((s, r) => s + (r.waterBal > 0 ? r.waterBal : 0), 0),
     aquaAltria: processedJournal.reduce(
-      (s, j) => s + (j.type === "WATER_AQUA_ALTRIA" ? Math.abs(j.water + j.assoc + j.misc) : 0),
+      (s, j) =>
+        s +
+        (j.type === "WATER_AQUA_ALTRIA"
+          ? Math.abs(j.water + j.assoc + (j.maintenance || 0) + j.misc)
+          : 0),
       0
     ),
     paidToWater: processedJournal.reduce(
-      (s, j) => s + (j.type === "WATER" ? Math.abs(j.water + j.assoc + j.misc) : 0),
+      (s, j) =>
+        s +
+        (j.type === "WATER"
+          ? Math.abs(j.water + j.assoc + (j.maintenance || 0) + j.misc)
+          : 0),
       0
     )
   };
@@ -221,6 +249,28 @@ export function computeFinancialReportData(
     overdue: accounts.reduce((s, r) => s + (r.assocBal > 0 ? r.assocBal : 0), 0)
   };
 
+  const maintenanceColl = {
+    target: accounts.reduce((s, r) => s + (r.maintenanceBase || 0), 0),
+    waived: accounts.reduce((s, r) => s + (r.maintenanceWaived || 0), 0),
+    resident: processedJournal.reduce(
+      (s, j) =>
+        s +
+        (j.type === TransactionType.COLLECTION && (j.maintenance || 0) > 0
+          ? j.maintenance || 0
+          : 0),
+      0
+    ),
+    refunds: processedJournal.reduce(
+      (s, j) =>
+        s +
+        (j.type === TransactionType.COLLECTION && (j.maintenance || 0) < 0
+          ? Math.abs(j.maintenance || 0)
+          : 0),
+      0
+    ),
+    overdue: accounts.reduce((s, r) => s + ((r.maintenanceBal || 0) > 0 ? r.maintenanceBal || 0 : 0), 0)
+  };
+
   return {
     processedJournal,
     runningBalance,
@@ -228,7 +278,8 @@ export function computeFinancialReportData(
     feeSummary,
     feeTypeMopSummary,
     waterColl,
-    assocColl
+    assocColl,
+    maintenanceColl
   };
 }
 
@@ -259,7 +310,8 @@ export async function exportFinancialReportPDF(options: FinancialReportOptions) 
     feeSummary,
     feeTypeMopSummary,
     waterColl,
-    assocColl
+    assocColl,
+    maintenanceColl
   } = computeFinancialReportData(journal, accounts, availableMops);
 
   const summaryLayout: CustomTableLayout = {
@@ -412,6 +464,43 @@ export async function exportFinancialReportPDF(options: FinancialReportOptions) 
               }
             ] as TableCell[],
             ...Object.entries(feeTypeMopSummary.ASSOC).map(([mop, data]) => {
+              const mopConst = availableMops.find((m) => {
+                return m.value === mop;
+              });
+              const label = mopConst ? mopConst.label : translateMop(mop);
+              return [
+                { text: label.toUpperCase(), fontSize: 9, margin: [15, 0, 0, 0] },
+                { text: formatAccounting(data.incoming), alignment: "right", fontSize: 9 },
+                { text: formatAccounting(data.outgoing), alignment: "right", fontSize: 9 },
+                {
+                  text: formatAccounting(data.incoming - data.outgoing),
+                  alignment: "right",
+                  fontSize: 9
+                }
+              ] as TableCell[];
+            }),
+            [
+              { text: "MAINTENANCE & GAS FEE", bold: true, fontSize: 9 },
+              {
+                text: formatAccounting(feeSummary.MAINTENANCE.incoming),
+                alignment: "right",
+                bold: true,
+                fontSize: 9
+              },
+              {
+                text: formatAccounting(feeSummary.MAINTENANCE.outgoing),
+                alignment: "right",
+                bold: true,
+                fontSize: 9
+              },
+              {
+                text: formatAccounting(feeSummary.MAINTENANCE.incoming - feeSummary.MAINTENANCE.outgoing),
+                alignment: "right",
+                bold: true,
+                fontSize: 9
+              }
+            ] as TableCell[],
+            ...Object.entries(feeTypeMopSummary.MAINTENANCE).map(([mop, data]) => {
               const mopConst = availableMops.find((m) => {
                 return m.value === mop;
               });
@@ -618,6 +707,57 @@ export async function exportFinancialReportPDF(options: FinancialReportOptions) 
                     { text: "OVERDUE ACCOUNTS²", bold: true, fontSize: 9 },
                     {
                       text: formatAccounting(assocColl.overdue),
+                      alignment: "right",
+                      bold: true,
+                      fontSize: 9
+                    }
+                  ] as TableCell[]
+                ]
+              : []),
+            // MAINTENANCE & GAS FEE
+            ...(maintenanceColl.target > 0
+              ? [
+                  [
+                    {
+                      text: "MAINTENANCE & GAS FEE",
+                      rowSpan: 5,
+                      bold: true,
+                      alignment: "center",
+                      verticalAlignment: "middle",
+                      fontSize: 9
+                    } as any,
+                    { text: "TARGET", fontSize: 9 },
+                    { text: formatAccounting(maintenanceColl.target), alignment: "right", fontSize: 9 }
+                  ] as TableCell[],
+                  [
+                    "",
+                    { text: "LESS: WAIVED", fontSize: 9 },
+                    { text: formatAccounting(maintenanceColl.waived), alignment: "right", fontSize: 9 }
+                  ] as TableCell[],
+                  [
+                    "",
+                    { text: "TOTAL COLLECTION FROM RESIDENTS", fontSize: 9 },
+                    {
+                      text: formatAccounting(maintenanceColl.resident),
+                      alignment: "right",
+                      fontSize: 9
+                    }
+                  ] as TableCell[],
+                  [
+                    "",
+                    { text: "LESS: COLLECTION REFUNDS", bold: true, fontSize: 9 },
+                    {
+                      text: formatAccounting(maintenanceColl.resident - maintenanceColl.refunds),
+                      alignment: "right",
+                      bold: true,
+                      fontSize: 9
+                    }
+                  ] as TableCell[],
+                  [
+                    "",
+                    { text: "OVERDUE ACCOUNTS²", bold: true, fontSize: 9 },
+                    {
+                      text: formatAccounting(maintenanceColl.overdue),
                       alignment: "right",
                       bold: true,
                       fontSize: 9

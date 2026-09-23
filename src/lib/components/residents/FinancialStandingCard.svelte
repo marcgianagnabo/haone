@@ -2,7 +2,7 @@
   import * as Card from "$ui/card";
   import { Label } from "$ui/label";
   import { formatCurrency, formatAmount } from "$utils/formatters";
-  import { CreditCard, Droplets, Users, Wallet } from "@lucide/svelte";
+  import { CreditCard, Droplets, Users, Wallet, Wrench } from "@lucide/svelte";
   import type { ResidentRecord } from "$lib/types";
 
   interface Props {
@@ -78,6 +78,39 @@
           <span>Balance</span>
           <span class="text-foreground {account.assocBal < 0 ? 'text-primary' : ''}"
             >{formatAmount(account.assocBal)}</span
+          >
+        </div>
+      </div>
+    </div>
+
+    <!-- Maintenance Fee Section -->
+    <div class="space-y-3">
+      <div class="pb-1">
+        <Label
+          class="flex items-center gap-1.5 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+        >
+          <Wrench class="h-3 w-3" /> Maintenance & Gas Fee
+        </Label>
+      </div>
+      <div
+        class="grid grid-cols-4 gap-2 text-center text-xs font-bold text-muted-foreground uppercase"
+      >
+        <div class="flex flex-col gap-0.5">
+          <span>Base</span>
+          <span class="text-foreground">{formatAmount(account.maintenanceBase || 0)}</span>
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <span>Paid</span>
+          <span class="text-foreground">{formatAmount(account.maintenancePaid || 0)}</span>
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <span>Waived</span>
+          <span class="text-foreground">{formatAmount(account.maintenanceWaived || 0)}</span>
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <span>Balance</span>
+          <span class="text-foreground {(account.maintenanceBal || 0) < 0 ? 'text-primary' : ''}"
+            >{formatAmount(account.maintenanceBal || 0)}</span
           >
         </div>
       </div>

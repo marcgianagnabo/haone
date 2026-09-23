@@ -92,6 +92,7 @@
     accountId: "",
     waterFee: "0",
     assocFee: "0",
+    maintenanceFee: "0",
     miscFee: "0",
     mop: "CASH",
     mopTo: "CASH",
@@ -165,7 +166,7 @@
         // 2. Data Processing (exact map from financial-report-pdf.ts)
         const processedJournal = termJournal.map((j) => {
           const isWaived = j.type.toUpperCase().includes("WAIVED");
-          const amount = j.water + j.assoc + j.misc;
+          const amount = j.water + j.assoc + j.misc + (j.maintenance || 0);
           const incoming = !isWaived && amount > 0 ? amount : 0;
           const outgoing = !isWaived && amount < 0 ? Math.abs(amount) : 0;
           return {
@@ -198,17 +199,22 @@
         const assocSum = nonWaivedFiltered.reduce((sum, j) => {
           return sum + j.assoc;
         }, 0);
+        const maintenanceSum = nonWaivedFiltered.reduce((sum, j) => {
+          return sum + (j.maintenance || 0);
+        }, 0);
         const miscSum = nonWaivedFiltered.reduce((sum, j) => {
           return sum + j.misc;
         }, 0);
 
         const waterBal = Math.round(waterSum * 100) / 100;
         const assocBal = Math.round(assocSum * 100) / 100;
+        const maintenanceBal = Math.round(maintenanceSum * 100) / 100;
         const miscBal = Math.round(miscSum * 100) / 100;
 
         // Populate fields with negated balances
         formData.waterFee = (-waterBal).toString();
         formData.assocFee = (-assocBal).toString();
+        formData.maintenanceFee = (-maintenanceBal).toString();
         formData.miscFee = (-miscBal).toString();
       });
     }
@@ -237,6 +243,13 @@
     return base + original;
   });
 
+  const maintenanceLimit = $derived.by(() => {
+    if (!isCollection || !selectedResident) return 0;
+    const base = selectedResident.maintenanceBal || 0;
+    const original = mode === "edit" && initialData ? initialData.maintenance || 0 : 0;
+    return base + original;
+  });
+
   const currentWaterBal = $derived.by(() => {
     if (!isCollection || !selectedResident) return selectedResident?.waterBal || 0;
     const fee = Number(formData.waterFee) || 0;
@@ -247,6 +260,12 @@
     if (!isCollection || !selectedResident) return selectedResident?.assocBal || 0;
     const fee = Number(formData.assocFee) || 0;
     return assocLimit - fee;
+  });
+
+  const currentMaintenanceBal = $derived.by(() => {
+    if (!isCollection || !selectedResident) return selectedResident?.maintenanceBal || 0;
+    const fee = Number(formData.maintenanceFee) || 0;
+    return maintenanceLimit - fee;
   });
 
   const isFundsOnly = $derived(
@@ -358,6 +377,7 @@
           accountId: initialData.accountId || "",
           waterFee: initialData.water.toString(),
           assocFee: initialData.assoc.toString(),
+          maintenanceFee: (initialData.maintenance || 0).toString(),
           miscFee: initialData.misc.toString(),
           mop: initialData.mop,
           mopTo: (initialData as any).mopTo || "CASH",
@@ -387,7 +407,13 @@
         if (selectedResident) {
           const limitW = selectedResident.waterBal + (mode === "edit" ? initialData.water : 0);
           const limitA = selectedResident.assocBal + (mode === "edit" ? initialData.assoc : 0);
-          if (initialData.water > limitW + 0.01 || initialData.assoc > limitA + 0.01) {
+          const limitM = (selectedResident.maintenanceBal || 0) +
+            (mode === "edit" ? initialData.maintenance || 0 : 0);
+          if (
+            initialData.water > limitW + 0.01 ||
+            initialData.assoc > limitA + 0.01 ||
+            (initialData.maintenance || 0) > limitM + 0.01
+          ) {
             allowOverpayment = true;
           }
           if (!formData.accountId) {
@@ -489,9 +515,10 @@
 
     const water = parseFloat(formData.waterFee) || 0;
     const assoc = parseFloat(formData.assocFee) || 0;
+    const maintenance = parseFloat(formData.maintenanceFee) || 0;
     const misc = parseFloat(formData.miscFee) || 0;
 
-    if (water === 0 && assoc === 0 && misc === 0) {
+    if (water === 0 && assoc === 0 && maintenance === 0 && misc === 0) {
       error = "Transaction must have at least one non-zero amount.";
       return;
     }
@@ -515,6 +542,10 @@
         error = `Association payment exceeds remaining balance limit (${formatAmount(assocLimit)}).`;
         return;
       }
+      if (maintenance > maintenanceLimit + 0.01) {
+        error = `Maintenance payment exceeds remaining balance limit (${formatAmount(maintenanceLimit)}).`;
+        return;
+      }
     }
 
     if (formData.period !== settings.currentTerm && !hasConfirmedTerm) {
@@ -527,12 +558,13 @@
     try {
       if (formData.type === TransactionType.FUND_TRANSFER) {
         // From Row: Negative amount, MOP From
-        const fromRow = new Array(22).fill("");
+        const fromRow = new Array(24).fill("");
         fromRow[JOR.DATE] = formData.date;
         fromRow[JOR.CREATOR] = "";
         fromRow[JOR.ACCOUNT] = "";
         fromRow[JOR.WATER] = water !== 0 ? `-${Math.abs(water)}` : "0";
         fromRow[JOR.ASSOC] = assoc !== 0 ? `-${Math.abs(assoc)}` : "0";
+        fromRow[JOR.MAINTENANCE] = maintenance !== 0 ? `-${Math.abs(maintenance)}` : "0";
         fromRow[JOR.MISC] = misc !== 0 ? `-${Math.abs(misc)}` : "0";
         fromRow[JOR.MOP] = formData.mop;
         fromRow[JOR.PERIOD] = formData.period;
@@ -554,12 +586,13 @@
         fromRow[JOR.ACCOUNT_ID] = formData.accountId || "";
 
         // To Row: Positive amount, MOP To
-        const toRow = new Array(22).fill("");
+        const toRow = new Array(24).fill("");
         toRow[JOR.DATE] = formData.date;
         toRow[JOR.CREATOR] = "";
         toRow[JOR.ACCOUNT] = "";
         toRow[JOR.WATER] = water !== 0 ? `${Math.abs(water)}` : "0";
         toRow[JOR.ASSOC] = assoc !== 0 ? `${Math.abs(assoc)}` : "0";
+        toRow[JOR.MAINTENANCE] = maintenance !== 0 ? `${Math.abs(maintenance)}` : "0";
         toRow[JOR.MISC] = misc !== 0 ? `${Math.abs(misc)}` : "0";
         toRow[JOR.MOP] = formData.mopTo;
         toRow[JOR.PERIOD] = formData.period;
@@ -584,7 +617,7 @@
         return;
       }
 
-      const row = new Array(22).fill("");
+      const row = new Array(24).fill("");
       row[JOR.DATE] = formData.date;
       row[JOR.CREATOR] = "";
       row[JOR.ACCOUNT] = "";
@@ -608,6 +641,10 @@
         isNegative && parseFloat(formData.assocFee) !== 0
           ? `-${Math.abs(parseFloat(formData.assocFee))}`
           : formData.assocFee || "0";
+      row[JOR.MAINTENANCE] =
+        isNegative && parseFloat(formData.maintenanceFee) !== 0
+          ? `-${Math.abs(parseFloat(formData.maintenanceFee))}`
+          : formData.maintenanceFee || "0";
       row[JOR.MISC] =
         formData.type === TransactionType.WAIVED
           ? "0"
@@ -665,12 +702,13 @@
       row[JOR.ACCOUNT_ID] = formData.accountId || "";
 
       if (mode === "add" && isEos && carryoverTerm) {
-        const carryoverRow = new Array(22).fill("");
+        const carryoverRow = new Array(24).fill("");
         carryoverRow[JOR.DATE] = formData.date;
         carryoverRow[JOR.CREATOR] = "";
         carryoverRow[JOR.ACCOUNT] = "";
         carryoverRow[JOR.WATER] = water !== 0 ? (-water).toString() : "0";
         carryoverRow[JOR.ASSOC] = assoc !== 0 ? (-assoc).toString() : "0";
+        carryoverRow[JOR.MAINTENANCE] = maintenance !== 0 ? (-maintenance).toString() : "0";
         carryoverRow[JOR.MISC] = misc !== 0 ? (-misc).toString() : "0";
         carryoverRow[JOR.MOP] = formData.mop;
         carryoverRow[JOR.PERIOD] = carryoverTerm;
@@ -999,6 +1037,63 @@
                 {/if}
               </div>
 
+              <!-- Maintenance Fee Row -->
+              <div class="grid gap-4 {isCollection && selectedResident ? 'md:grid-cols-2' : ''}">
+                <div class="space-y-1.5">
+                  <Label>Maintenance & Gas Fee</Label>
+                  <div class="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      bind:value={formData.maintenanceFee}
+                      max={isCollection && !allowOverpayment ? maintenanceLimit : undefined}
+                      disabled={!formData.accountId || isSubmitting || isEos}
+                      class="text-right font-mono"
+                    />
+                    {#if isCollection && selectedResident}
+                      <Tooltip.Root>
+                        <Tooltip.Trigger>
+                          {#snippet child({ props })}
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              class="h-9 w-9 shrink-0"
+                              {...props}
+                              onclick={() => (formData.maintenanceFee = maintenanceLimit.toString())}
+                              disabled={maintenanceLimit <= 0 || isSubmitting}
+                            >
+                              <ArrowLeftToLine class="h-4 w-4" />
+                            </Button>
+                          {/snippet}
+                        </Tooltip.Trigger>
+                        <Tooltip.Content>
+                          <p class="text-xs font-bold">Set to Maximum</p>
+                        </Tooltip.Content>
+                      </Tooltip.Root>
+                    {/if}
+                  </div>
+                </div>
+                {#if isCollection && selectedResident}
+                  <div class="space-y-1.5">
+                    <Label>Remaining Maintenance & Gas Balance</Label>
+                    <div class="flex h-9 items-center justify-between rounded-md bg-muted/20 px-3">
+                      {#if currentMaintenanceBal < 0}
+                        <Badge variant="destructive" class="font-bold">OVERPAID</Badge>
+                      {:else}
+                        <span></span>
+                      {/if}
+                      <div
+                        class="font-mono text-sm font-bold {currentMaintenanceBal > 0
+                          ? 'text-destructive'
+                          : 'text-primary'}"
+                      >
+                        {formatAccounting(currentMaintenanceBal)}
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+
               {#if formData.type !== TransactionType.WAIVED}
                 <!-- Misc Fee Row -->
                 <div class="space-y-1.5">
@@ -1021,7 +1116,7 @@
                   <div class="grid gap-0.5">
                     <Label for="allowOverpayment" class="cursor-pointer">Allow Overpayment</Label>
                     <p class="text-xs leading-tight text-muted-foreground">
-                      Override balance validation for water and association fees.
+                      Override balance validation for water, association, and maintenance fees.
                     </p>
                   </div>
                 </div>

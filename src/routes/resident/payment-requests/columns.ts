@@ -26,6 +26,7 @@ export const columns: ColumnDef<PaymentRequestRecord>[] = [
           ...r,
           water: r.waterFee,
           assoc: r.assocFee,
+          maintenance: r.maintenanceFee || 0,
           misc: r.misc
         } as any
       });
@@ -73,7 +74,9 @@ export const columns: ColumnDef<PaymentRequestRecord>[] = [
       const amountSnippet = createRawSnippet<[{ amount: number }]>((p) => ({
         render: () => `<div class="text-right font-bold">${formatAccounting(p().amount)}</div>`
       }));
-      return renderSnippet(amountSnippet, { amount: r.waterFee + r.assocFee + r.misc });
+      return renderSnippet(amountSnippet, {
+        amount: r.waterFee + r.assocFee + r.misc + (r.maintenanceFee || 0)
+      });
     }
   },
   {

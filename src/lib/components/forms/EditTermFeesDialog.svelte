@@ -17,9 +17,11 @@
     feeData: {
       assoc: number;
       water: number;
+      maintenance: number;
       total: number;
       assoc_cp: number;
       water_cp: number;
+      maintenance_cp: number;
     };
     errorMessage?: string;
     isSaving?: boolean;
@@ -40,7 +42,7 @@
     <Dialog.Header>
       <Dialog.Title>Customize Fees</Dialog.Title>
       <Dialog.Description>
-        Configure association and water fees for <strong>{editingFeesFor?.label}</strong>.
+        Configure fees for <strong>{editingFeesFor?.label}</strong>.
       </Dialog.Description>
     </Dialog.Header>
 
@@ -59,6 +61,10 @@
         <div class="space-y-2">
           <Label>Water Fee</Label>
           <Input type="number" bind:value={feeData.water} step="0.01" />
+        </div>
+        <div class="space-y-2">
+          <Label>Maintenance & Gas Fee</Label>
+          <Input type="number" bind:value={feeData.maintenance} step="0.01" />
         </div>
       </div>
 
@@ -88,6 +94,10 @@
           <div class="space-y-2">
             <Label class="text-xs">Water Fee</Label>
             <Input type="number" bind:value={feeData.water_cp} />
+          </div>
+          <div class="space-y-2">
+            <Label class="text-xs">Maintenance & Gas Fee</Label>
+            <Input type="number" bind:value={feeData.maintenance_cp} />
           </div>
         </div>
       </div>

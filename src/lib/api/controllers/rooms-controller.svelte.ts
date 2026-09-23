@@ -518,6 +518,7 @@ export async function manualDelistResident(
         let remainingToWaive = resRecord.bal;
         let waterWaiveAmt = 0;
         let assocWaiveAmt = 0;
+        let maintenanceWaiveAmt = 0;
         let miscWaiveAmt = 0;
 
         if (resRecord.waterBal > 0) {
@@ -527,6 +528,10 @@ export async function manualDelistResident(
         if (remainingToWaive > 0 && resRecord.assocBal > 0) {
           assocWaiveAmt = Math.min(resRecord.assocBal, remainingToWaive);
           remainingToWaive -= assocWaiveAmt;
+        }
+        if (remainingToWaive > 0 && (resRecord.maintenanceBal || 0) > 0) {
+          maintenanceWaiveAmt = Math.min(resRecord.maintenanceBal || 0, remainingToWaive);
+          remainingToWaive -= maintenanceWaiveAmt;
         }
         if (remainingToWaive > 0) {
           miscWaiveAmt = remainingToWaive;
@@ -558,6 +563,7 @@ export async function manualDelistResident(
             account: resRecord.email,
             water: waterWaiveAmt,
             assoc: assocWaiveAmt,
+            maintenance: maintenanceWaiveAmt,
             misc: miscWaiveAmt,
             mop: "",
             period: term,

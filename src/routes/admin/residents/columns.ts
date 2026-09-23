@@ -86,6 +86,22 @@ export const columns: ColumnDef<Resident>[] = [
         }
       },
       {
+        accessorKey: "maintenanceBal",
+        header: ({ column }) =>
+          renderComponent(DataTableColumnHeader, {
+            column,
+            title: "Maintenance & Gas Fee",
+            class: "ml-auto"
+          }),
+        cell: ({ row }) => {
+          const amountSnippet = createRawSnippet<[{ amount: number }]>((p) => ({
+            render: () =>
+              `<div class="text-right text-sm">${formatAccounting(p().amount || 0)}</div>`
+          }));
+          return renderSnippet(amountSnippet, { amount: row.original.maintenanceBal || 0 });
+        }
+      },
+      {
         accessorKey: "bal",
         header: ({ column }) =>
           renderComponent(DataTableColumnHeader, {

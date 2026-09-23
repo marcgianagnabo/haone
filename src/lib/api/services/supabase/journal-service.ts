@@ -96,7 +96,11 @@ export const supabaseJournalService: JournalServiceInterface = {
         water: parseCSVAmount(row.water),
         assoc: parseCSVAmount(row.assoc),
         misc: parseCSVAmount(row.misc),
-        amount: parseCSVAmount(row.water) + parseCSVAmount(row.assoc) + parseCSVAmount(row.misc),
+        amount:
+          parseCSVAmount(row.water) +
+          parseCSVAmount(row.assoc) +
+          parseCSVAmount(row.misc) +
+          parseCSVAmount(row.maintenance),
         mop: row.mop || "",
         period: row.period || "",
         type: row.type || "",
@@ -112,6 +116,7 @@ export const supabaseJournalService: JournalServiceInterface = {
         receiptUrl: row.receipt_url || "",
         creatorId: row.creator_id || undefined,
         accountId: row.account_id || undefined,
+        maintenance: parseCSVAmount(row.maintenance),
         raw: row
       };
     });
@@ -182,6 +187,7 @@ export const supabaseJournalService: JournalServiceInterface = {
       water: data.water ?? 0,
       assoc: data.assoc ?? 0,
       misc: data.misc ?? 0,
+      maintenance: data.maintenance ?? 0,
       mop: data.mop,
       period: data.period,
       type: data.type,
@@ -251,6 +257,9 @@ export const supabaseJournalService: JournalServiceInterface = {
     }
     if (data.misc !== undefined) {
       payload.misc = data.misc;
+    }
+    if (data.maintenance !== undefined) {
+      payload.maintenance = data.maintenance;
     }
     if (data.mop !== undefined) {
       payload.mop = data.mop;

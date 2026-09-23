@@ -143,7 +143,6 @@ async function verifySupabase(id: string, stno: string) {
     const assoc = parseCSVAmount(row.assoc);
     const misc = parseCSVAmount(row.misc);
     const maintenance = parseCSVAmount(row.maintenance);
-    const gas = parseCSVAmount(row.gas);
 
     if (water !== 0) {
       items.push({ name: "Water Fee", amount: water });
@@ -155,10 +154,7 @@ async function verifySupabase(id: string, stno: string) {
       items.push({ name: "Miscellaneous", amount: misc });
     }
     if (maintenance !== 0) {
-      items.push({ name: "Maintenance Fee", amount: maintenance });
-    }
-    if (gas !== 0) {
-      items.push({ name: "Gas Fee", amount: gas });
+      items.push({ name: "Maintenance & Gas Fee", amount: maintenance });
     }
 
     const receiptData: ReceiptData = {
