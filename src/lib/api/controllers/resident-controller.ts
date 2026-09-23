@@ -23,6 +23,17 @@ export async function getSignedInUserId(): Promise<string> {
   if (!auth.userId) {
     throw new Error("User ID is unavailable.");
   }
+  // The token endpoint resolves identities with an unauthenticated client and
+  // can return a placeholder id. Prefer the real public.users id so row
+  // filters (payment requests, laundry, fridge, settings) match stored ids.
+  const email = auth.user?.email;
+  if (email) {
+    const { resolveUserIdByEmail } = await import("$api/services/common");
+    const resolved = await resolveUserIdByEmail(email);
+    if (resolved) {
+      return resolved;
+    }
+  }
   return auth.userId;
 }
 

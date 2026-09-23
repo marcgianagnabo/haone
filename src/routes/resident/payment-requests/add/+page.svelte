@@ -31,6 +31,7 @@
   let isSubmitting = $state(false);
   let error = $state<string | null>(null);
   let resident = $state<ResidentRecord | null>(null);
+  let residentId = $state("");
   let mopTypes = $state<{ value: string; label: string }[]>([]);
   let pendingFile = $state<File | Blob | null>(null);
   let previewUrl = $state<string | null>(null);
@@ -73,6 +74,7 @@
     try {
       const statusData = await fetchResidentStatus();
       resident = statusData.account;
+      residentId = statusData.profile?.id ?? "";
       mopTypes = statusData.mopTypes;
       if (!resident) {
         return;
@@ -132,7 +134,7 @@
 
       await addPaymentRequest({
         id: crypto.randomUUID(),
-        residentId: resident!.residentId,
+        residentId,
         date: formData.date,
         waterFee: water,
         assocFee: assoc,

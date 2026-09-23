@@ -400,6 +400,7 @@ export const supabaseResidentService: ResidentServiceInterface = {
         : null,
       account: targetAccount
         ? {
+            residentId: currentUser?.id || "",
             email: currentUser?.email || "",
             period: targetAccount.period || "",
             room: targetAccount.room || "",

@@ -1,4 +1,4 @@
-import { supabase } from "$api/services/common";
+import { resolveUserIdByEmail, supabase } from "$api/services/common";
 import { settingsService } from "$api/services/settings-service";
 import { browser } from "$app/environment";
 import { goto } from "$app/navigation";
@@ -167,8 +167,6 @@ export async function handleCallback(options: CallbackOptions): Promise<boolean>
   } = exchangeResult;
   const { access_token: newAccessToken, id_token: idToken } = tokenData;
 
-  onSession(newAccessToken, rememberMe, user, savedType, isInstanceAdmin, credentialJwt);
-
   if (PUBLIC_DB_PROVIDER === "supabase") {
     if (!supabase || !idToken) {
       throw new Error("Supabase sign-in is not configured (missing Supabase client or ID token).");
@@ -181,7 +179,17 @@ export async function handleCallback(options: CallbackOptions): Promise<boolean>
       onSignOut();
       throw new Error(`Supabase sign-in failed: ${sbErr.message}`);
     }
+    // The token endpoint resolves identities with an unauthenticated client, so
+    // it can mint a placeholder id. Resolve the real public.users id from the
+    // authenticated session and persist it so resident pages keyed on
+    // auth.userId match the ids stored on their rows.
+    const resolvedId = await resolveUserIdByEmail(user.email);
+    if (resolvedId) {
+      user.id = resolvedId;
+    }
   }
+
+  onSession(newAccessToken, rememberMe, user, savedType, isInstanceAdmin, credentialJwt);
 
   if (savedType === "admin") {
     await settingsService.verifyAccess(newAccessToken);

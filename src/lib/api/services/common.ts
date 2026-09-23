@@ -139,6 +139,27 @@ export async function resolveSupabaseUserId(
   return null;
 }
 
+/**
+ * Resolves a user's real public.users id from their email using the
+ * authenticated client. Used to replace the placeholder id the token endpoint
+ * can mint when its unauthenticated lookup is blocked by RLS.
+ */
+export async function resolveUserIdByEmail(email?: string | null): Promise<string | null> {
+  if (!supabase || !email) {
+    return null;
+  }
+  const normalized = (email || "").trim();
+  if (!normalized) {
+    return null;
+  }
+  const { data } = await supabase
+    .from("users_view")
+    .select("id")
+    .ilike("email", normalized)
+    .maybeSingle();
+  return data?.id || null;
+}
+
 // ── GSheets API Client ───────────────────────────────────────────────────────
 
 let sheetsCache: Record<string, string[][]> = {};
