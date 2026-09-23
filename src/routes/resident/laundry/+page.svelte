@@ -19,6 +19,7 @@
   import BookLaundryDialog from "$components/forms/BookLaundryDialog.svelte";
   import LaundryRulesDialog from "$components/dialogs/LaundryRulesDialog.svelte";
   import { settings } from "$state/settings.svelte";
+  import { auth } from "$state/auth.svelte";
 
   let reservations = $state<LaundryRecord[]>([]);
   let users = $state<UserRecord[]>([]);
@@ -69,9 +70,26 @@
     return reservations.filter((r) => r.residentId === currentResidentId);
   });
 
+  // For residents, fetchUsers() deliberately returns an empty list, so the
+  // calendar has no names to look up and every slot falls back to "Resident".
+  // Include the signed-in resident themselves so their own bookings show their
+  // name instead of the generic fallback.
+  const calendarUsers = $derived<(UserRecord & { room?: string })[]>(
+    users.length > 0 || !currentResidentId
+      ? users
+      : [
+          {
+            ...auth.user,
+            id: currentResidentId,
+            room: "",
+            name: auth.user?.displayName || auth.user?.displayNameFormal || ""
+          } as UserRecord & { room?: string }
+        ]
+  );
+
   const userMap = $derived(
     new Map(
-      users.flatMap((u: any) => {
+      calendarUsers.flatMap((u: any) => {
         const name = u.displayName || u.name || "Resident";
         const room = u.room || "";
         const data = { name, room };
@@ -132,7 +150,7 @@
     <LaundryCalendar
       {reservations}
       deprecatedMappedReservations={mappedUserReservations}
-      {users}
+      users={calendarUsers}
       currentUserId={currentResidentId}
       isAdminView={false}
       onCancelReservation={(id) => {

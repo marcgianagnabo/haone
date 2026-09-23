@@ -59,8 +59,8 @@
   function confirmDiscard(id: string) {
     discardRequestId = id;
     globalDialog.confirm(
-      "Discard payment request?",
-      "Your pending payment request will be permanently deleted.",
+      "Cancel transaction?",
+      "Do you want to cancel this transaction? The payment proof will be deleted and the request cannot be restored.",
       undefined,
       async () => {
         if (!discardRequestId) {
@@ -68,7 +68,7 @@
         }
         try {
           await cancelPaymentRequest(discardRequestId);
-          toast.success("Payment request discarded.");
+          toast.success("Payment request cancelled.");
           discardRequestId = null;
           await loadData();
         } catch (e: any) {
@@ -77,8 +77,8 @@
       },
       undefined,
       {
-        accept: "Discard",
-        cancel: "Cancel"
+        accept: "Yes, cancel it",
+        cancel: "Go back"
       }
     );
   }

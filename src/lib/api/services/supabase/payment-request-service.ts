@@ -6,6 +6,7 @@ import type {
 } from "$lib/types";
 import { PaymentRequestStatus } from "$lib/types";
 import { auth } from "$state/auth.svelte";
+import { deleteUploadedImage } from "$utils/image-utils";
 import { isUuid, parseDbDate } from "$utils/parsers";
 import {
   assertSupabaseFound,
@@ -223,14 +224,24 @@ export const supabasePaymentRequestService: PaymentRequestServiceInterface = {
     if (!supabase) {
       return;
     }
+    // Conditional update: only a still-PENDING request can be cancelled. If it
+    // was already approved/declined on the admin side, this is a no-op at the DB
+    // level even if the resident's page still shows it as pending.
     const { data, error } = await supabase
       .from("payment_requests")
       .update({ status: PaymentRequestStatus.CANCELLED })
       .eq("id", paymentId)
-      .select("id");
+      .eq("status", PaymentRequestStatus.PENDING)
+      .select("id, proof_link");
     if (error) {
       handleSupabaseError(error);
     }
-    assertSupabaseFound(data, "Payment request not found");
+    assertSupabaseFound(data, "Payment request not found or is no longer pending");
+
+    // The resident cancelled an uploaded proof, so remove the stored image too.
+    const proofLink = data?.[0]?.proof_link;
+    if (proofLink && auth.accessToken) {
+      await deleteUploadedImage(proofLink, auth.accessToken);
+    }
   }
 };
