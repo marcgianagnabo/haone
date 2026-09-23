@@ -13,7 +13,7 @@ import type {
   TableCell,
   TDocumentDefinitions
 } from "pdfmake/interfaces";
-import { getPdfMake, imgToDataUrl } from "./pdf-utils";
+import { downloadPdf, getPdfMake, imgToDataUrl } from "./pdf-utils";
 
 declare const __APP_VERSION__: string;
 declare const __COMMIT_SHA__: string;
@@ -227,10 +227,7 @@ export function computeFinancialReportData(
     ),
     paidToWater: processedJournal.reduce(
       (s, j) =>
-        s +
-        (j.type === "WATER"
-          ? Math.abs(j.water + j.assoc + (j.maintenance || 0) + j.misc)
-          : 0),
+        s + (j.type === "WATER" ? Math.abs(j.water + j.assoc + (j.maintenance || 0) + j.misc) : 0),
       0
     )
   };
@@ -268,7 +265,10 @@ export function computeFinancialReportData(
           : 0),
       0
     ),
-    overdue: accounts.reduce((s, r) => s + ((r.maintenanceBal || 0) > 0 ? r.maintenanceBal || 0 : 0), 0)
+    overdue: accounts.reduce(
+      (s, r) => s + ((r.maintenanceBal || 0) > 0 ? r.maintenanceBal || 0 : 0),
+      0
+    )
   };
 
   return {
@@ -299,9 +299,10 @@ export async function exportFinancialReportPDF(options: FinancialReportOptions) 
   const pdfMake = await getPdfMake();
 
   const profile = brandingState.profile;
-  const letterheadData = await imgToDataUrl(
-    (profile as any).letterheadHalfInchUrl || profile.letterheadUrl
-  );
+  let letterheadData = await imgToDataUrl((profile as any).letterheadHalfInchUrl || "");
+  if (!letterheadData) {
+    letterheadData = await imgToDataUrl(profile.letterheadUrl);
+  }
 
   const {
     processedJournal,
@@ -494,7 +495,9 @@ export async function exportFinancialReportPDF(options: FinancialReportOptions) 
                 fontSize: 9
               },
               {
-                text: formatAccounting(feeSummary.MAINTENANCE.incoming - feeSummary.MAINTENANCE.outgoing),
+                text: formatAccounting(
+                  feeSummary.MAINTENANCE.incoming - feeSummary.MAINTENANCE.outgoing
+                ),
                 alignment: "right",
                 bold: true,
                 fontSize: 9
@@ -727,12 +730,20 @@ export async function exportFinancialReportPDF(options: FinancialReportOptions) 
                       fontSize: 9
                     } as any,
                     { text: "TARGET", fontSize: 9 },
-                    { text: formatAccounting(maintenanceColl.target), alignment: "right", fontSize: 9 }
+                    {
+                      text: formatAccounting(maintenanceColl.target),
+                      alignment: "right",
+                      fontSize: 9
+                    }
                   ] as TableCell[],
                   [
                     "",
                     { text: "LESS: WAIVED", fontSize: 9 },
-                    { text: formatAccounting(maintenanceColl.waived), alignment: "right", fontSize: 9 }
+                    {
+                      text: formatAccounting(maintenanceColl.waived),
+                      alignment: "right",
+                      fontSize: 9
+                    }
                   ] as TableCell[],
                   [
                     "",
@@ -990,5 +1001,5 @@ export async function exportFinancialReportPDF(options: FinancialReportOptions) 
     }
   };
 
-  pdfMake.createPdf(docDefinition).download(`Financial_Report_${semester.replace(/ /g, "_")}.pdf`);
+  await downloadPdf(pdfMake, docDefinition, `Financial_Report_${semester.replace(/ /g, "_")}.pdf`);
 }
