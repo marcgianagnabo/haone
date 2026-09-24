@@ -10,7 +10,8 @@
   import { translatePeriod } from "$utils/translators";
   import { sortPeriods } from "$utils/sort";
   import { Button } from "$ui/button";
-  import { Plus, GraduationCap, Coins, CircleCheck } from "@lucide/svelte";
+  import { Plus, GraduationCap, Coins, CircleCheck, ArrowRightLeft } from "@lucide/svelte";
+  import { goto } from "$app/navigation";
   import ContentHeader from "$components/content/ContentHeader.svelte";
   import { Badge } from "$ui/badge";
   import LoadingView from "$components/content/LoadingView.svelte";
@@ -176,6 +177,17 @@
     }
   }
 
+  function termWeight(value: string) {
+    const match = /^(\d{2})(\d{2})_(MY|[1-3]S)$/.exec(value || "");
+    if (!match) {
+      return 0;
+    }
+    const year = parseInt(match[1], 10);
+    const termPart = match[3];
+    const w = termPart === "MY" ? 3 : termPart === "2S" ? 2 : termPart === "1S" ? 1 : 0;
+    return year * 10 + w;
+  }
+
   async function setActive(value: string) {
     const activeTermConstant = allConstants.find((c) => c.key === "TERM_CURR");
     if (activeTermConstant) {
@@ -269,6 +281,17 @@
                   disabled={isSaving}
                 >
                   Set Active
+                </Button>
+              {/if}
+              {#if activeTermCode !== term.value && termWeight(term.value) > termWeight(activeTermCode)}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="h-8 gap-2 text-xs font-bold tracking-wider uppercase"
+                  onclick={() => goto(`/admin/transactions/carry-over?target=${term.value}`)}
+                >
+                  <ArrowRightLeft class="h-3.5 w-3.5" />
+                  Carry Over
                 </Button>
               {/if}
               <Button
