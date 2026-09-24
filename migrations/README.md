@@ -58,7 +58,8 @@ This document MUST be followed to migrate (or set up) the HAOne Supabase databas
 | 13 | `20260926000000_achievements_feature_flag.sql` | RLS-safe `get_achievement_eligible_counts()` (fixes "X% of residents" stat in Supabase mode) + `FEATURE_ACHIEVEMENTS_ENABLED` constant seeded to `FALSE` (kill switch). | Yes |
 | 14 | `20260926010000_constants_terms_seed.sql` | Seeds academic terms (`TERM_*`), fee rows (`FEES_*`), and `TERM_CURR`. Edit the AY codes to match your school year. | Yes |
 | 15 | `20260926100000_users_auto_link_auth.sql` | BEFORE INSERT trigger that auto-fills `users.auth_uids` from `auth.users` by email + links existing unlinked profiles. Prevents onboarding lock-out for manually/sync-approved residents. | Yes |
-| 16 | `seed.sql` | Seed data: sample resident, RHA system accounts (`_funds`, `_imported`, `_dummy`), an officer. | Yes |
+| 16 | `20260926020000_mop_types_seed.sql` | Seeds payment methods (`MOP_*`) into `constants` (CASH, GCASH, MAYA). Add custom rows the same way; `value` is the exact string stored in `journal.mop`. | Yes |
+| 17 | `seed.sql` | Seed data: sample resident, RHA system accounts (`_funds`, `_imported`, `_dummy`), an officer. | Yes |
 
 **Why 13 (the last numbered file before seed) matters:** in Supabase mode the resident achievements page cannot count eligible residents itself (RLS blinds it), so `get_achievement_eligible_counts()` provides per-term headcounts. At the same time the `FEATURE_ACHIEVEMENTS_ENABLED = 'FALSE'` constant **hides Achievements and Leaderboards from navigation and pages**. Toggle to `TRUE` to re-enable.
 
@@ -179,5 +180,6 @@ Only the email you **log in with** matters: the officer email and the resident e
 | `RPC get_achievement_eligible_counts ... could not find function` | File 13 missing | Run file 13; without it the achievements page still renders but shows 0% counts. |
 | Resident stuck on `/onboarding` despite an approved registration | Profile row has empty `auth_uids` (created with `gen_random_uuid()` instead of the auth id) | Run the link-all SQL in §6 or migration 15; then log in with the profile's email. |
 | `TERM_CURR not found` / empty Academic Terms | Fresh DB — migration `20260926010000_constants_terms_seed.sql` not run | Run the terms seed migration. |
+| No payment methods in the Type/MOP dropdown / MOP missing from financial report | Fresh DB — migration `20260926020000_mop_types_seed.sql` not run | Run the MOP seed migration, then hard-refresh (constants are cached). |
 | Achievements/Leaderboards still visible in app | `FEATURE_ACHIEVEMENTS_ENABLED` absent or `TRUE` | `SELECT * FROM constants WHERE key='FEATURE_ACHIEVEMENTS_ENABLED';` then set value to `FALSE`. |
 | Data wiped | `initial_schema.sql` run on a populated DB | Not recoverable. Restore from a Supabase backup/snapshot; never run file 1 on a populated DB. |
