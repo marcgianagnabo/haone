@@ -7,6 +7,10 @@ import {
 } from "../common";
 import type { AnnouncementServiceInterface } from "../interfaces/announcement-service.interface";
 
+function toDbDate(value?: string | null | undefined): string | null {
+  return value ? value : null;
+}
+
 function mapRow(row: any): AnnouncementRecord {
   return {
     id: row.id,
@@ -115,8 +119,8 @@ export const supabaseAnnouncementService: AnnouncementServiceInterface = {
     const { error } = await supabase.from("announcements").insert({
       id: data.id || crypto.randomUUID(),
       creator_id: data.creatorId,
-      start_date: data.startDate,
-      expiry_date: data.expiryDate,
+      start_date: toDbDate(data.startDate),
+      expiry_date: toDbDate(data.expiryDate),
       is_indefinite: data.isIndefinite ?? false,
       is_admin_only: data.isAdminOnly ?? false,
       is_unlisted: data.isUnlisted ?? false,
@@ -143,10 +147,10 @@ export const supabaseAnnouncementService: AnnouncementServiceInterface = {
       payload.content = data.content;
     }
     if (data.startDate !== undefined) {
-      payload.start_date = data.startDate;
+      payload.start_date = toDbDate(data.startDate);
     }
     if (data.expiryDate !== undefined) {
-      payload.expiry_date = data.expiryDate;
+      payload.expiry_date = toDbDate(data.expiryDate);
     }
     if (data.isIndefinite !== undefined) {
       payload.is_indefinite = data.isIndefinite;
