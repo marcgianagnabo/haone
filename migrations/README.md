@@ -56,9 +56,10 @@ This document MUST be followed to migrate (or set up) the HAOne Supabase databas
 | 11 | `20260925000000_occupied_beds_rpc.sql` | RLS-safe `get_occupied_beds()` for the onboarding bed picker. | Yes |
 | 12 | `20260925020000_student_no_taken_rpc.sql` | RLS-safe `student_no_taken(text)` duplicate student-number guard. | Yes |
 | 13 | `20260926000000_achievements_feature_flag.sql` | RLS-safe `get_achievement_eligible_counts()` (fixes "X% of residents" stat in Supabase mode) + `FEATURE_ACHIEVEMENTS_ENABLED` constant seeded to `FALSE` (kill switch). | Yes |
-| 14 | `seed.sql` | Seed data: sample resident, RHA system accounts (`_funds`, `_imported`, `_dummy`), an officer. | Yes |
+| 14 | `20260926010000_constants_terms_seed.sql` | Seeds academic terms (`TERM_*`), fee rows (`FEES_*`), and `TERM_CURR`. Edit the AY codes to match your school year. | Yes |
+| 15 | `seed.sql` | Seed data: sample resident, RHA system accounts (`_funds`, `_imported`, `_dummy`), an officer. | Yes |
 
-**Why 13 (the last numbered file) matters:** in Supabase mode the resident achievements page cannot count eligible residents itself (RLS blinds it), so `get_achievement_eligible_counts()` provides per-term headcounts. At the same time the `FEATURE_ACHIEVEMENTS_ENABLED = 'FALSE'` constant **hides Achievements and Leaderboards from navigation and pages**. Toggle to `TRUE` to re-enable.
+**Why 13 (the last numbered file before seed) matters:** in Supabase mode the resident achievements page cannot count eligible residents itself (RLS blinds it), so `get_achievement_eligible_counts()` provides per-term headcounts. At the same time the `FEATURE_ACHIEVEMENTS_ENABLED = 'FALSE'` constant **hides Achievements and Leaderboards from navigation and pages**. Toggle to `TRUE` to re-enable.
 
 ## 5. Post-migration verification
 
@@ -118,6 +119,37 @@ WHERE table_name = 'laundry' AND column_name = 'machine';
 - The **officer email must match the Auth email of the admin user** — `is_officer()` (`LANGUAGE sql`, checks JWT email against `officers.email`) decides who has write access everywhere. If you skip the officer row, no authenticated user can write data.
 - The system accounts `_funds`, `_imported`, `_dummy` are used as journal author/recipient placeholders; keep them.
 
+### Identity rule — do not create `users` rows by hand without linking auth
+
+In Supabase mode a resident's identity is **not** the login email alone — it is resolved from `users.auth_uids`:
+
+```sql
+current_user_id() = SELECT id FROM users WHERE auth.uid() = ANY(auth_uids)
+```
+
+`needsOnboarding` stays **true** until the profile is linked to the auth user. So if you insert a `public.users` row manually (e.g. to approve a pending registration, or to fix broken data), you **must** either:
+
+1. Use the real `auth.users.id` as the profile `id`, **or**
+2. Link it afterwards: `UPDATE public.users SET auth_uids = ARRAY['<auth.users.id>'] WHERE ...`
+
+**Never** insert a profile with `gen_random_uuid()` and leave `auth_uids = '{}'`. RLS then hides that profile from its own owner, `isRegistered` becomes `false`, and the resident is locked on `/onboarding` even though the row exists. (This is how the onboarding lock-out incident happened.)
+
+Link-all fix (safe to re-run):
+
+```sql
+UPDATE public.users u
+SET auth_uids = sub.ids
+FROM (
+  SELECT au.email AS email, ARRAY_AGG(au.id) AS ids
+  FROM auth.users au
+  GROUP BY au.email
+) sub
+WHERE LOWER(u.email) = LOWER(sub.email)
+  AND u.auth_uids = '{}';
+```
+
+Only the email you **log in with** matters: the officer email and the resident email are different identities, and resident data appears only for the login email's linked profile.
+
 ## 7. After migration (app side)
 
 1. `.env` is correctly set (see §2).
@@ -126,6 +158,14 @@ WHERE table_name = 'laundry' AND column_name = 'machine';
    - A resident sign-in can see their own account, journal, laundry, fridge.
    - Achievements/Leaderboards are **hidden** (because `FEATURE_ACHIEVEMENTS_ENABLED = FALSE`); set it to `TRUE` in the `constants` table to show them again.
    - Public receipt lookup (`/receipt/[id]`) works — requires `get_receipt_by_id()`.
+3. Confirm every resident profile is identity-linked (no resident locked on onboarding):
+   ```sql
+   SELECT u.email, u.auth_uids
+   FROM public.users u
+   WHERE u.auth_uids = '{}'
+     AND NOT (u.email LIKE '\_%'); -- ignore _funds/_imported/_dummy
+   -- expect zero rows for real residents
+   ```
 
 ## 8. Troubleshooting
 
@@ -136,5 +176,7 @@ WHERE table_name = 'laundry' AND column_name = 'machine';
 | `column "maintenance" ... already exists` (or `gas`) | File 8 run twice | Do not re-run file 8; verify fee columns are present and leave them. |
 | `function student_no_taken ... does not exist` | File 12 missing | Run files ≥ 12. |
 | `RPC get_achievement_eligible_counts ... could not find function` | File 13 missing | Run file 13; without it the achievements page still renders but shows 0% counts. |
+| Resident stuck on `/onboarding` despite an approved registration | Profile row has empty `auth_uids` (created with `gen_random_uuid()` instead of the auth id) | Run the link-all SQL in §6; then log in with the profile's email. |
+| `TERM_CURR not found` / empty Academic Terms | Fresh DB — migration `20260926010000_constants_terms_seed.sql` not run | Run the terms seed migration. |
 | Achievements/Leaderboards still visible in app | `FEATURE_ACHIEVEMENTS_ENABLED` absent or `TRUE` | `SELECT * FROM constants WHERE key='FEATURE_ACHIEVEMENTS_ENABLED';` then set value to `FALSE`. |
 | Data wiped | `initial_schema.sql` run on a populated DB | Not recoverable. Restore from a Supabase backup/snapshot; never run file 1 on a populated DB. |
