@@ -23,6 +23,7 @@
   import { calculateAchievementPercentage } from "$api/controllers/achievement-controller";
   import AchievementCard from "$components/residents/AchievementCard.svelte";
   import AchievementFormDialog from "$components/forms/AchievementFormDialog.svelte";
+  import { features } from "$state/features.svelte";
 
   let achievements = $state<AchievementRecord[]>([]);
   let logs = $state<AchievementLogRecord[]>([]);
@@ -63,6 +64,13 @@
     isLoading = true;
     error = null;
     try {
+      await features.load();
+      if (!features.achievementsEnabled) {
+        achievements = [];
+        logs = [];
+        totalUsersCount = 0;
+        return;
+      }
       const [a, l, r, allU] = await Promise.all([
         fetchAdminAchievements(bypassCache),
         fetchAchievementLogs(bypassCache),
@@ -151,7 +159,17 @@
     {/snippet}
   </ContentHeader>
 
-  {#if isLoading}
+  {#if !features.achievementsEnabled}
+    <EmptyView
+      title="Achievements are disabled"
+      description="The achievements feature is currently turned off by the administrator."
+      class="col-span-full py-8"
+    >
+      {#snippet icon()}
+        <Trophy class="h-8 w-8 text-muted-foreground" />
+      {/snippet}
+    </EmptyView>
+  {:else if isLoading}
     <LoadingView />
   {:else if error}
     <ErrorView {error}>

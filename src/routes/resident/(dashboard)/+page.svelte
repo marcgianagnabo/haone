@@ -29,6 +29,7 @@
   import { namecase } from "@compwright/namecase";
   import { settings } from "$state/settings.svelte";
   import ErrorView from "$components/content/ErrorView.svelte";
+  import { features } from "$state/features.svelte";
 
   let status = $state<ResidentStatus | null>(null);
   let isLoading = $state(true);
@@ -89,18 +90,22 @@
       href: "/resident/announcements",
       icon: Megaphone
     },
-    {
-      title: "Achievements",
-      description: "View your earned achievements and badges.",
-      href: "/resident/achievements",
-      icon: Trophy
-    },
-    {
-      title: "Leaderboards",
-      description: "View achievement leaderboards and resident rankings.",
-      href: "/resident/leaderboards",
-      icon: ListOrdered
-    },
+    ...(features.achievementsEnabled
+      ? [
+          {
+            title: "Achievements",
+            description: "View your earned achievements and badges.",
+            href: "/resident/achievements",
+            icon: Trophy
+          },
+          {
+            title: "Leaderboards",
+            description: "View achievement leaderboards and resident rankings.",
+            href: "/resident/leaderboards",
+            icon: ListOrdered
+          }
+        ]
+      : []),
     {
       title: "Officers",
       description: "View profiles and contacts of house council officers.",

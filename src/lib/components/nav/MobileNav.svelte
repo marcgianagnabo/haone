@@ -27,6 +27,7 @@
   import { auth } from "$state/auth.svelte";
   import { residentState } from "$state/resident-state.svelte";
   import { isResidentRouteAllowed } from "$api/controllers/resident-controller";
+  import { features } from "$state/features.svelte";
 
   const MAP_RESIDENT: Record<string, any> = {
     home: { label: "Home", href: "/resident", icon: LayoutDashboard },
@@ -72,13 +73,19 @@
     const map = isAdmin ? MAP_ADMIN : MAP_RESIDENT;
     const items = ids.map((id) => map[id]).filter(Boolean);
 
+    const filtered = features.achievementsEnabled
+      ? items
+      : items.filter((item) => {
+          return !item.href.includes("/achievements") && !item.href.includes("/leaderboards");
+        });
+
     if (isAdmin) {
-      return items;
+      return filtered;
     }
 
     const type = residentState.status?.account?.type || "";
     const room = residentState.status?.account?.room || "";
-    return items.filter((item) => {
+    return filtered.filter((item) => {
       return isResidentRouteAllowed(item.href, type, room);
     });
   });

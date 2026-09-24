@@ -29,6 +29,7 @@
   import { dev } from "$app/environment";
   import { auth } from "$state/auth.svelte";
   import { residentState } from "$state/resident-state.svelte";
+  import { features } from "$state/features.svelte";
   import { page } from "$app/state";
   import { isResidentRouteAllowed } from "$api/controllers/resident-controller";
   import { getCustomServices } from "$lib/services";
@@ -56,8 +57,12 @@
     { title: "Laundry", url: "/admin/laundry", icon: WashingMachine },
     { title: "Fridge", url: "/admin/fridge", icon: Refrigerator },
     { title: "Announcements", url: "/admin/announcements", icon: Megaphone },
-    { title: "Achievements", url: "/admin/achievements", icon: Trophy },
-    { title: "Leaderboards", url: "/admin/leaderboards", icon: ListOrdered },
+    ...(features.achievementsEnabled
+      ? [
+          { title: "Achievements", url: "/admin/achievements", icon: Trophy },
+          { title: "Leaderboards", url: "/admin/leaderboards", icon: ListOrdered }
+        ]
+      : []),
     ...getCustomServices("admin")
   ]);
 
@@ -101,8 +106,12 @@
     { title: "Payment Requests", url: "/resident/payment-requests", icon: Banknote },
     ...getCustomServices("resident"),
     { title: "Announcements", url: "/resident/announcements", icon: Megaphone },
-    { title: "Achievements", url: "/resident/achievements", icon: Trophy },
-    { title: "Leaderboards", url: "/resident/leaderboards", icon: ListOrdered },
+    ...(features.achievementsEnabled
+      ? [
+          { title: "Achievements", url: "/resident/achievements", icon: Trophy },
+          { title: "Leaderboards", url: "/resident/leaderboards", icon: ListOrdered }
+        ]
+      : []),
     { title: "Officers", url: "/resident/officers", icon: BookUser }
   ]);
 

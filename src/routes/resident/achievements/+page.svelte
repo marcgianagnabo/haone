@@ -19,6 +19,7 @@
   import { pageState } from "$state/page-info.svelte";
   import EmptyView from "$components/content/EmptyView.svelte";
   import AchievementCard from "$components/residents/AchievementCard.svelte";
+  import { features } from "$state/features.svelte";
 
   let achievements = $state<AchievementRecord[]>([]);
   let logs = $state<AchievementLogRecord[]>([]);
@@ -33,6 +34,13 @@
     isLoading = true;
     error = null;
     try {
+      await features.load();
+      if (!features.achievementsEnabled) {
+        achievements = [];
+        logs = [];
+        currentResidentId = "";
+        return;
+      }
       const [achResult] = await Promise.all([fetchAchievements(bypassCache)]);
       achievements = achResult.achievements || [];
       logs = achResult.logs || [];
@@ -105,7 +113,16 @@
     {/snippet}
   </ContentHeader>
 
-  {#if isLoading}
+  {#if !features.achievementsEnabled}
+    <EmptyView
+      title="Achievements are disabled"
+      description="The achievements feature is currently turned off by the administrator."
+    >
+      {#snippet icon()}
+        <Trophy class="h-12 w-12 text-muted-foreground" />
+      {/snippet}
+    </EmptyView>
+  {:else if isLoading}
     <LoadingView />
   {:else if error}
     <ErrorView {error}>

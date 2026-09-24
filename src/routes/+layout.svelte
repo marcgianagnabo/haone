@@ -8,6 +8,7 @@
   import { onMount } from "svelte";
   import { auth } from "$state/auth.svelte";
   import { settings } from "$state/settings.svelte";
+  import { features } from "$state/features.svelte";
   import { setMode, resetMode } from "mode-watcher";
   import UIProvider from "$components/UIProvider.svelte";
   import GlobalAlertDialog from "$components/forms/GlobalAlertDialog.svelte";
@@ -28,6 +29,7 @@
     if (!auth.accessToken) {
       return;
     }
+    features.load();
     try {
       settings.syncFromServer().then(() => {
         if (settings.theme === "system") {

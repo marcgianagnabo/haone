@@ -12,6 +12,9 @@
 
   import AchievementDetailsView from "$components/residents/AchievementDetailsView.svelte";
   import { shareAchievementStory } from "$components/residents/story-share";
+  import { features } from "$state/features.svelte";
+  import EmptyView from "$components/content/EmptyView.svelte";
+  import { Trophy } from "@lucide/svelte";
 
   const id = page.params.id;
 
@@ -48,6 +51,14 @@
     isLoading = true;
     error = null;
     try {
+      await features.load();
+      if (!features.achievementsEnabled) {
+        achievement = null;
+        allLogs = [];
+        earners = [];
+        currentResidentId = "";
+        return;
+      }
       const achResult = await fetchAchievements(bypassCache);
       const allA = achResult.achievements;
       currentResidentId = achResult.currentResidentId;
@@ -68,9 +79,9 @@
       earners = logsForThis.map((l) => {
         return {
           residentId: l.accountId,
-          name: l.accountName,
+          name: l.displayName || "Resident",
           date: l.date,
-          isPublic: l.isPublic
+          isPublic: l.isPublic ?? false
         };
       });
     } catch (e: any) {
@@ -102,7 +113,16 @@
     ]}
   />
 
-  {#if isLoading}
+  {#if !features.achievementsEnabled}
+    <EmptyView
+      title="Achievements are disabled"
+      description="The achievements feature is currently turned off by the administrator."
+    >
+      {#snippet icon()}
+        <Trophy class="h-12 w-12 text-muted-foreground" />
+      {/snippet}
+    </EmptyView>
+  {:else if isLoading}
     <LoadingView />
   {:else if error}
     <ErrorView {error}>

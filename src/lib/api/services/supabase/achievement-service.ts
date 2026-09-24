@@ -29,6 +29,29 @@ function emptyLogs(
   return [];
 }
 
+/**
+ * RLS-safe per-term eligible headcounts (see migration
+ * 20260926000000_achievements_feature_flag.sql). Term "" holds the total user
+ * count used for all-time (no term) achievements. Missing rows fall back to 0.
+ */
+async function fetchEligibleCounts(): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (!supabase) {
+    return counts;
+  }
+  const { data, error } = await supabase.rpc("get_achievement_eligible_counts");
+  if (error) {
+    // The RPC is created by a migration; tolerate it being absent so the page
+    // still renders (percentages simply fall back to 0).
+    console.error("[Achievements] get_achievement_eligible_counts failed:", error.message);
+    return counts;
+  }
+  for (const row of data || []) {
+    counts.set((row.term || "").trim(), Number(row.eligible_count) || 0);
+  }
+  return counts;
+}
+
 export const supabaseAchievementService: AchievementServiceInterface = {
   async fetchAchievements(
     options?: PaginationOptions,
@@ -63,6 +86,8 @@ export const supabaseAchievementService: AchievementServiceInterface = {
       data = d || [];
     }
 
+    const eligibleCounts = await fetchEligibleCounts();
+
     const items = data.map((row: any) => ({
       id: row.id,
       creatorId: row.creator_id || "",
@@ -72,6 +97,7 @@ export const supabaseAchievementService: AchievementServiceInterface = {
       extraUrl: row.extra_url || "",
       term: row.term || "",
       points: row.points || 0,
+      totalEligibleCount: eligibleCounts.get((row.term || "").trim()) ?? 0,
       raw: row
     }));
 

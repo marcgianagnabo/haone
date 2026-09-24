@@ -26,39 +26,54 @@
     X
   } from "@lucide/svelte";
   import { settings } from "$state/settings.svelte";
+  import { features } from "$state/features.svelte";
   import { page } from "$app/state";
 
   const isAdminView = $derived(page.url.pathname.startsWith("/admin"));
 
-  const ALL_RESIDENT_ITEMS = [
-    { id: "home", label: "Home", icon: LayoutDashboard },
-    { id: "finance", label: "Finance", icon: Wallet },
-    { id: "occupancy", label: "Occupancy", icon: House },
-    { id: "laundry", label: "Laundry", icon: WashingMachine },
-    { id: "payments", label: "Payments", icon: Banknote },
-    { id: "news", label: "News", icon: Megaphone },
-    { id: "achievements", label: "Trophy", icon: Trophy },
-    { id: "leaderboards", label: "Ranks", icon: ListOrdered }
-  ];
+  const ALL_RESIDENT_ITEMS = $derived(
+    [
+      { id: "home", label: "Home", icon: LayoutDashboard },
+      { id: "finance", label: "Finance", icon: Wallet },
+      { id: "occupancy", label: "Occupancy", icon: House },
+      { id: "laundry", label: "Laundry", icon: WashingMachine },
+      { id: "payments", label: "Payments", icon: Banknote },
+      { id: "news", label: "News", icon: Megaphone },
+      { id: "achievements", label: "Trophy", icon: Trophy },
+      { id: "leaderboards", label: "Ranks", icon: ListOrdered }
+    ].filter((item) => {
+      if (features.achievementsEnabled) {
+        return true;
+      }
+      return item.id !== "achievements" && item.id !== "leaderboards";
+    })
+  );
 
-  const ALL_ADMIN_ITEMS = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "pending", label: "Pending", icon: Receipt },
-    { id: "history", label: "History", icon: History },
-    { id: "residents", label: "Residents", icon: Users },
-    { id: "rooms", label: "Rooms", icon: Bed },
-    { id: "users", label: "Users", icon: Contact },
-    { id: "financial", label: "Financial", icon: HandCoins },
-    { id: "demographics", label: "Demographics", icon: ChartPie },
-    { id: "terms", label: "Terms", icon: GraduationCap },
-    { id: "dispatcher", label: "Email", icon: Mail },
-    { id: "settings", label: "Settings", icon: Settings },
-    { id: "laundry", label: "Laundry", icon: WashingMachine },
-    { id: "payments", label: "Payments", icon: Banknote },
-    { id: "news", label: "News", icon: Megaphone },
-    { id: "achievements", label: "Trophy", icon: Trophy },
-    { id: "leaderboards", label: "Ranks", icon: ListOrdered }
-  ];
+  const ALL_ADMIN_ITEMS = $derived(
+    [
+      { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { id: "pending", label: "Pending", icon: Receipt },
+      { id: "history", label: "History", icon: History },
+      { id: "residents", label: "Residents", icon: Users },
+      { id: "rooms", label: "Rooms", icon: Bed },
+      { id: "users", label: "Users", icon: Contact },
+      { id: "financial", label: "Financial", icon: HandCoins },
+      { id: "demographics", label: "Demographics", icon: ChartPie },
+      { id: "terms", label: "Terms", icon: GraduationCap },
+      { id: "dispatcher", label: "Email", icon: Mail },
+      { id: "settings", label: "Settings", icon: Settings },
+      { id: "laundry", label: "Laundry", icon: WashingMachine },
+      { id: "payments", label: "Payments", icon: Banknote },
+      { id: "news", label: "News", icon: Megaphone },
+      { id: "achievements", label: "Trophy", icon: Trophy },
+      { id: "leaderboards", label: "Ranks", icon: ListOrdered }
+    ].filter((item) => {
+      if (features.achievementsEnabled) {
+        return true;
+      }
+      return item.id !== "achievements" && item.id !== "leaderboards";
+    })
+  );
 
   function toggleItem(list: string[], id: string) {
     if (list.includes(id)) {

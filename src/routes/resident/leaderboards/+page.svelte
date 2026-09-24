@@ -11,6 +11,9 @@
   import { settings } from "$state/settings.svelte";
   import type { AchievementLogRecord, AchievementRecord } from "$lib/types";
   import { pageState } from "$state/page-info.svelte";
+  import { features } from "$state/features.svelte";
+  import EmptyView from "$components/content/EmptyView.svelte";
+  import { Trophy } from "@lucide/svelte";
 
   let achievements = $state<AchievementRecord[]>([]);
   let logs = $state<AchievementLogRecord[]>([]);
@@ -25,6 +28,12 @@
     error = null;
 
     try {
+      await features.load();
+      if (!features.achievementsEnabled) {
+        achievements = [];
+        logs = [];
+        return;
+      }
       const [achResult] = await Promise.all([fetchAchievements(bypassCache)]);
 
       achievements = Array.isArray(achResult) ? achResult : achResult.achievements;
@@ -58,7 +67,16 @@
     {/snippet}
   </ContentHeader>
 
-  {#if isLoading}
+  {#if !features.achievementsEnabled}
+    <EmptyView
+      title="Leaderboards are disabled"
+      description="The leaderboards feature is currently turned off by the administrator."
+    >
+      {#snippet icon()}
+        <Trophy class="h-12 w-12 text-muted-foreground" />
+      {/snippet}
+    </EmptyView>
+  {:else if isLoading}
     <LoadingView />
   {:else if error}
     <ErrorView {error}>

@@ -33,6 +33,7 @@
   import { getCustomServices } from "$lib/services";
   import { namecase } from "@compwright/namecase";
   import { StatisticCard } from "$components/ui/haone";
+  import { features } from "$state/features.svelte";
 
   let stats = $state({
     activeResidents: 0,
@@ -128,18 +129,22 @@
       href: "/admin/announcements",
       icon: Megaphone
     },
-    {
-      title: "Achievements",
-      description: "Create and award achievements and badges to residents.",
-      href: "/admin/achievements",
-      icon: Trophy
-    },
-    {
-      title: "Leaderboards",
-      description: "View achievement leaderboards and resident rankings.",
-      href: "/admin/leaderboards",
-      icon: ListOrdered
-    },
+    ...(features.achievementsEnabled
+      ? [
+          {
+            title: "Achievements",
+            description: "Create and award achievements and badges to residents.",
+            href: "/admin/achievements",
+            icon: Trophy
+          },
+          {
+            title: "Leaderboards",
+            description: "View achievement leaderboards and resident rankings.",
+            href: "/admin/leaderboards",
+            icon: ListOrdered
+          }
+        ]
+      : []),
     ...getCustomServices("admin").map((s) => ({
       title: s.title,
       description: s.description || "",

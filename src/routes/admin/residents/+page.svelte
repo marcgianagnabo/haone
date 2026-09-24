@@ -43,6 +43,7 @@
   import ClearanceDialog from "$components/forms/ClearanceDialog.svelte";
   import AwardDialog from "$components/forms/AwardDialog.svelte";
   import AdminResidentsTabs from "$components/tabs/AdminResidentsTabs.svelte";
+  import { features } from "$state/features.svelte";
 
   let residents = $state<Resident[]>([]);
   let isLoading = $state(false);
@@ -192,6 +193,9 @@
   }
 
   function handleBatchAward() {
+    if (!features.achievementsEnabled) {
+      return;
+    }
     if (selectedIndices.size === 0) {
       return;
     }
@@ -307,9 +311,11 @@
               </DropdownMenu.Content>
             </DropdownMenu.Root>
 
-            <Button variant="outline" size="sm" onclick={handleBatchAward} icon={Trophy}>
-              Award
-            </Button>
+            {#if features.achievementsEnabled}
+              <Button variant="outline" size="sm" onclick={handleBatchAward} icon={Trophy}>
+                Award
+              </Button>
+            {/if}
 
             <Button size="sm" onclick={handleBatchClear} icon={ShieldCheck}>Mark as Cleared</Button>
           {/snippet}
