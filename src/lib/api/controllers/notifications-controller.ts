@@ -4,8 +4,16 @@ import {
   getSheetValues,
   updateSheetValue
 } from "$api/services/server-sheets-service";
+import { supabase } from "$api/services/common";
 import { GOOGLE_SERVICE_ACCOUNT_JSON, VAPID_PRIVATE_KEY } from "$env/static/private";
-import { PUBLIC_BRANDING, PUBLIC_GS_SR_ID, PUBLIC_VAPID_PUBLIC_KEY } from "$env/static/public";
+import {
+  PUBLIC_BRANDING,
+  PUBLIC_DB_PROVIDER,
+  PUBLIC_GS_SR_ID,
+  PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  PUBLIC_SUPABASE_URL,
+  PUBLIC_VAPID_PUBLIC_KEY
+} from "$env/static/public";
 import { ANNOUNCEMENT_COL, AnnouncementStatus, LAUNDRY_COL } from "$lib/types";
 import branding from "$srcPrivate/branding.json";
 import {
@@ -125,153 +133,235 @@ export async function notifyAllResidents(
     return { sentCount: 0, foundCount: 0 };
   }
 
-  try {
-    const token = await getFirebaseToken();
-    const resp = await fetchGoogleAPI(`${BASE_URL}/push_subscriptions?pageSize=1000`, token);
-    const data = await resp.json();
+  const token = await getFirebaseToken();
+  const resp = await fetchGoogleAPI(`${BASE_URL}/push_subscriptions?pageSize=1000`, token);
+  const data = await resp.json();
 
-    if (!data.documents) {
-      return { sentCount: 0, foundCount: 0 };
-    }
-
-    const foundCount = data.documents.length;
-    let sentCount = 0;
-
-    for (const doc of data.documents) {
-      const docName = doc.name;
-      const fields = doc.fields;
-      const endpoint = fields.endpoint?.stringValue;
-      const p256dh = fields.p256dh?.stringValue;
-      const auth = fields.auth?.stringValue;
-
-      if (!endpoint || !p256dh || !auth) {
-        continue;
-      }
-
-      const subscription: PushSubscription = {
-        endpoint,
-        expirationTime: null,
-        keys: { p256dh, auth }
-      };
-
-      const message: PushMessage = {
-        data: JSON.stringify({ title, body, url }),
-        options: { ttl: 86400 }
-      };
-      const vapid: VapidKeys = {
-        subject: `mailto:${brandingProfile.replyTo}`,
-        publicKey: PUBLIC_VAPID_PUBLIC_KEY,
-        privateKey: VAPID_PRIVATE_KEY
-      };
-
-      try {
-        const payload = await buildPushPayload(message, subscription, vapid);
-        const pushResp = await fetch(endpoint, payload as any);
-
-        if (pushResp.ok) {
-          sentCount++;
-        } else {
-          const errorText = await pushResp.text();
-          console.error(`[Push] Delivery failed (${pushResp.status}): ${errorText}`);
-          if (pushResp.status === 404 || pushResp.status === 410) {
-            await fetchGoogleAPI(`https://firestore.googleapis.com/v1/${docName}`, token, {
-              method: "DELETE"
-            });
-          }
-        }
-      } catch (err: any) {
-        console.error("Push delivery failed:", err);
-      }
-    }
-    return { sentCount, foundCount };
-  } catch (e) {
-    console.error("NotifyAllResidents failed:", e);
+  if (!data.documents) {
+    console.warn(
+      `[Push] notifyAllResidents: Firestore returned no documents field. Response keys: ${Object.keys(data).join(",")}`
+    );
     return { sentCount: 0, foundCount: 0 };
   }
+
+  const foundCount = data.documents.length;
+  let sentCount = 0;
+
+  for (const doc of data.documents) {
+    const docName = doc.name;
+    const fields = doc.fields;
+    const endpoint = fields.endpoint?.stringValue;
+    const p256dh = fields.p256dh?.stringValue;
+    const auth = fields.auth?.stringValue;
+
+    if (!endpoint || !p256dh || !auth) {
+      continue;
+    }
+
+    const subscription: PushSubscription = {
+      endpoint,
+      expirationTime: null,
+      keys: { p256dh, auth }
+    };
+
+    const message: PushMessage = {
+      data: JSON.stringify({ title, body, url }),
+      options: { ttl: 86400 }
+    };
+    const vapid: VapidKeys = {
+      subject: `mailto:${brandingProfile.replyTo}`,
+      publicKey: PUBLIC_VAPID_PUBLIC_KEY,
+      privateKey: VAPID_PRIVATE_KEY
+    };
+
+    try {
+      const payload = await buildPushPayload(message, subscription, vapid);
+      const pushResp = await fetch(endpoint, payload as any);
+
+      if (pushResp.ok) {
+        sentCount++;
+      } else {
+        const errorText = await pushResp.text();
+        console.error(`[Push] Delivery failed (${pushResp.status}): ${errorText}`);
+        if (pushResp.status === 404 || pushResp.status === 410) {
+          await fetchGoogleAPI(`https://firestore.googleapis.com/v1/${docName}`, token, {
+            method: "DELETE"
+          });
+        }
+      }
+    } catch (err: any) {
+      console.error("Push delivery failed:", err);
+    }
+  }
+  return { sentCount, foundCount };
+}
+
+/**
+ * Maps a Supabase `announcements` row into the same A:M array shape used by the
+ * Sheets-backed announcement task.
+ */
+function supabaseRowToArray(row: any): string[] {
+  const out = new Array(13).fill("");
+  out[ANNOUNCEMENT_COL.ID] = row.id || "";
+  out[ANNOUNCEMENT_COL.CREATOR_ID] = row.creator_id || "";
+  out[ANNOUNCEMENT_COL.DATE_CREATED] = row.created_at || "";
+  out[ANNOUNCEMENT_COL.START_DATE] = row.start_date || "";
+  out[ANNOUNCEMENT_COL.EXPIRY_DATE] = row.expiry_date || "";
+  out[ANNOUNCEMENT_COL.IS_INDEFINITE] = row.is_indefinite ? "TRUE" : "FALSE";
+  out[ANNOUNCEMENT_COL.IS_ADMIN_ONLY] = row.is_admin_only ? "TRUE" : "FALSE";
+  out[ANNOUNCEMENT_COL.TAGS] = Array.isArray(row.tags) ? row.tags.join(",") : row.tags || "";
+  out[ANNOUNCEMENT_COL.TITLE] = row.title || "";
+  out[ANNOUNCEMENT_COL.CONTENT] = row.content || "";
+  out[ANNOUNCEMENT_COL.IS_UNLISTED] = row.is_unlisted ? "TRUE" : "FALSE";
+  out[ANNOUNCEMENT_COL.SLUG] = row.slug || "";
+  out[ANNOUNCEMENT_COL.BROADCAST_COUNT] = String(row.broadcast_count ?? 0);
+  return out;
 }
 
 /**
  * Task to check for newly active announcements and notify residents.
  */
-export async function runAnnouncementNotifications(ids?: string[]): Promise<number> {
+export async function runAnnouncementNotifications(
+  ids?: string[],
+  supabaseToken?: string
+): Promise<{
+  sentCount: number;
+  foundCount: number;
+}> {
   let totalSent = 0;
-  try {
-    const client = await getSheetsClient();
+  let totalFound = 0;
+  const isSupabase = PUBLIC_DB_PROVIDER === "supabase";
+  let rows: any[][] = [];
+  let sheetClient: string | null = null;
 
-    // Fetch all announcements
-    const rows = await getSheetValues(client, PUBLIC_GS_SR_ID, "announcements!A:M");
-    if (!rows || rows.length <= 1) {
-      return 0;
+  if (isSupabase && supabaseToken) {
+    const resp = await fetch(
+      `${PUBLIC_SUPABASE_URL}/rest/v1/announcements?select=*&order=created_at.desc`,
+      {
+        headers: {
+          apikey: PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${supabaseToken}`
+        }
+      }
+    );
+    if (!resp.ok) {
+      throw new Error(`Supabase read failed (${resp.status}): ${await resp.text()}`);
+    }
+    rows = ((await resp.json()) || []).map(supabaseRowToArray);
+  } else if (isSupabase) {
+    if (!supabase) {
+      throw new Error("Supabase client not configured");
+    }
+    const { data, error } = await supabase
+      .from("announcements")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      throw new Error(error.message);
+    }
+    rows = (data || []).map(supabaseRowToArray);
+  } else {
+    const client = await getSheetsClient();
+    sheetClient = client;
+    const all = await getSheetValues(client, PUBLIC_GS_SR_ID, "announcements!A:M");
+    rows = (all || []).slice(1);
+  }
+
+  if (!rows || rows.length === 0) {
+    console.log(`[Announcement Task] No announcement rows found. Supabase provider: ${isSupabase}`);
+    return { sentCount: totalSent, foundCount: totalFound };
+  }
+
+  const now = dayjs();
+  console.log(`[Announcement Task] Processing ${rows.length} rows. Filter IDs:`, ids);
+
+  for (const [rowNumber, row] of rows.entries()) {
+    const id = row[ANNOUNCEMENT_COL.ID];
+    const title = row[ANNOUNCEMENT_COL.TITLE];
+    const slug = row[ANNOUNCEMENT_COL.SLUG];
+    const start = row[ANNOUNCEMENT_COL.START_DATE]
+      ? dayjs(row[ANNOUNCEMENT_COL.START_DATE])
+      : null;
+    const expiry = row[ANNOUNCEMENT_COL.EXPIRY_DATE]
+      ? dayjs(row[ANNOUNCEMENT_COL.EXPIRY_DATE])
+      : null;
+    const isIndefinite = row[ANNOUNCEMENT_COL.IS_INDEFINITE] === "TRUE";
+    const broadcastCount = parseInt(row[ANNOUNCEMENT_COL.BROADCAST_COUNT]) || 0;
+    const isUnlisted = row[ANNOUNCEMENT_COL.IS_UNLISTED] === "TRUE";
+
+    let status = AnnouncementStatus.EXPIRED;
+    if (start && start.isAfter(now)) {
+      status = AnnouncementStatus.FUTURE;
+    } else if (isIndefinite) {
+      status = AnnouncementStatus.ACTIVE;
+    } else if (!expiry || expiry.isAfter(now) || expiry.isSame(now)) {
+      status = AnnouncementStatus.ACTIVE;
     }
 
-    const now = dayjs();
-    console.log(`[Announcement Task] Processing ${rows.length - 1} rows. Filter IDs:`, ids);
+    const isActive = status === AnnouncementStatus.ACTIVE;
+    const isExplicitlyRequested = ids && ids.includes(id);
+    const shouldNotifyAutomatically = !ids && isActive && !isUnlisted;
 
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      const id = row[ANNOUNCEMENT_COL.ID];
-      const title = row[ANNOUNCEMENT_COL.TITLE];
-      const slug = row[ANNOUNCEMENT_COL.SLUG];
-      const start = row[ANNOUNCEMENT_COL.START_DATE]
-        ? dayjs(row[ANNOUNCEMENT_COL.START_DATE])
-        : null;
-      const expiry = row[ANNOUNCEMENT_COL.EXPIRY_DATE]
-        ? dayjs(row[ANNOUNCEMENT_COL.EXPIRY_DATE])
-        : null;
-      const isIndefinite = row[ANNOUNCEMENT_COL.IS_INDEFINITE] === "TRUE";
-      const broadcastCount = parseInt(row[ANNOUNCEMENT_COL.BROADCAST_COUNT]) || 0;
-      const isUnlisted = row[ANNOUNCEMENT_COL.IS_UNLISTED] === "TRUE";
-
-      let status = AnnouncementStatus.EXPIRED;
-      if (start && start.isAfter(now)) {
-        status = AnnouncementStatus.FUTURE;
-      } else if (isIndefinite) {
-        status = AnnouncementStatus.ACTIVE;
-      } else if (!expiry || expiry.isAfter(now) || expiry.isSame(now)) {
-        status = AnnouncementStatus.ACTIVE;
+    if (isExplicitlyRequested || shouldNotifyAutomatically) {
+      console.log(
+        `[Announcement Task] WILL NOTIFY id="${id}" (explicit=${!!isExplicitlyRequested}, auto=${shouldNotifyAutomatically})`
+      );
+      if (totalSent > 0) {
+        // Add a small delay between multiple notifications to avoid browser grouping/coalescing
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
-      const isActive = status === AnnouncementStatus.ACTIVE;
-      const isExplicitlyRequested = ids && ids.includes(id);
-      const shouldNotifyAutomatically = !ids && isActive && !isUnlisted;
+      const content = row[ANNOUNCEMENT_COL.CONTENT] || "";
+      const textContent = content.replace(/<[^>]*>?/gm, "").substring(0, 60) + "…";
 
-      if (isExplicitlyRequested || shouldNotifyAutomatically) {
-        if (totalSent > 0) {
-          // Add a small delay between multiple notifications to avoid browser grouping/coalescing
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        }
+      console.log(
+        `[Announcement Task] NOTIFYING: "${title}" (ID: ${id}, Explicit: ${!!isExplicitlyRequested})`
+      );
 
-        const content = row[ANNOUNCEMENT_COL.CONTENT] || "";
-        const textContent = content.replace(/<[^>]*>?/gm, "").substring(0, 60) + "…";
+      const result = await notifyAllResidents(
+        title,
+        textContent,
+        `/resident/announcements/${slug}`
+      );
 
-        console.log(
-          `[Announcement Task] NOTIFYING: "${title}" (ID: ${id}, Explicit: ${!!isExplicitlyRequested})`
-        );
+      console.log(`[Push] Found: ${result.foundCount}, Sent: ${result.sentCount}`);
+      totalFound += result.foundCount;
+      totalSent += result.sentCount;
 
-        const { sentCount, foundCount } = await notifyAllResidents(
-          title,
-          textContent,
-          `/resident/announcements/${slug}`
-        );
-
-        console.log(`[Push] Found: ${foundCount}, Sent: ${sentCount}`);
-        totalSent += sentCount;
-
-        // Increment broadcast count in Google Sheets only if at least one notification was sent
-        if (sentCount > 0) {
-          // Row index in sheet is i + 1
-          const range = `announcements!M${i + 1}`;
-          await updateSheetValue(client, PUBLIC_GS_SR_ID, range, [
+      // Increment broadcast count only if at least one notification was sent
+      if (result.sentCount > 0) {
+        if (isSupabase && supabaseToken) {
+          const upd = await fetch(
+            `${PUBLIC_SUPABASE_URL}/rest/v1/announcements?id=eq.${encodeURIComponent(id)}`,
+            {
+              method: "PATCH",
+              headers: {
+                apikey: PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+                Authorization: `Bearer ${supabaseToken}`,
+                "Content-Type": "application/json",
+                Prefer: "return=minimal"
+              },
+              body: JSON.stringify({ broadcast_count: broadcastCount + 1 })
+            }
+          );
+          if (!upd.ok) {
+            throw new Error(`Supabase update failed (${upd.status}): ${await upd.text()}`);
+          }
+        } else if (isSupabase && supabase) {
+          await supabase
+            .from("announcements")
+            .update({ broadcast_count: broadcastCount + 1 })
+            .eq("id", id);
+        } else if (sheetClient) {
+          // rows is 0-indexed data (header already stripped); sheet row is +2
+          await updateSheetValue(sheetClient, PUBLIC_GS_SR_ID, `announcements!M${rowNumber + 2}`, [
             [(broadcastCount + 1).toString()]
           ]);
         }
       }
     }
-    return totalSent;
-  } catch (e) {
-    console.error("Announcement notifications task failed:", e);
-    return totalSent;
   }
+  return { sentCount: totalSent, foundCount: totalFound };
 }
 
 /**

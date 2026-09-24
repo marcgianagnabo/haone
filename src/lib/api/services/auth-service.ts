@@ -1,8 +1,14 @@
 import { fetchSheetsData } from "$api/services/server-sheets-service";
 import { GOOGLE_SERVICE_ACCOUNT_JSON, JWT_SECRET } from "$env/static/private";
+import {
+  PUBLIC_DB_PROVIDER,
+  PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  PUBLIC_SUPABASE_URL
+} from "$env/static/public";
 import type { CredentialPayload } from "$lib/types";
-import { ACCOUNT_COL, OFFICER_COL } from "$lib/types";
+import { ACCOUNT_COL, OFFICER_COL, OfficerStatus } from "$lib/types";
 import { json } from "@sveltejs/kit";
+import { createClient } from "@supabase/supabase-js";
 import { base64url, jwtVerify, SignJWT } from "jose";
 
 /**
@@ -177,16 +183,14 @@ export async function authenticateAdmin(request: Request) {
     return auth;
   }
 
+  // Instance admins are granted admin access without requiring an officership.
+  if (auth.isInstanceAdmin) {
+    return auth;
+  }
+
   try {
-    const token = await getSheetsClient();
-    const [directory] = await fetchSheetsData(token, ["directory!A:H"]);
-
-    // Check if user email is in the directory sheet
-    const officer = directory.find(
-      (r: any) => (r[OFFICER_COL.EMAIL] || "").toLowerCase() === auth.email
-    );
-
-    if (!officer) {
+    const isAdmin = await isOfficerEmail(auth.email);
+    if (!isAdmin) {
       return {
         error: json({ error: "Forbidden: Admin access required (Officer only)" }, { status: 403 })
       };
@@ -198,6 +202,36 @@ export async function authenticateAdmin(request: Request) {
       error: json({ error: "Admin check failed", message: e.message }, { status: 500 })
     };
   }
+}
+
+/**
+ * Determines whether an email belongs to an active officer/admin.
+ * Uses the `officers` table on Supabase and the `directory!A:H` sheet otherwise.
+ */
+async function isOfficerEmail(email?: string | null): Promise<boolean> {
+  if (!email) {
+    return false;
+  }
+
+  if (PUBLIC_DB_PROVIDER === "supabase") {
+    const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+    const { data, error } = await supabase
+      .from("officers")
+      .select("id")
+      .ilike("email", email)
+      .eq("status", OfficerStatus.ACTIVE)
+      .maybeSingle();
+    if (error) {
+      throw new Error(error.message);
+    }
+    return !!data;
+  }
+
+  const token = await getSheetsClient();
+  const [directory] = await fetchSheetsData(token, ["directory!A:H"]);
+  return directory.some(
+    (r: any) => (r[OFFICER_COL.EMAIL] || "").toLowerCase() === email.toLowerCase()
+  );
 }
 
 /**

@@ -14,13 +14,15 @@ export const POST: RequestHandler = async ({ request }) => {
   try {
     const body = await request.json().catch(() => ({}));
     const ids = Array.isArray(body.ids) ? body.ids : undefined;
+    const supabaseToken = request.headers.get("x-supabase-access-token") || undefined;
     console.log(`[Broadcast API] Triggering for IDs:`, ids);
 
-    const totalSent = await runAnnouncementNotifications(ids);
+    const { sentCount, foundCount } = await runAnnouncementNotifications(ids, supabaseToken);
     return json({
       success: true,
-      message: `Notifications broadcasted successfully to ${totalSent} subscriber(s).`,
-      count: totalSent
+      message: `Notifications broadcasted successfully to ${sentCount} of ${foundCount} subscriber(s).`,
+      count: sentCount,
+      found: foundCount
     });
   } catch (e: any) {
     return json({ error: "Broadcast failed", message: e.message }, { status: 500 });

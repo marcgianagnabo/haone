@@ -70,12 +70,18 @@
         }
         try {
           const ids = Array.from(selectedIds);
+          const { supabase } = await import("$api/services/common");
+          const { data: sbSession } = supabase ? await supabase.auth.getSession() : { data: null };
+          const headers: Record<string, string> = {
+            Authorization: `Bearer ${auth.credentialJwt}`,
+            "Content-Type": "application/json"
+          };
+          if (sbSession?.session?.access_token) {
+            headers["x-supabase-access-token"] = sbSession.session.access_token;
+          }
           const resp = await fetch("/api/admin/announcements/broadcast", {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${auth.accessToken}`,
-              "Content-Type": "application/json"
-            },
+            headers,
             body: JSON.stringify({ ids })
           });
           const data = await resp.json();
