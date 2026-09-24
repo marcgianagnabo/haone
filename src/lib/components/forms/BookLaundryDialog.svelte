@@ -15,6 +15,7 @@
     DEFAULT_LAUNDRY_MACHINE,
     LAUNDRY_MACHINES,
     LaundryStatus,
+    type LaundryMachineValue,
     type LaundryRecord
   } from "$lib/types";
   import { formatTime } from "$utils/formatters";
@@ -151,7 +152,7 @@
     resolveMyResidentId();
   }
 
-  function isHourlyOccupied(date: string, hour: number, machine?: string) {
+  function isHourlyOccupied(date: string, hour: number, machine?: LaundryMachineValue) {
     return reservations.some((r: LaundryRecord) => {
       if (r.status !== "ACTIVE" || r.date !== date) return false;
       if (machine && (r.machine || DEFAULT_LAUNDRY_MACHINE) !== machine) return false;
@@ -161,7 +162,7 @@
     });
   }
 
-  export function handleSelectSlot(date: string, hour: number, machine?: string) {
+  export function handleSelectSlot(date: string, hour: number, machine?: LaundryMachineValue) {
     if (machine) {
       if (isHourlyOccupied(date, hour, machine)) {
         toast.error("This machine slot is already booked.");

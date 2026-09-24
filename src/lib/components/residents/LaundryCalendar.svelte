@@ -1,6 +1,10 @@
 <script lang="ts">
   import type { LaundryRecord, UserRecord } from "$lib/types";
-  import { DEFAULT_LAUNDRY_MACHINE, LAUNDRY_MACHINES } from "$lib/types";
+  import {
+    DEFAULT_LAUNDRY_MACHINE,
+    LAUNDRY_MACHINES,
+    type LaundryMachineValue
+  } from "$lib/types";
   import { cn } from "$lib/utils";
   import {
     ChevronLeft,
@@ -35,7 +39,7 @@
     currentUserId?: string;
     isAdminView?: boolean;
     canSeeNames?: boolean;
-    onSelectSlot?: (date: string, hour: number, machine?: string) => void;
+    onSelectSlot?: (date: string, hour: number, machine?: LaundryMachineValue) => void;
     onCancelReservation?: (id: string) => void;
   } = $props();
 
