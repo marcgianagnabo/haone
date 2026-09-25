@@ -41,6 +41,7 @@
     JOURNAL_COL as JOR,
     TransactionType,
     TRANSACTION_TYPE_OPTIONS,
+    TRANSACTION_TYPE_CONFIG,
     TRANSACTION_TYPE_FUNDS_ONLY,
     type ResidentRecord,
     type JournalRecord,
@@ -122,7 +123,18 @@
         t.value !== TransactionType.TRANSFER_FROM &&
         t.value !== TransactionType.TRANSFER_TO
       );
-    })
+    }),
+    ...(TRANSACTION_TYPE_OPTIONS.some((t) => t.value === formData.type)
+      ? []
+      : TRANSACTION_TYPE_CONFIG[formData.type as TransactionType]
+        ? [
+            {
+              key: formData.type as TransactionType,
+              value: TRANSACTION_TYPE_CONFIG[formData.type as TransactionType].val,
+              label: TRANSACTION_TYPE_CONFIG[formData.type as TransactionType].label
+            }
+          ]
+        : [])
   ]);
 
   const isTypeDisabled = $derived(

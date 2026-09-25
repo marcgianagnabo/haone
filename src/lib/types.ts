@@ -674,7 +674,7 @@ export const TRANSACTION_TYPE_CONFIG: Record<TransactionType, { val: string; lab
   [TransactionType.RECLASSIFY]: { val: "RECLASSIFY", label: "Reclassify" },
   [TransactionType.PURCHASE]: { val: "PURCHASE", label: "Purchase" },
   [TransactionType.WATER_AA]: { val: "WATER_AQUA_ALTRIA", label: "Purchase: Water (Aqua Altria)" },
-  [TransactionType.WATER]: { val: "WATER", label: "Purchase: Water" },
+  [TransactionType.WATER]: { val: "WATER", label: "Purchase: Water Provider" },
   [TransactionType.TRANSACTION_FEE]: { val: "TRANSACTION_FEE", label: "Transaction Fees" },
   [TransactionType.UPLB_ADA_FEE]: { val: "UPLB_ADA_FEE", label: "UPLB ADA Fees" },
   [TransactionType.TRANSPORTATION]: { val: "TRANSPORTATION", label: "Transportation Fees" },
@@ -685,14 +685,72 @@ export const TRANSACTION_TYPE_CONFIG: Record<TransactionType, { val: string; lab
   [TransactionType.TYPE_RESERVED]: { val: "DO_NOT_USE", label: "Reserved (Hidden)" }
 };
 
+export interface TransactionTypeSign {
+  sign: string;
+  word: string;
+}
+
+/**
+ * Indicates how each type moves money so users can tell at a glance whether
+ * the category is positive (money in), negative (money out), or variable.
+ */
+export const TRANSACTION_TYPE_SIGN: Record<TransactionType, TransactionTypeSign> = {
+  [TransactionType.COLLECTION]: { sign: "+", word: "Money In" },
+  [TransactionType.COLLECTION_OTHERS]: { sign: "+", word: "Money In" },
+  [TransactionType.CARRYOVER]: { sign: "+", word: "Money In" },
+  [TransactionType.FUND_TRANSFER]: { sign: "+/-", word: "Balance Neutral" },
+  [TransactionType.TRANSFER_FROM]: { sign: "+", word: "Money In" },
+  [TransactionType.TRANSFER_TO]: { sign: "-", word: "Money Out" },
+  [TransactionType.DISCREPANCY]: { sign: "+/-", word: "Variable" },
+  [TransactionType.REFUND]: { sign: "-", word: "Money Out" },
+  [TransactionType.REFUND_COLLECTION]: { sign: "-", word: "Money Out" },
+  [TransactionType.RECLASSIFY]: { sign: "+/-", word: "Variable" },
+  [TransactionType.PURCHASE]: { sign: "-", word: "Money Out" },
+  [TransactionType.WATER_AA]: { sign: "-", word: "Money Out" },
+  [TransactionType.WATER]: { sign: "-", word: "Money Out" },
+  [TransactionType.TRANSACTION_FEE]: { sign: "-", word: "Money Out" },
+  [TransactionType.UPLB_ADA_FEE]: { sign: "-", word: "Money Out" },
+  [TransactionType.TRANSPORTATION]: { sign: "-", word: "Money Out" },
+  [TransactionType.EOS]: { sign: "-", word: "Money Out" },
+  [TransactionType.EOS_UNSETTLED]: { sign: "-", word: "Money Out" },
+  [TransactionType.WAIVED]: { sign: "", word: "Waiver - No Cash" },
+  [TransactionType.NOTE_MARKER]: { sign: "", word: "Note Only" },
+  [TransactionType.TYPE_RESERVED]: { sign: "", word: "Reserved" }
+};
+
+function transactionTypeOptionLabel(key: TransactionType): string {
+  const base = TRANSACTION_TYPE_CONFIG[key].label;
+  const info = TRANSACTION_TYPE_SIGN[key];
+  if (!info) {
+    return base;
+  }
+  return info.sign ? `${base} ${info.sign} (${info.word})` : `${base} (${info.word})`;
+}
+
+/**
+ * Types kept for reading historical journal rows but no longer offered when
+ * creating or filtering new transactions.
+ */
+export const HIDDEN_TRANSACTION_TYPES: readonly TransactionType[] = [
+  TransactionType.EOS,
+  TransactionType.EOS_UNSETTLED,
+  TransactionType.WATER_AA,
+  TransactionType.RECLASSIFY
+];
+
 export const TRANSACTION_TYPE_OPTIONS: TransactionTypeMetadata[] = (
   Object.keys(TRANSACTION_TYPE_CONFIG) as TransactionType[]
 )
-  .filter((k) => k !== TransactionType.TYPE_RESERVED && k !== TransactionType.NOTE_MARKER)
+  .filter(
+    (k) =>
+      k !== TransactionType.TYPE_RESERVED &&
+      k !== TransactionType.NOTE_MARKER &&
+      !HIDDEN_TRANSACTION_TYPES.includes(k)
+  )
   .map((key) => ({
     key,
     value: TRANSACTION_TYPE_CONFIG[key].val,
-    label: TRANSACTION_TYPE_CONFIG[key].label
+    label: transactionTypeOptionLabel(key)
   }))
   .sort((a, b) => a.label.localeCompare(b.label));
 
