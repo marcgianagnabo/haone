@@ -6,6 +6,7 @@
   import { fetchTerms, fetchMopTypes } from "$api/controllers/constants-controller";
   import { translatePeriod, translateMop } from "$utils/translators";
   import { formatAccounting } from "$utils/formatters";
+  import { isFollowingYearFirstSemester } from "$utils/sort";
   import { Button } from "$ui/button";
   import * as Card from "$ui/card";
   import { Label } from "$ui/label";
@@ -53,13 +54,17 @@
   const targetOptions = $derived(
     sourceTerm
       ? terms
-          .filter((t) => getWeight(t.value) > getWeight(sourceTerm))
+          .filter((t) => isFollowingYearFirstSemester(sourceTerm, t.value))
           .map((t) => ({ value: t.value, label: t.label }))
       : []
   );
 
   function mopLabel(mop: string) {
-    return mopTypes.find((t) => t.value.toUpperCase() === mop.toUpperCase())?.label || translateMop(mop) || mop;
+    return (
+      mopTypes.find((t) => t.value.toUpperCase() === mop.toUpperCase())?.label ||
+      translateMop(mop) ||
+      mop
+    );
   }
 
   function termLabel(term: string) {
@@ -73,7 +78,10 @@
       const [termRecords, mops] = await Promise.all([fetchTerms(), fetchMopTypes()]);
       mopTypes = mops;
       const values = termRecords
-        .map((t) => ({ value: t.value, label: t.description || translatePeriod(t.value) || t.value }))
+        .map((t) => ({
+          value: t.value,
+          label: t.description || translatePeriod(t.value) || t.value
+        }))
         .sort((a, b) => getWeight(a.value) - getWeight(b.value));
       terms = values;
 
@@ -82,11 +90,13 @@
       if (values.length > 0 && !values.some((t) => t.value === sourceTerm)) {
         sourceTerm = values[0].value;
       }
-      const first = values.find((t) => getWeight(t.value) > getWeight(sourceTerm));
+      const first = values.find((t) => isFollowingYearFirstSemester(sourceTerm, t.value));
       const targetParam = page.url.searchParams.get("target");
       const paramIsValid =
         !!targetParam &&
-        values.some((t) => t.value === targetParam && getWeight(targetParam) > getWeight(sourceTerm));
+        values.some(
+          (t) => t.value === targetParam && isFollowingYearFirstSemester(sourceTerm, targetParam)
+        );
       targetTerm = paramIsValid ? targetParam : (first?.value ?? "");
     } catch (e: any) {
       error = e.message || "Failed to load terms.";
@@ -181,9 +191,7 @@
     );
   }
 
-  const grandTotal = $derived(
-    result?.summary.reduce((sum, r) => sum + r.total, 0) ?? 0
-  );
+  const grandTotal = $derived(result?.summary.reduce((sum, r) => sum + r.total, 0) ?? 0);
 </script>
 
 <div class="mx-auto max-w-4xl space-y-3">
@@ -198,16 +206,20 @@
       <Card.Header>
         <Card.Title>End of Term Settlement</Card.Title>
         <Card.Description>
-          Close each fund (method of payment) balance from the source term and reopen it
-          in the target term as a CARRYOVER entry. EOS closing entries are hidden from the
-          financial report, matching the manual EOS flow.
+          Close each fund (method of payment) balance from the source term and reopen it at the
+          start of the following academic year as a CARRYOVER entry. Only the first semester of the
+          next academic year is a valid target; midyear terms are skipped.
         </Card.Description>
       </Card.Header>
       <Card.Content>
         <div class="grid gap-4">
           <div class="grid gap-2">
             <Label>Source Term</Label>
-            <Combobox value={sourceTerm} options={terms.map((t) => ({ value: t.value, label: t.label }))} disabled={true} />
+            <Combobox
+              value={sourceTerm}
+              options={terms.map((t) => ({ value: t.value, label: t.label }))}
+              disabled={true}
+            />
           </div>
           <div class="grid gap-2">
             <Label>Target Term</Label>
@@ -218,7 +230,10 @@
               onSelect={() => (result = null)}
             />
             {#if targetOptions.length === 0}
-              <p class="text-xs text-muted-foreground">No later term exists. Create one first under Academic Terms.</p>
+              <p class="text-xs text-muted-foreground">
+                No following-year term exists. Create the next academic term (1st semester) under
+                Academic Terms.
+              </p>
             {/if}
           </div>
           <Button onclick={handlePreview} disabled={isPreviewing || !sourceTerm || !targetTerm}>
@@ -259,11 +274,20 @@
                   {#each result.summary as row (row.mop)}
                     <tr class="border-b last:border-0">
                       <td class="py-2 pr-4 font-medium">{mopLabel(row.mop)}</td>
-                      <td class="py-2 pr-4 text-right tabular-nums">{formatAccounting(row.water)}</td>
-                      <td class="py-2 pr-4 text-right tabular-nums">{formatAccounting(row.assoc)}</td>
-                      <td class="py-2 pr-4 text-right tabular-nums">{formatAccounting(row.maintenance)}</td>
-                      <td class="py-2 pr-4 text-right tabular-nums">{formatAccounting(row.misc)}</td>
-                      <td class="py-2 text-right font-semibold tabular-nums">{formatAccounting(row.total)}</td>
+                      <td class="py-2 pr-4 text-right tabular-nums"
+                        >{formatAccounting(row.water)}</td
+                      >
+                      <td class="py-2 pr-4 text-right tabular-nums"
+                        >{formatAccounting(row.assoc)}</td
+                      >
+                      <td class="py-2 pr-4 text-right tabular-nums"
+                        >{formatAccounting(row.maintenance)}</td
+                      >
+                      <td class="py-2 pr-4 text-right tabular-nums">{formatAccounting(row.misc)}</td
+                      >
+                      <td class="py-2 text-right font-semibold tabular-nums"
+                        >{formatAccounting(row.total)}</td
+                      >
                     </tr>
                   {/each}
                 </tbody>
@@ -274,7 +298,9 @@
                     <td class="py-2 pr-4 text-right tabular-nums"></td>
                     <td class="py-2 pr-4 text-right tabular-nums"></td>
                     <td class="py-2 pr-4 text-right tabular-nums"></td>
-                    <td class="py-2 text-right font-semibold tabular-nums">{formatAccounting(grandTotal)}</td>
+                    <td class="py-2 text-right font-semibold tabular-nums"
+                      >{formatAccounting(grandTotal)}</td
+                    >
                   </tr>
                 </tfoot>
               </table>
@@ -299,7 +325,9 @@
 
           {#if result.skipped.length > 0}
             <div class="mt-4 space-y-1 border-t pt-3">
-              <p class="text-xs font-medium text-muted-foreground">Already carried over (skipped)</p>
+              <p class="text-xs font-medium text-muted-foreground">
+                Already carried over (skipped)
+              </p>
               {#each result.skipped as s (s.mop + s.reason)}
                 <div class="flex items-center gap-2 text-xs">
                   <Badge variant="outline">{mopLabel(s.mop)}</Badge>

@@ -10,7 +10,7 @@
   import { translatePeriod, translateMop } from "$utils/translators";
   import { parseRef } from "$utils/parsers";
   import { formatAmount, formatAccounting } from "$utils/formatters";
-  import { sortPeriods } from "$utils/sort";
+  import { sortPeriods, isFollowingYearFirstSemester } from "$utils/sort";
   import * as Card from "$ui/card";
   import { Button } from "$ui/button";
   import { Input } from "$ui/input";
@@ -136,20 +136,7 @@
     if (!formData.period) {
       return [];
     }
-    const getWeight = (p: string) => {
-      const match = p.match(/^(\d{2})(\d{2})_(MY|[1-3]S)$/);
-      if (!match) {
-        return 0;
-      }
-      const year = parseInt(match[1]);
-      const term = match[3];
-      const termWeight = term === "MY" ? 3 : term === "2S" ? 2 : term === "1S" ? 1 : 0;
-      return year * 10 + termWeight;
-    };
-    const currentWeight = getWeight(formData.period);
-    return academicTerms.filter((t) => {
-      return getWeight(t.value) > currentWeight;
-    });
+    return academicTerms.filter((t) => isFollowingYearFirstSemester(formData.period, t.value));
   });
 
   $effect(() => {

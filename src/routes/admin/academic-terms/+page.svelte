@@ -8,7 +8,7 @@
     fetchTerms
   } from "$api/controllers/constants-controller";
   import { translatePeriod } from "$utils/translators";
-  import { sortPeriods } from "$utils/sort";
+  import { sortPeriods, isFollowingYearFirstSemester } from "$utils/sort";
   import { Button } from "$ui/button";
   import { Plus, GraduationCap, Coins, CircleCheck, ArrowRightLeft } from "@lucide/svelte";
   import { goto } from "$app/navigation";
@@ -177,17 +177,6 @@
     }
   }
 
-  function termWeight(value: string) {
-    const match = /^(\d{2})(\d{2})_(MY|[1-3]S)$/.exec(value || "");
-    if (!match) {
-      return 0;
-    }
-    const year = parseInt(match[1], 10);
-    const termPart = match[3];
-    const w = termPart === "MY" ? 3 : termPart === "2S" ? 2 : termPart === "1S" ? 1 : 0;
-    return year * 10 + w;
-  }
-
   async function setActive(value: string) {
     const activeTermConstant = allConstants.find((c) => c.key === "TERM_CURR");
     if (activeTermConstant) {
@@ -283,7 +272,7 @@
                   Set Active
                 </Button>
               {/if}
-              {#if activeTermCode !== term.value && termWeight(term.value) > termWeight(activeTermCode)}
+              {#if activeTermCode !== term.value && isFollowingYearFirstSemester(activeTermCode, term.value)}
                 <Button
                   variant="ghost"
                   size="sm"

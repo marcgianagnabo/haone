@@ -1,6 +1,4 @@
 import { authenticateAdmin } from "$api/services/auth-service";
-import { json } from "@sveltejs/kit";
-import type { RequestHandler } from "./$types";
 import {
   PUBLIC_DB_PROVIDER,
   PUBLIC_SUPABASE_PUBLISHABLE_KEY,
@@ -8,10 +6,16 @@ import {
 } from "$env/static/public";
 import { TransactionType } from "$lib/types";
 import { getLocalDateString } from "$utils/parsers";
+import { isFollowingYearFirstSemester } from "$utils/sort";
+import { json } from "@sveltejs/kit";
+import type { RequestHandler } from "./$types";
 
 /**
  * Computes per-MOP fund balances that should be carried into the next term and
  * returns paired EOS (closing) + CARRYOVER (opening) journal entries.
+ *
+ * Carryover always lands on the first semester of the immediately following
+ * academic year; midyear terms are rejected as targets.
  *
  * The math mirrors the manual EOS flow in TransactionForm.svelte and the
  * financial report (financial-report-pdf.ts): exclude EOS/CARRYOVER rows and
@@ -36,8 +40,13 @@ const usableMop = (mop?: string | null) => {
   return m !== "" && m !== "N/A";
 };
 
-function summarize(rows: any[]): Map<string, { water: number; assoc: number; maintenance: number; misc: number }> {
-  const map = new Map<string, { water: number; assoc: number; maintenance: number; misc: number }>();
+function summarize(
+  rows: any[]
+): Map<string, { water: number; assoc: number; maintenance: number; misc: number }> {
+  const map = new Map<
+    string,
+    { water: number; assoc: number; maintenance: number; misc: number }
+  >();
   for (const row of rows) {
     const mop = normMop(row.mop);
     const cur = map.get(mop) || { water: 0, assoc: 0, maintenance: 0, misc: 0 };
@@ -60,12 +69,7 @@ function carriedMopSet(rows: any[]): Set<string> {
   return set;
 }
 
-function buildCarryOver(
-  sourceTerm: string,
-  targetTerm: string,
-  rows: any[],
-  targetRows: any[]
-) {
+function buildCarryOver(sourceTerm: string, targetTerm: string, rows: any[], targetRows: any[]) {
   const balances = summarize(rows.filter((r) => !isWaived(r.type) && usableMop(r.mop)));
   const carried = carriedMopSet(targetRows);
   const date = getLocalDateString();
@@ -102,7 +106,14 @@ function buildCarryOver(
       skipped.push({ mop, reason: `Already has a CARRYOVER entry in ${targetTerm}` });
       continue;
     }
-    summary.push({ mop, water: bal.water, assoc: bal.assoc, maintenance: bal.maintenance, misc: bal.misc, total });
+    summary.push({
+      mop,
+      water: bal.water,
+      assoc: bal.assoc,
+      maintenance: bal.maintenance,
+      misc: bal.misc,
+      total
+    });
     entries.push(
       {
         date,
@@ -205,6 +216,15 @@ export const POST: RequestHandler = async ({ request }) => {
   }
   if (sourceTerm === targetTerm) {
     return json({ error: "Source and target terms must be different" }, { status: 400 });
+  }
+  if (!isFollowingYearFirstSemester(sourceTerm, targetTerm)) {
+    return json(
+      {
+        error:
+          "Carryover target must be the 1st semester of the immediately following academic year. Midyear terms are not valid carryover targets."
+      },
+      { status: 400 }
+    );
   }
 
   try {
