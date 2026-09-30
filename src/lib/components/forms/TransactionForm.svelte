@@ -82,6 +82,25 @@
   let allowOverpayment = $state(false);
   let hasConfirmedTerm = $state(false);
 
+  // Types whose amounts are stored as a negative number. The fee inputs always
+  // show the magnitude and the sign is reapplied on save, so this list is the
+  // single source of truth for both the input display and the saved row.
+  const NEGATIVE_AMOUNT_TYPES: string[] = [
+    TransactionType.REFUND,
+    TransactionType.REFUND_COLLECTION,
+    TransactionType.PURCHASE,
+    TransactionType.WATER,
+    TransactionType.WATER_AA,
+    TransactionType.TRANSACTION_FEE,
+    TransactionType.UPLB_ADA_FEE,
+    TransactionType.TRANSPORTATION
+  ];
+
+  function feeInputValue(type: string, amount: number | undefined | null): string {
+    const n = amount || 0;
+    return (NEGATIVE_AMOUNT_TYPES.includes(type) ? Math.abs(n) : n).toString();
+  }
+
   // Form State
   // FIXME: also using legacy fields.
   let formData = $state({
@@ -215,6 +234,35 @@
       });
     }
   });
+
+  const isRefundCollection = $derived(formData.type === TransactionType.REFUND_COLLECTION);
+
+  // Refund (Collection) may only hand back what was actually collected for the
+  // term, per fund. `paid` is the signed journal sum, so previous refunds are
+  // already netted out; the record being edited is added back because its own
+  // amount is part of that sum. Validation only — no accounting is changed.
+  function refundableFor(paid: number | undefined | null, stored: number | undefined | null) {
+    const collected = Math.max(paid || 0, 0);
+    const addBack = mode === "edit" && initialData ? Math.abs(stored || 0) : 0;
+    return Math.round((collected + addBack) * 100) / 100;
+  }
+
+  const waterRefundable = $derived(refundableFor(selectedResident?.waterPaid, initialData?.water));
+  const assocRefundable = $derived(refundableFor(selectedResident?.assocPaid, initialData?.assoc));
+  const maintenanceRefundable = $derived(
+    refundableFor(selectedResident?.maintenancePaid, initialData?.maintenance)
+  );
+
+  // Collections are capped by the outstanding balance; refunds by the amount
+  // collected. Everything else is uncapped.
+  function feeMax(balLimit: number, refundLimit: number): number | undefined {
+    if (isRefundCollection) return refundLimit;
+    return isCollection && !allowOverpayment ? balLimit : undefined;
+  }
+
+  function feeFill(balLimit: number, refundLimit: number): number {
+    return isRefundCollection ? refundLimit : balLimit;
+  }
 
   const isCollection = $derived.by(() => {
     const type = formData.type;
@@ -371,10 +419,12 @@
           accountName: initialData.name,
           accountStNo: initialData.stno,
           accountId: initialData.accountId || "",
-          waterFee: initialData.water.toString(),
-          assocFee: initialData.assoc.toString(),
-          maintenanceFee: (initialData.maintenance || 0).toString(),
-          miscFee: initialData.misc.toString(),
+          // `initialData.type` is used because `formData` is still the previous
+          // record while this object literal is being built.
+          waterFee: feeInputValue(initialData.type, initialData.water),
+          assocFee: feeInputValue(initialData.type, initialData.assoc),
+          maintenanceFee: feeInputValue(initialData.type, initialData.maintenance),
+          miscFee: feeInputValue(initialData.type, initialData.misc),
           mop: initialData.mop,
           mopTo: (initialData as any).mopTo || "CASH",
           period: initialData.period,
@@ -530,7 +580,21 @@
       return;
     }
 
-    if (isCollection && !allowOverpayment) {
+    // Refund (Collection) is bounded by what was collected, not by the
+    // outstanding balance, so it does not use the balance cap below.
+    if (isRefundCollection) {
+      const refundable: [string, number, number][] = [
+        ["Water", water, waterRefundable],
+        ["Association", assoc, assocRefundable],
+        ["Maintenance & Gas", maintenance, maintenanceRefundable]
+      ];
+      for (const [label, amount, limit] of refundable) {
+        if (amount > limit + 0.01) {
+          error = `${label} refund of ${formatAmount(amount)} exceeds the refundable ${label} amount of ${formatAmount(limit)}.`;
+          return;
+        }
+      }
+    } else if (isCollection && !allowOverpayment) {
       if (water > waterLimit + 0.01) {
         error = `Water payment exceeds remaining balance limit (${formatAmount(waterLimit)}).`;
         return;
@@ -618,16 +682,7 @@
       row[JOR.DATE] = formData.date;
       row[JOR.CREATOR] = "";
       row[JOR.ACCOUNT] = "";
-      const negativeTypes: string[] = [
-        TransactionType.REFUND,
-        TransactionType.REFUND_COLLECTION,
-        TransactionType.PURCHASE,
-        TransactionType.WATER,
-        TransactionType.WATER_AA,
-        TransactionType.TRANSACTION_FEE,
-        TransactionType.UPLB_ADA_FEE,
-        TransactionType.TRANSPORTATION
-      ];
+      const negativeTypes = NEGATIVE_AMOUNT_TYPES;
       const isNegative = negativeTypes.includes(formData.type);
 
       row[JOR.WATER] =
@@ -929,7 +984,7 @@
                       type="number"
                       step="0.01"
                       bind:value={formData.waterFee}
-                      max={isCollection && !allowOverpayment ? waterLimit : undefined}
+                      max={feeMax(waterLimit, waterRefundable)}
                       disabled={!formData.accountId || isSubmitting || isEos}
                       class="text-right font-mono"
                     />
@@ -942,8 +997,12 @@
                               size="icon"
                               class="h-9 w-9 shrink-0"
                               {...props}
-                              onclick={() => (formData.waterFee = waterLimit.toString())}
-                              disabled={waterLimit <= 0 || isSubmitting}
+                              onclick={() =>
+                                (formData.waterFee = feeFill(
+                                  waterLimit,
+                                  waterRefundable
+                                ).toString())}
+                              disabled={feeFill(waterLimit, waterRefundable) <= 0 || isSubmitting}
                             >
                               <ArrowLeftToLine class="h-4 w-4" />
                             </Button>
@@ -986,7 +1045,7 @@
                       type="number"
                       step="0.01"
                       bind:value={formData.assocFee}
-                      max={isCollection && !allowOverpayment ? assocLimit : undefined}
+                      max={feeMax(assocLimit, assocRefundable)}
                       disabled={!formData.accountId || isSubmitting || isEos}
                       class="text-right font-mono"
                     />
@@ -999,8 +1058,12 @@
                               size="icon"
                               class="h-9 w-9 shrink-0"
                               {...props}
-                              onclick={() => (formData.assocFee = assocLimit.toString())}
-                              disabled={assocLimit <= 0 || isSubmitting}
+                              onclick={() =>
+                                (formData.assocFee = feeFill(
+                                  assocLimit,
+                                  assocRefundable
+                                ).toString())}
+                              disabled={feeFill(assocLimit, assocRefundable) <= 0 || isSubmitting}
                             >
                               <ArrowLeftToLine class="h-4 w-4" />
                             </Button>
@@ -1043,7 +1106,7 @@
                       type="number"
                       step="0.01"
                       bind:value={formData.maintenanceFee}
-                      max={isCollection && !allowOverpayment ? maintenanceLimit : undefined}
+                      max={feeMax(maintenanceLimit, maintenanceRefundable)}
                       disabled={!formData.accountId || isSubmitting || isEos}
                       class="text-right font-mono"
                     />
@@ -1057,8 +1120,12 @@
                               class="h-9 w-9 shrink-0"
                               {...props}
                               onclick={() =>
-                                (formData.maintenanceFee = maintenanceLimit.toString())}
-                              disabled={maintenanceLimit <= 0 || isSubmitting}
+                                (formData.maintenanceFee = feeFill(
+                                  maintenanceLimit,
+                                  maintenanceRefundable
+                                ).toString())}
+                              disabled={feeFill(maintenanceLimit, maintenanceRefundable) <= 0 ||
+                                isSubmitting}
                             >
                               <ArrowLeftToLine class="h-4 w-4" />
                             </Button>
