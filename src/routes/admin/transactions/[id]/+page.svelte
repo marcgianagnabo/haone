@@ -34,6 +34,8 @@
   const id = $derived(page.params.id);
 
   import { type JournalRecord } from "$lib/types";
+  import { transactionTypeMeta } from "$utils/translators";
+  import { cn } from "$lib/utils.js";
   import { fetchResidents } from "$api/controllers/resident-controller";
   import { toast } from "svelte-sonner";
   import Banner from "$components/content/Banner.svelte";
@@ -46,6 +48,8 @@
   let isDeleting = $state(false);
   let error = $state<string | null>(null);
   let rowIndex = $state<number | null>(null);
+
+  const typeMeta = $derived(transactionTypeMeta(transaction?.type));
 
   function showSystemAccountAlert() {
     globalDialog.show(
@@ -260,9 +264,22 @@
       <Card.Header class="border-b p-8 transition-colors {headerColors()}">
         <div class="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div class="space-y-1">
-            <span class="text-xs font-bold tracking-widest text-primary uppercase"
-              >{translateTransactionType(transaction.type)}</span
-            >
+            <div class="flex items-center gap-2">
+              {#if typeMeta?.sign}
+                <span
+                  class={cn(
+                    "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-xs leading-none font-bold",
+                    typeMeta.chipClass
+                  )}>{typeMeta.sign}</span
+                >
+              {/if}
+              <span class="text-xs font-bold tracking-widest uppercase">
+                {translateTransactionType(transaction.type)}
+              </span>
+            </div>
+            {#if typeMeta}
+              <p class="text-xs text-muted-foreground">{typeMeta.description}</p>
+            {/if}
             <div class="flex items-center gap-3">
               <h2 class="text-3xl font-bold tracking-tight text-foreground">
                 {formatCurrency(total)}

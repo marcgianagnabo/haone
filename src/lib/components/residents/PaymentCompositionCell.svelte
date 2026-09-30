@@ -1,6 +1,6 @@
 <script lang="ts">
   import { formatAccounting } from "$utils/formatters";
-  import { translateTransactionType } from "$utils/translators";
+  import { transactionTypeHtml } from "$utils/translators";
   import type { JournalRecord } from "$lib/types";
 
   let {
@@ -19,13 +19,15 @@
       { name: "Miscellaneous", amount: record.misc }
     ].filter((i) => i.amount !== 0)
   );
+
+  const typeLabelHtml = $derived(transactionTypeHtml(record.type));
 </script>
 
 <div class="flex flex-col">
   {#if variant === "account"}
     <div class="flex flex-col">
       <span class="font-medium">{record.name}</span>
-      <span class="text-muted-foreground">{translateTransactionType(record.type)}</span>
+      <span class="text-muted-foreground">{@html typeLabelHtml}</span>
     </div>
   {:else if variant === "total"}
     <div class="text-right">

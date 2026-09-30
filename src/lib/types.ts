@@ -655,14 +655,42 @@ export enum TransactionType {
   TYPE_RESERVED = "TYPE_RESERVED"
 }
 
+/**
+ * Which way money moves for a given type. Used for the sign chip, the colors,
+ * and the plain-text fallback when a table cell cannot render components.
+ */
+export type TransactionFlow = "in" | "out" | "both" | "none";
+
+export const TRANSACTION_CATEGORY_ORDER = [
+  "Money In",
+  "Variable",
+  "Refunds",
+  "Expenses",
+  "Transfers",
+  "Other"
+] as const;
+
+export type TransactionCategory = (typeof TRANSACTION_CATEGORY_ORDER)[number];
+
 export interface TransactionTypeMetadata {
   key: TransactionType;
   value: string;
+  /** Name shown in pickers and lists, e.g. "Collection (Dorm Fees)". */
   label: string;
+  /** Symbol shown on the left of the name — the meaning stays in the tooltip. */
+  sign: string;
+  flow: TransactionFlow;
+  category: TransactionCategory;
+  /** Tailwind classes for the sign chip. */
+  chipClass: string;
+  /** Tailwind classes for text-only surfaces (tables, PDFs, emails). */
+  textClass: string;
+  /** What this type actually is — shown as a description/tooltip, never as the name. */
+  description: string;
 }
 
 export const TRANSACTION_TYPE_CONFIG: Record<TransactionType, { val: string; label: string }> = {
-  [TransactionType.COLLECTION]: { val: "COLLECTION", label: "Collection" },
+  [TransactionType.COLLECTION]: { val: "COLLECTION", label: "Collection (Dorm Fees)" },
   [TransactionType.COLLECTION_OTHERS]: { val: "COLLECTION_OTHERS", label: "Collection (Others)" },
   [TransactionType.CARRYOVER]: { val: "CARRYOVER", label: "Carryover" },
   [TransactionType.FUND_TRANSFER]: { val: "FUND_TRANSFER", label: "Fund Transfer" },
@@ -685,46 +713,193 @@ export const TRANSACTION_TYPE_CONFIG: Record<TransactionType, { val: string; lab
   [TransactionType.TYPE_RESERVED]: { val: "DO_NOT_USE", label: "Reserved (Hidden)" }
 };
 
-export interface TransactionTypeSign {
-  sign: string;
-  word: string;
+/** Colors per money direction, shared by the form, tables and PDFs. */
+export const TRANSACTION_FLOW_STYLES: Record<
+  TransactionFlow,
+  { chipClass: string; textClass: string }
+> = {
+  in: {
+    chipClass:
+      "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30",
+    textClass: "text-emerald-600 dark:text-emerald-400"
+  },
+  out: {
+    chipClass:
+      "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30",
+    textClass: "text-rose-600 dark:text-rose-400"
+  },
+  both: {
+    chipClass:
+      "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30",
+    textClass: "text-amber-600 dark:text-amber-400"
+  },
+  none: {
+    chipClass:
+      "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/20 dark:text-slate-300 dark:border-slate-500/30",
+    textClass: "text-slate-600 dark:text-slate-400"
+  }
+};
+
+/**
+ * The symbol shown on the left of a type: `+` money in, `-` money out, `+/-`
+ * either way, `∅` no cash. Only the symbol lives here — its meaning is carried
+ * by the color, the group heading and the type's `description`.
+ */
+export const TRANSACTION_TYPE_SIGN: Record<TransactionType, string> = {
+  [TransactionType.COLLECTION]: "+",
+  [TransactionType.COLLECTION_OTHERS]: "+",
+  [TransactionType.CARRYOVER]: "+",
+  [TransactionType.FUND_TRANSFER]: "+/-",
+  [TransactionType.TRANSFER_FROM]: "+",
+  [TransactionType.TRANSFER_TO]: "-",
+  [TransactionType.DISCREPANCY]: "+/-",
+  [TransactionType.REFUND]: "-",
+  [TransactionType.REFUND_COLLECTION]: "-",
+  [TransactionType.RECLASSIFY]: "+/-",
+  [TransactionType.PURCHASE]: "-",
+  [TransactionType.WATER_AA]: "-",
+  [TransactionType.WATER]: "-",
+  [TransactionType.TRANSACTION_FEE]: "-",
+  [TransactionType.UPLB_ADA_FEE]: "-",
+  [TransactionType.TRANSPORTATION]: "-",
+  [TransactionType.EOS]: "-",
+  [TransactionType.EOS_UNSETTLED]: "-",
+  [TransactionType.WAIVED]: "∅",
+  [TransactionType.NOTE_MARKER]: "",
+  [TransactionType.TYPE_RESERVED]: ""
+};
+
+/** Money direction per type, derived from the symbol above. */
+export const TRANSACTION_TYPE_FLOW: Record<TransactionType, TransactionFlow> = (
+  Object.keys(TRANSACTION_TYPE_SIGN) as TransactionType[]
+).reduce(
+  (acc, key) => {
+    const sign = TRANSACTION_TYPE_SIGN[key];
+    acc[key] = sign === "+" ? "in" : sign === "-" ? "out" : sign === "+/-" ? "both" : "none";
+    return acc;
+  },
+  {} as Record<TransactionType, TransactionFlow>
+);
+
+/** Dropdown grouping per type. */
+export const TRANSACTION_TYPE_CATEGORY: Record<TransactionType, TransactionCategory> = {
+  [TransactionType.COLLECTION]: "Money In",
+  [TransactionType.COLLECTION_OTHERS]: "Money In",
+  [TransactionType.CARRYOVER]: "Money In",
+  [TransactionType.DISCREPANCY]: "Variable",
+  [TransactionType.FUND_TRANSFER]: "Variable",
+  [TransactionType.RECLASSIFY]: "Variable",
+  [TransactionType.REFUND]: "Refunds",
+  [TransactionType.REFUND_COLLECTION]: "Refunds",
+  [TransactionType.PURCHASE]: "Expenses",
+  [TransactionType.TRANSACTION_FEE]: "Expenses",
+  [TransactionType.UPLB_ADA_FEE]: "Expenses",
+  [TransactionType.TRANSPORTATION]: "Expenses",
+  [TransactionType.WATER]: "Expenses",
+  [TransactionType.WATER_AA]: "Expenses",
+  [TransactionType.WAIVED]: "Expenses",
+  [TransactionType.EOS]: "Expenses",
+  [TransactionType.EOS_UNSETTLED]: "Expenses",
+  [TransactionType.TRANSFER_FROM]: "Transfers",
+  [TransactionType.TRANSFER_TO]: "Transfers",
+  [TransactionType.NOTE_MARKER]: "Other",
+  [TransactionType.TYPE_RESERVED]: "Other"
+};
+
+/**
+ * What each type actually is. Rendered as the item's description/tooltip —
+ * never in place of the type name, which stays the label beside the symbol.
+ */
+export const TRANSACTION_TYPE_HINT: Record<TransactionType, string> = {
+  [TransactionType.COLLECTION]: "Fees collected by the dormitory every semester.",
+  [TransactionType.COLLECTION_OTHERS]:
+    "Other services requiring payment (e.g., other payments, printer fees, etc.).",
+  [TransactionType.CARRYOVER]: "Positive balance rolled over from the previous term.",
+  [TransactionType.FUND_TRANSFER]:
+    "Transfer of funds between accounts, funds, or designated balances.",
+  [TransactionType.TRANSFER_FROM]: "Generated pair entry: money pulled from the source account.",
+  [TransactionType.TRANSFER_TO]: "Generated pair entry: money pushed into the destination account.",
+  [TransactionType.DISCREPANCY]:
+    "Adjustment made to correct a difference between the recorded amount and the actual amount.",
+  [TransactionType.REFUND]: "Refund of a general collection or other non-dormitory-fee payment.",
+  [TransactionType.REFUND_COLLECTION]: "Refund of previously collected dormitory fees.",
+  [TransactionType.RECLASSIFY]: "Re-labels an existing entry — the sign follows the amount.",
+  [TransactionType.PURCHASE]: "Payment for goods, supplies, or items purchased by the dormitory.",
+  [TransactionType.WATER_AA]: "Historical: water purchase billed to Aqua Altria.",
+  [TransactionType.WATER]: "Payment to the dormitory's water provider for water supply.",
+  [TransactionType.TRANSACTION_FEE]: "Fees charged for processing financial transactions.",
+  [TransactionType.UPLB_ADA_FEE]:
+    "Fees or contributions paid to the UPLB Alliance of Dormitory Associations.",
+  [TransactionType.TRANSPORTATION]: "Expenses incurred for transportation or delivery.",
+  [TransactionType.EOS]: "Historical: end-of-term assessment of the outstanding balance.",
+  [TransactionType.EOS_UNSETTLED]: "Historical: end-of-term entry left partially unsettled.",
+  [TransactionType.WAIVED]:
+    "Amount or fee that has been officially waived and is no longer collectible.",
+  [TransactionType.NOTE_MARKER]: "Annotation only, no amounts are recorded.",
+  [TransactionType.TYPE_RESERVED]: "Reserved for internal use."
+};
+
+/**
+ * Builds the metadata consumed by the type picker, filters and tables. The
+ * label stays the plain type name and the sign stays a bare symbol — what the
+ * symbol means is carried by the tooltip and the category callout instead.
+ */
+export function buildTransactionTypeMetadata(key: TransactionType): TransactionTypeMetadata {
+  const flow = TRANSACTION_TYPE_FLOW[key];
+  const category = TRANSACTION_TYPE_CATEGORY[key];
+  const styles = TRANSACTION_FLOW_STYLES[flow];
+  return {
+    key,
+    value: TRANSACTION_TYPE_CONFIG[key].val,
+    label: TRANSACTION_TYPE_CONFIG[key].label,
+    sign: TRANSACTION_TYPE_SIGN[key],
+    flow,
+    category,
+    chipClass: styles.chipClass,
+    textClass: styles.textClass,
+    description: TRANSACTION_TYPE_HINT[key]
+  };
+}
+
+export function getTransactionTypeMetadata(
+  value: string | null | undefined
+): TransactionTypeMetadata | null {
+  if (!value) {
+    return null;
+  }
+  const key = value.trim().toUpperCase() as TransactionType;
+  if (!TRANSACTION_TYPE_CONFIG[key] || !TRANSACTION_TYPE_SIGN[key]) {
+    return null;
+  }
+  return buildTransactionTypeMetadata(key);
 }
 
 /**
- * Indicates how each type moves money so users can tell at a glance whether
- * the category is positive (money in), negative (money out), or variable.
+ * Maps type metadata onto the generic Combobox option shape so pickers can be
+ * handed the array directly and still render colored signs and group headings.
  */
-export const TRANSACTION_TYPE_SIGN: Record<TransactionType, TransactionTypeSign> = {
-  [TransactionType.COLLECTION]: { sign: "+", word: "Money In" },
-  [TransactionType.COLLECTION_OTHERS]: { sign: "+", word: "Money In" },
-  [TransactionType.CARRYOVER]: { sign: "+", word: "Money In" },
-  [TransactionType.FUND_TRANSFER]: { sign: "+/-", word: "Balance Neutral" },
-  [TransactionType.TRANSFER_FROM]: { sign: "+", word: "Money In" },
-  [TransactionType.TRANSFER_TO]: { sign: "-", word: "Money Out" },
-  [TransactionType.DISCREPANCY]: { sign: "+/-", word: "Variable" },
-  [TransactionType.REFUND]: { sign: "-", word: "Money Out" },
-  [TransactionType.REFUND_COLLECTION]: { sign: "-", word: "Money Out" },
-  [TransactionType.RECLASSIFY]: { sign: "+/-", word: "Variable" },
-  [TransactionType.PURCHASE]: { sign: "-", word: "Money Out" },
-  [TransactionType.WATER_AA]: { sign: "-", word: "Money Out" },
-  [TransactionType.WATER]: { sign: "-", word: "Money Out" },
-  [TransactionType.TRANSACTION_FEE]: { sign: "-", word: "Money Out" },
-  [TransactionType.UPLB_ADA_FEE]: { sign: "-", word: "Money Out" },
-  [TransactionType.TRANSPORTATION]: { sign: "-", word: "Money Out" },
-  [TransactionType.EOS]: { sign: "-", word: "Money Out" },
-  [TransactionType.EOS_UNSETTLED]: { sign: "-", word: "Money Out" },
-  [TransactionType.WAIVED]: { sign: "", word: "Waiver - No Cash" },
-  [TransactionType.NOTE_MARKER]: { sign: "", word: "Note Only" },
-  [TransactionType.TYPE_RESERVED]: { sign: "", word: "Reserved" }
-};
-
-function transactionTypeOptionLabel(key: TransactionType): string {
-  const base = TRANSACTION_TYPE_CONFIG[key].label;
-  const info = TRANSACTION_TYPE_SIGN[key];
-  if (!info) {
-    return base;
-  }
-  return info.sign ? `${base} ${info.sign} (${info.word})` : `${base} (${info.word})`;
+export function toComboboxOptions(options: readonly TransactionTypeMetadata[]): {
+  value: string;
+  label: string;
+  badge: string;
+  badgeClass: string;
+  description: string;
+  group: string;
+  searchText: string;
+}[] {
+  return options.map((o) => ({
+    value: o.value,
+    label: o.label,
+    // Left-side icon: the bare symbol only. What it means is never spelled out
+    // beside it — the color, the group heading and the tooltip carry that.
+    badge: o.sign,
+    badgeClass: o.chipClass,
+    description: o.description,
+    group: o.category,
+    // Hidden from the list but still matched by the search box, so "money",
+    // "in", "out" and any word from the description find the right rows.
+    searchText: `${o.label} ${o.value} ${o.sign} ${o.description}`
+  }));
 }
 
 /**
@@ -747,12 +922,13 @@ export const TRANSACTION_TYPE_OPTIONS: TransactionTypeMetadata[] = (
       k !== TransactionType.NOTE_MARKER &&
       !HIDDEN_TRANSACTION_TYPES.includes(k)
   )
-  .map((key) => ({
-    key,
-    value: TRANSACTION_TYPE_CONFIG[key].val,
-    label: transactionTypeOptionLabel(key)
-  }))
-  .sort((a, b) => a.label.localeCompare(b.label));
+  .map(buildTransactionTypeMetadata)
+  .sort((a, b) => {
+    const byCategory =
+      TRANSACTION_CATEGORY_ORDER.indexOf(a.category) -
+      TRANSACTION_CATEGORY_ORDER.indexOf(b.category);
+    return byCategory !== 0 ? byCategory : a.label.localeCompare(b.label);
+  });
 
 export const TRANSACTION_TYPE_FUNDS_ONLY: TransactionType[] = [
   TransactionType.CARRYOVER,

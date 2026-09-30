@@ -41,8 +41,9 @@
     JOURNAL_COL as JOR,
     TransactionType,
     TRANSACTION_TYPE_OPTIONS,
-    TRANSACTION_TYPE_CONFIG,
     TRANSACTION_TYPE_FUNDS_ONLY,
+    getTransactionTypeMetadata,
+    toComboboxOptions,
     type ResidentRecord,
     type JournalRecord,
     TRANSACTION_TYPE_WITH_RECEIPT,
@@ -113,7 +114,7 @@
     formData.type === TransactionType.EOS || formData.type === TransactionType.EOS_UNSETTLED
   );
 
-  const typeOptions = $derived([
+  const typeMetaOptions = $derived([
     ...TRANSACTION_TYPE_OPTIONS.filter((t) => {
       if (t.value === formData.type) {
         return true;
@@ -126,16 +127,12 @@
     }),
     ...(TRANSACTION_TYPE_OPTIONS.some((t) => t.value === formData.type)
       ? []
-      : TRANSACTION_TYPE_CONFIG[formData.type as TransactionType]
-        ? [
-            {
-              key: formData.type as TransactionType,
-              value: TRANSACTION_TYPE_CONFIG[formData.type as TransactionType].val,
-              label: TRANSACTION_TYPE_CONFIG[formData.type as TransactionType].label
-            }
-          ]
+      : getTransactionTypeMetadata(formData.type)
+        ? [getTransactionTypeMetadata(formData.type)!]
         : [])
   ]);
+
+  const typeOptions = $derived(toComboboxOptions(typeMetaOptions));
 
   const isTypeDisabled = $derived(
     isSubmitting ||

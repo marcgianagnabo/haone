@@ -1,6 +1,11 @@
 import collegeMapping from "$assets/colleges.json";
 import programMapping from "$assets/programs.json";
-import { ACCOUNT_TYPE_LABELS, TRANSACTION_TYPE_CONFIG } from "$lib/types";
+import {
+  ACCOUNT_TYPE_LABELS,
+  TRANSACTION_TYPE_CONFIG,
+  getTransactionTypeMetadata,
+  type TransactionTypeMetadata
+} from "$lib/types";
 
 export function translateMop(mop: string) {
   const val = mop?.trim().toUpperCase() || "";
@@ -76,4 +81,38 @@ export function translateTransactionType(type: string | null | undefined): strin
     (TRANSACTION_TYPE_CONFIG as Record<string, { label: string }>)[key]?.label ||
     `${type} (Unknown)`
   );
+}
+
+export function transactionTypeMeta(
+  type: string | null | undefined
+): TransactionTypeMetadata | null {
+  return getTransactionTypeMetadata(type);
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * Colored symbol + type name as raw HTML, for the table cells that render
+ * through `createRawSnippet`. The symbol stays bare (green money in, red money
+ * out); the text beside it is the type name, never the symbol's meaning.
+ */
+export function transactionTypeHtml(
+  type: string | null | undefined,
+  labelClass = "text-sm"
+): string {
+  const label = escapeHtml(translateTransactionType(type));
+  const meta = getTransactionTypeMetadata(type);
+  if (!meta) {
+    return `<span class="${labelClass}">${label}</span>`;
+  }
+  const symbol = meta.sign
+    ? `<span class="${meta.chipClass} mr-1.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded align-middle text-xs leading-none font-bold">${escapeHtml(meta.sign)}</span>`
+    : "";
+  return `<span class="${labelClass} ${meta.textClass}">${symbol}${label}</span>`;
 }

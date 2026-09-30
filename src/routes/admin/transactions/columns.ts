@@ -8,7 +8,7 @@ import {
   type ColumnDef
 } from "$ui/data-table/index.js";
 import { formatAccounting, formatDate } from "$utils/formatters";
-import { translateMop, translateTransactionType } from "$utils/translators";
+import { transactionTypeHtml, translateMop } from "$utils/translators";
 import { createRawSnippet } from "svelte";
 
 export const columns: ColumnDef<JournalRecord>[] = [
@@ -74,7 +74,7 @@ export const columns: ColumnDef<JournalRecord>[] = [
           render: () => `
             <div class="flex flex-col gap-2">
               <div class="flex flex-col">
-                <span class="text-sm uppercase">${translateTransactionType(r.type)}</span>
+                ${transactionTypeHtml(r.type, "text-sm uppercase")}
                 <span class="text-sm text-muted-foreground">${translateMop(r.mop)}</span>
               </div>
               ${r.notes ? `<span class="text-sm text-muted-foreground truncate max-w-75 block italic">— ${r.notes}</span>` : ""}

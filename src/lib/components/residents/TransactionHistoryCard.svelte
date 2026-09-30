@@ -1,7 +1,7 @@
 <script lang="ts">
   import { renderSnippet, type ColumnDef } from "$ui/data-table/index.js";
   import { formatDate, formatCurrency, pluralize } from "$utils/formatters";
-  import { translateMop, translateTransactionType } from "$utils/translators";
+  import { translateMop, transactionTypeHtml } from "$utils/translators";
   import { type JournalRecord } from "$lib/types";
   import { createRawSnippet } from "svelte";
   import * as Card from "$ui/card";
@@ -47,7 +47,7 @@
           return {
             render: () => `
               <div class="flex flex-col">
-                <span class="text-sm font-medium">${translateTransactionType(r.type)}</span>
+                ${transactionTypeHtml(r.type, "text-sm font-medium")}
                 <span class="text-sm text-muted-foreground">${translateMop(r.mop)}</span>
               </div>
             `

@@ -20,7 +20,12 @@
   import { columns } from "./columns";
   import DataTable from "$ui/data-table/data-table.svelte";
   import AdminTransactionsTabs from "$components/tabs/AdminTransactionsTabs.svelte";
-  import { type JournalRecord, TRANSACTION_TYPE_OPTIONS, TransactionType } from "$lib/types";
+  import {
+    type JournalRecord,
+    TRANSACTION_TYPE_OPTIONS,
+    toComboboxOptions,
+    TransactionType
+  } from "$lib/types";
   import { toast } from "svelte-sonner";
   import { globalDialog } from "$state/dialog.svelte";
 
@@ -133,7 +138,7 @@
 
   const transactionOptions = $derived([
     { value: "ALL", label: "All Types" },
-    ...TRANSACTION_TYPE_OPTIONS
+    ...toComboboxOptions(TRANSACTION_TYPE_OPTIONS)
   ]);
   const mopOptions = $derived([{ value: "ALL", label: "All Methods" }, ...mopTypes]);
   const statusOptions = $derived([
