@@ -1,8 +1,10 @@
 import type { AnnouncementRecord, PaginatedResponse, PaginationOptions } from "$lib/types";
+import { auth } from "$state/auth.svelte";
 import {
   assertSupabaseFound,
   fetchAllSupabaseRows,
   handleSupabaseError,
+  resolveSupabaseUserId,
   supabase
 } from "../common";
 import type { AnnouncementServiceInterface } from "../interfaces/announcement-service.interface";
@@ -116,9 +118,10 @@ export const supabaseAnnouncementService: AnnouncementServiceInterface = {
     if (!supabase) {
       return;
     }
+    const creatorId = await resolveSupabaseUserId(data.creatorId, auth.user?.email);
     const { error } = await supabase.from("announcements").insert({
       id: data.id || crypto.randomUUID(),
-      creator_id: data.creatorId,
+      creator_id: creatorId,
       start_date: toDbDate(data.startDate),
       expiry_date: toDbDate(data.expiryDate),
       is_indefinite: data.isIndefinite ?? false,
