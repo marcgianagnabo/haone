@@ -1,0 +1,37 @@
+{
+  "_comment": [
+    "HAOne test-data cleanup manifest.",
+    "",
+    "This file lists ONLY records that were created as test data. Anything not",
+    "listed here is never touched — there is no wipe mode.",
+    "",
+    "1. Give this cleanup run a unique label; you must repeat it as --confirm.",
+    "2. List the test resident emails. Each one must match a test pattern",
+    "   (@example.com, @*.invalid, test*, *_test@, +test@, demo@, qa@, ci@) or the",
+    "   script refuses to run.",
+    "3. residents.testPeriods is REQUIRED: the academic term codes that are known",
+    "   to contain only test data. If a matched resident has journal rows outside",
+    "   these periods, the script refuses to delete them — that is a real resident.",
+    "4. firestore lists the exact document IDs to remove. Get them from the app's",
+    "   image URL (/api/image/<docId>) or the Firestore console."
+  ],
+
+  "label": "replace-with-a-unique-run-label-e.g.-testrun-2026-05-01",
+
+  "residents": {
+    "emails": ["resident.one@example.com", "resident.two@example.com"],
+    "ids": [],
+    "testPeriods": ["replace-with-your-test-term-code"]
+  },
+
+  "firestore": {
+    "push_subscriptions": [],
+    "uploads": ["replace-with-firestore-upload-document-id"]
+  },
+
+  "_allowNonTestEmails_comment": [
+    "Set to true ONLY if a test account has a real-looking email address. Every",
+    "time you do this, record here why. Leave false in normal operation."
+  ],
+  "allowNonTestEmails": false
+}
