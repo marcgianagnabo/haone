@@ -294,22 +294,27 @@
     return base + original;
   });
 
+  // A collection settles the balance downward, but a refund is stored as a
+  // negative row, so it *raises* the balance back. The preview must follow the
+  // real direction or it reports an overpayment that will not happen.
+  function projectedBal(limit: number, fee: string): number {
+    const amount = Number(fee) || 0;
+    return isRefundCollection ? limit + amount : limit - amount;
+  }
+
   const currentWaterBal = $derived.by(() => {
     if (!isCollection || !selectedResident) return selectedResident?.waterBal || 0;
-    const fee = Number(formData.waterFee) || 0;
-    return waterLimit - fee;
+    return projectedBal(waterLimit, formData.waterFee);
   });
 
   const currentAssocBal = $derived.by(() => {
     if (!isCollection || !selectedResident) return selectedResident?.assocBal || 0;
-    const fee = Number(formData.assocFee) || 0;
-    return assocLimit - fee;
+    return projectedBal(assocLimit, formData.assocFee);
   });
 
   const currentMaintenanceBal = $derived.by(() => {
     if (!isCollection || !selectedResident) return selectedResident?.maintenanceBal || 0;
-    const fee = Number(formData.maintenanceFee) || 0;
-    return maintenanceLimit - fee;
+    return projectedBal(maintenanceLimit, formData.maintenanceFee);
   });
 
   const isFundsOnly = $derived(
@@ -1173,7 +1178,7 @@
                 </div>
               {/if}
 
-              {#if isCollection && selectedResident && selectedResident.email !== "_funds"}
+              {#if isCollection && !isRefundCollection && selectedResident && selectedResident.email !== "_funds"}
                 <div
                   class="flex items-center gap-3 rounded-lg border border-border bg-muted/20 p-3"
                 >
