@@ -75,6 +75,10 @@
           <StudentProfileCard
             account={status?.account || occupancyData[0]}
             semesterCount={occupancyData.length}
+            avatarUrl={status?.profile?.avatarUrl ||
+              auth.user?.avatarUrl ||
+              auth.avatarUrl ||
+              ""}
           />
         {/if}
       </div>

@@ -20,10 +20,21 @@
   interface Props {
     account: ResidentRecord;
     semesterCount?: number;
+    avatarUrl?: string;
     class?: string;
   }
 
-  let { account, semesterCount, class: className }: Props = $props();
+  let { account, semesterCount, avatarUrl = "", class: className }: Props = $props();
+
+  let imgError = $state(false);
+
+  // Reset the broken-image flag when the account or photo changes so a
+  // previous error never hides a newly loaded photo.
+  $effect(() => {
+    account?.residentId;
+    avatarUrl;
+    imgError = false;
+  });
 
   const qualifications = $derived(
     account
@@ -46,6 +57,19 @@
     </Card.Title>
   </Card.Header>
   <Card.Content class="flex-1 space-y-4">
+    {#if (avatarUrl || "").trim() && !imgError}
+      <div class="flex flex-col items-center gap-2 pt-1 text-center">
+        <img
+          src={(avatarUrl || "").trim()}
+          alt={account.name || account.email}
+          class="h-24 w-24 shrink-0 rounded-full border border-border object-cover"
+          onerror={() => (imgError = true)}
+        />
+        {#if account.name}
+          <p class="max-w-full truncate text-sm font-bold text-foreground">{account.name}</p>
+        {/if}
+      </div>
+    {/if}
     <div class="space-y-1">
       <Label
         class="flex items-center gap-1.5 text-xs font-bold tracking-widest text-muted-foreground uppercase"

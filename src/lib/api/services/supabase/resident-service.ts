@@ -31,6 +31,7 @@ function mapDbUserToUserRecord(u: any): UserRecord {
     address: u.address || "",
     college: u.college || "",
     program: u.degree_program || "",
+    avatarUrl: u.avatar_url || "",
     // Sheets stores tags ":"-delimited; keep that convention for consumers.
     tags: Array.isArray(u.tags) ? u.tags.join(":") : u.tags || "",
     notes: u.notes || "",
@@ -83,6 +84,9 @@ function mapUserRecordToDb(data: Partial<UserRecord>): Record<string, any> {
   }
   if (data.notes !== undefined) {
     payload.notes = data.notes;
+  }
+  if (data.avatarUrl !== undefined) {
+    payload.avatar_url = data.avatarUrl || null;
   }
   return payload;
 }
@@ -403,7 +407,8 @@ export const supabaseResidentService: ResidentServiceInterface = {
               ? currentUser.tags.join(",")
               : currentUser.tags || "",
             suffix: currentUser.suffix || "",
-            overrideName: currentUser.override_name || ""
+            overrideName: currentUser.override_name || "",
+            avatarUrl: currentUser.avatar_url || ""
           }
         : null,
       account: targetAccount

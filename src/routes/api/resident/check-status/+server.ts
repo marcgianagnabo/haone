@@ -22,7 +22,7 @@ export const GET: RequestHandler = async ({ url, request }) => {
     // 1. Fetch all relevant sheets data
     const [constRows, userRows, jorRows, accRows, currRows] = await fetchSheetsData(client, [
       "constants!A:C",
-      "users!A:P",
+      "users!A:Q",
       "journal_general!A:V",
       "accounts!A:L",
       "CURR!A:P"
@@ -179,7 +179,8 @@ export const GET: RequestHandler = async ({ url, request }) => {
             program: (userRow[USER_COL.DEGREE_PROGRAM] || "").split(":").pop()?.trim() || "",
             tags: userRow[USER_COL.TAGS] || "",
             suffix: userRow[USER_COL.SUFFIX] || "",
-            overrideName: userRow[USER_COL.OVERRIDE_NAME] || ""
+            overrideName: userRow[USER_COL.OVERRIDE_NAME] || "",
+            avatarUrl: (userRow[USER_COL.AVATAR_URL] || "").trim()
           }
         : null,
       account: residentAccount

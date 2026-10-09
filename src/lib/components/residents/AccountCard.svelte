@@ -11,6 +11,7 @@
   interface Props {
     account: ResidentRecord;
     class?: string;
+    avatarUrl?: string;
     isChangingType?: boolean;
     onChangeAccountType?: (newType: string) => void;
     onDelist?: () => void;
@@ -19,10 +20,21 @@
   let {
     account,
     class: className,
+    avatarUrl = "",
     isChangingType = false,
     onChangeAccountType,
     onDelist
   }: Props = $props();
+
+  let imgError = $state(false);
+
+  // Reset the broken-image flag when the account or photo changes so a
+  // previous error never hides a newly loaded photo.
+  $effect(() => {
+    account?.residentId;
+    avatarUrl;
+    imgError = false;
+  });
 
   const ACCOUNT_TYPE_OPTIONS = [
     { value: AccountType.STUDENT, label: ACCOUNT_TYPE_LABELS.STUDENT },
@@ -43,6 +55,22 @@
     </Card.Title>
   </Card.Header>
   <Card.Content class="flex-1 space-y-4">
+    {#if (avatarUrl || "").trim() && !imgError}
+      <div class="flex items-center gap-3">
+        <img
+          src={(avatarUrl || "").trim()}
+          alt={account.name || account.email}
+          class="h-16 w-16 shrink-0 rounded-full border border-border object-cover"
+          onerror={() => (imgError = true)}
+        />
+        <div class="min-w-0">
+          {#if account.name}
+            <p class="truncate text-sm font-bold text-foreground">{account.name}</p>
+          {/if}
+          <p class="truncate text-xs text-muted-foreground">{account.email}</p>
+        </div>
+      </div>
+    {/if}
     <div class="space-y-1">
       <Label
         class="flex items-center gap-1.5 text-xs font-bold tracking-widest text-muted-foreground uppercase"

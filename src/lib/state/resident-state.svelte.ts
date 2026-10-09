@@ -13,6 +13,7 @@ export type ResidentProfile = Pick<
   | "tags"
   | "suffix"
   | "overrideName"
+  | "avatarUrl"
 >;
 
 export type ResidentAccount = Omit<

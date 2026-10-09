@@ -23,8 +23,7 @@
   import { parseTime } from "$utils/parsers";
   import { translateTransactionType } from "$utils/translators";
   import { fetchLaundryReservations } from "$api/controllers/laundry-controller";
-  import { fetchUsers } from "$api/controllers/resident-controller";
-  import { AccountType, type LaundryRecord, type UserRecord } from "$lib/types";
+  import { AccountType, type LaundryRecord } from "$lib/types";
   import { auth } from "$state/auth.svelte";
   import { settings } from "$state/settings.svelte";
   import ActivityItem from "$components/dashboard/ActivityItem.svelte";
@@ -46,7 +45,6 @@
   );
 
   let reservations = $state<LaundryRecord[]>([]);
-  let users = $state<UserRecord[]>([]);
   let currentResidentId = $state("");
   let isLaundryLoading = $state(true);
 
@@ -54,10 +52,10 @@
 
   async function loadLaundry() {
     try {
-      const [resResult, userData] = await Promise.all([
-        fetchLaundryReservations().catch(() => ({ reservations: [], currentResidentId: "" })),
-        fetchUsers().catch(() => [])
-      ]);
+      const resResult = await fetchLaundryReservations().catch(() => ({
+        reservations: [],
+        currentResidentId: ""
+      }));
 
       if (Array.isArray(resResult)) {
         reservations = resResult;
@@ -65,7 +63,6 @@
         reservations = resResult.reservations;
         currentResidentId = resResult.currentResidentId || "";
       }
-      users = userData || [];
     } catch {
       // Feature flag disabled or fetch failure
     } finally {
@@ -77,49 +74,24 @@
     loadLaundry();
   });
 
-  const userMap = $derived(
-    new Map(
-      users.flatMap((u: any) => {
-        const name = u.displayName || u.name || "Resident";
-        const room = u.room || "";
-        const data = { name, room };
-        const entries: [string, typeof data][] = [];
-        const id = u.id || u.residentId;
-        const email = u.email;
-        if (id) {
-          entries.push([id, data]);
-        }
-        if (email) {
-          entries.push([(email || "").trim().toLowerCase(), data]);
-        }
-        return entries;
-      })
-    )
-  );
-
-  function getDisplayName(resId: string, fallbackName?: string) {
-    const user = userMap.get(resId) || userMap.get(resId.toLowerCase());
-    return user?.name || fallbackName || "Resident";
-  }
-
-  function getDisplayRoom(resId: string, fallbackRoom?: string) {
-    const user = userMap.get(resId) || userMap.get(resId.toLowerCase());
-    return user?.room || fallbackRoom || "";
-  }
-
   function toReservationTimestamp(dateStr: string, hourVal: number) {
     const parts = dateStr.split("-").map(Number);
     const d = new Date(parts[0], parts[1] - 1, parts[2]);
     return d.getTime() + hourVal * 3600000;
   }
 
-  // Find currently active user in laundry area right now
-  const currentLaundrySlot = $derived.by(() => {
-    const now = new Date();
-    const nowMs = now.getTime();
+  // The user's own ACTIVE slot covering right now (if any).
+  const activeUserSlot = $derived.by(() => {
+    if (!residentId) {
+      return null;
+    }
+    const nowMs = new Date().getTime();
 
     for (const r of reservations) {
       if (r.status !== "ACTIVE") {
+        continue;
+      }
+      if ((r.residentId || "").trim() !== residentId) {
         continue;
       }
       const startH = parseTime(r.timeStart);
@@ -128,14 +100,9 @@
       const endMs = toReservationTimestamp(r.date, endH);
 
       if (nowMs >= startMs && nowMs < endMs) {
-        const resId = (r.residentId || "").trim();
-        const isMine = resId === residentId;
         return {
           ...r,
-          isMine,
-          machineLabel: laundryMachineLabel(r.machine),
-          name: isMine ? "You" : getDisplayName(resId, r.displayName),
-          room: getDisplayRoom(resId, r.room)
+          machineLabel: laundryMachineLabel(r.machine)
         };
       }
     }
@@ -187,74 +154,45 @@
 
     <Card.Root class="mt-6 overflow-hidden p-0">
       <Card.Content class="divide-y p-0">
-        <!-- Current User in Laundry Area -->
-        <ActivityItem icon={WashingMachine} iconClass="bg-brand/10 text-brand">
-          {#if isLaundryLoading}
-            <Skeleton class="h-4 w-1/2" />
-          {:else if currentLaundrySlot}
-            <p class="text-xs font-semibold uppercase">Current Reservation</p>
-            <p class="truncate">
-              {currentLaundrySlot.name}
-              {#if currentLaundrySlot.room}
-                ({currentLaundrySlot.room})
-              {/if}
-            </p>
-            <p class="flex items-center gap-1 text-xs text-muted-foreground">
-              <MapPinIcon class="h-3 w-3" />
-              {currentLaundrySlot.machineLabel}
-            </p>
-          {:else}
-            <p>Area is currently available</p>
-          {/if}
-
-          {#snippet right()}
-            {#if currentLaundrySlot}
-              <span
-                class="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400"
-              >
-                <Clock class="h-3 w-3" />
-                {formatTimeRange(
-                  `${currentLaundrySlot.timeStart}-${currentLaundrySlot.timeEnd}`,
-                  settings.clockFormat
-                )}
-              </span>
-            {/if}
-          {/snippet}
-        </ActivityItem>
-
-        <!-- Next User Reservation -->
+        {@const shownSlot = activeUserSlot ?? upcomingUserReservation}
         <ActivityItem
-          icon={Calendar}
-          iconClass={upcomingUserReservation
-            ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-            : "bg-brand/10 text-brand"}
+          icon={activeUserSlot ? WashingMachine : Calendar}
+          iconClass={activeUserSlot
+            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+            : upcomingUserReservation
+              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+              : "bg-brand/10 text-brand"}
         >
           {#if isLaundryLoading}
             <Skeleton class="h-4 w-1/2" />
-          {:else if upcomingUserReservation}
-            <p class="text-xs font-semibold uppercase">Your Upcoming Reservation</p>
+          {:else if shownSlot}
+            <p class="text-xs font-semibold uppercase">
+              {activeUserSlot ? "Current Reservation" : "Your Upcoming Reservation"}
+            </p>
             <p class="truncate">
-              {formatDate(upcomingUserReservation.date)}
+              {formatDate(shownSlot.date)}
             </p>
             <p class="flex items-center gap-1 text-xs text-muted-foreground">
               <MapPinIcon class="h-3 w-3" />
-              {laundryMachineLabel(upcomingUserReservation.machine)}
+              {laundryMachineLabel(shownSlot.machine)}
             </p>
           {:else}
             <p>No upcoming reservation</p>
           {/if}
 
           {#snippet right()}
-            {#if upcomingUserReservation}
+            {#if shownSlot}
               <span
                 class="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-600 dark:text-blue-400"
               >
                 <Clock class="h-3 w-3" />
                 {formatTimeRange(
-                  `${upcomingUserReservation.timeStart}-${upcomingUserReservation.timeEnd}`,
+                  `${shownSlot.timeStart}-${shownSlot.timeEnd}`,
                   settings.clockFormat
                 )}
               </span>
+            {:else if !isLaundryLoading}
+              <Button variant="ghost" size="sm" href="/resident/laundry">Book slot</Button>
             {/if}
           {/snippet}
         </ActivityItem>

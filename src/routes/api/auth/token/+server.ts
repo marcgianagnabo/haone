@@ -1,5 +1,6 @@
 import { createCredentialJwt, getSheetsClient } from "$api/services/auth-service";
 import { fetchSheetsData } from "$api/services/server-sheets-service";
+import { env as privateEnv } from "$env/dynamic/private";
 import { GI_CLIENT_SECRET, INSTANCE_ADMIN } from "$env/static/private";
 import {
   PUBLIC_DB_PROVIDER,
@@ -94,6 +95,7 @@ export const POST: RequestHandler = async ({ request }) => {
     // in the database. This allows the user to proceed to the app and create
     // their account. The user will be prompted to fill in the missing details
     // during the onboarding process.
+    const isNewUser = !user;
     if (!user) {
       user = {
         email,
@@ -115,8 +117,24 @@ export const POST: RequestHandler = async ({ request }) => {
       };
     }
 
-    // Normalize user photo URL to high resolution
-    user.avatarUrl = getHighResPictureUrl(userInfoData.picture);
+    // Normalize user photo URL to high resolution. Fill-once: an existing
+    // stored photo always wins over a newer Gmail photo; only users without
+    // a stored photo adopt (and persist) the current Gmail photo.
+    const gmailPhoto = getHighResPictureUrl(userInfoData.picture);
+    if (isNewUser) {
+      user.avatarUrl = gmailPhoto;
+    } else if ((user.avatarUrl || "").trim()) {
+      // Keep the stored photo; ignore the live Gmail photo.
+    } else {
+      user.avatarUrl = gmailPhoto;
+      if (gmailPhoto && PUBLIC_DB_PROVIDER === "supabase") {
+        try {
+          await persistSupabaseAvatarFillOnce(email, gmailPhoto);
+        } catch (e: any) {
+          console.error("Avatar auto-fill failed:", e?.message || e);
+        }
+      }
+    }
 
     // Best-effort: persist the Gmail photo for the officer directory (Sheets
     // backend). Fills users col Q and directory col L (auto photo) only — the
@@ -173,20 +191,21 @@ async function lookupUserSupabase(
   if (dbUser) {
     const tags = Array.isArray(dbUser.tags) ? dbUser.tags : [];
     const user: UserRecord = {
-      id: dbUser.id,
-      email: dbUser.email,
-      lastName: dbUser.last_name || "",
-      firstName: dbUser.first_name || "",
-      middleName: dbUser.middle_name || "",
-      suffix: dbUser.suffix || "",
-      overrideName: dbUser.override_name || "",
-      displayName: dbUser.display_name || "",
-      displayNameFormal: dbUser.display_name_fl || "",
-      studentNo: dbUser.student_no || "",
-      secondaryContact: dbUser.secondary_contact || "",
-      college: dbUser.college || "",
-      program: dbUser.degree_program || ""
-    };
+        id: dbUser.id,
+        email: dbUser.email,
+        lastName: dbUser.last_name || "",
+        firstName: dbUser.first_name || "",
+        middleName: dbUser.middle_name || "",
+        suffix: dbUser.suffix || "",
+        overrideName: dbUser.override_name || "",
+        displayName: dbUser.display_name || "",
+        displayNameFormal: dbUser.display_name_fl || "",
+        studentNo: dbUser.student_no || "",
+        secondaryContact: dbUser.secondary_contact || "",
+        college: dbUser.college || "",
+        program: dbUser.degree_program || "",
+        avatarUrl: dbUser.avatar_url || ""
+      };
     return {
       user,
       isStudent: tags.includes(UserTag.STUDENT)
@@ -240,6 +259,33 @@ async function lookupUser(email: string): Promise<{ user: UserRecord | null; isS
     case "sheets":
     default: {
       return await lookupUserSheets(email);
+    }
+  }
+}
+
+async function persistSupabaseAvatarFillOnce(email: string, photoUrl: string): Promise<void> {
+  const serviceKey = privateEnv.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
+    return;
+  }
+  const admin = createClient(PUBLIC_SUPABASE_URL, serviceKey);
+  // Fill-once: only rows without a stored photo adopt the Gmail photo, so a
+  // newer Gmail picture never overwrites the stored one.
+  const { data: existing, error: readError } = await admin
+    .from("users")
+    .select("id, avatar_url")
+    .ilike("email", email)
+    .maybeSingle();
+  if (readError) {
+    throw readError;
+  }
+  if (existing && !((existing.avatar_url || "") as string).trim()) {
+    const { error } = await admin
+      .from("users")
+      .update({ avatar_url: photoUrl })
+      .eq("id", existing.id);
+    if (error) {
+      throw error;
     }
   }
 }

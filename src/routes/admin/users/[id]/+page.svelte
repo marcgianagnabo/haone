@@ -80,6 +80,7 @@
   let isDelistOpen = $state(false);
   let residentsToClear = $state<ResidentRecord[]>([]);
   let isChangingType = $state(false);
+  let avatarError = $state(false);
 
   const currentAccount = $derived(accounts.find((a) => a.period === settings.currentTerm) || null);
 
@@ -223,6 +224,13 @@
     settings.currentTerm;
     loadUserProfile();
   });
+
+  // Reset the broken-image flag whenever a different user is viewed so a
+  // previous error never hides the next user's photo.
+  $effect(() => {
+    user?.id;
+    avatarError = false;
+  });
 </script>
 
 <div class="mx-auto max-w-7xl space-y-3">
@@ -314,6 +322,16 @@
           </Card.Title>
         </Card.Header>
         <Card.Content class="flex-1 space-y-4">
+          {#if user.avatarUrl && !avatarError}
+            <div class="flex justify-center pt-1">
+              <img
+                src={user.avatarUrl}
+                alt={user.displayName || `${user.firstName} ${user.lastName}`}
+                class="h-24 w-24 shrink-0 rounded-full border border-border object-cover"
+                onerror={() => (avatarError = true)}
+              />
+            </div>
+          {/if}
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-1">
               <Label class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
@@ -519,6 +537,7 @@
           <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <AccountCard
               account={currentAccount}
+              avatarUrl={user?.avatarUrl || ""}
               {isChangingType}
               onChangeAccountType={handleChangeAccountType}
               onDelist={() => {
