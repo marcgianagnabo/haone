@@ -28,6 +28,25 @@
     return (o.fbLink || "").trim();
   }
 
+  // Display given names only (no surname), never truncated. Prefers the
+  // structured given names from the backend; falls back to parsing the
+  // directory's "LAST, FIRST ..." format, then to dropping the last token.
+  function officerGivenName(o: any): string {
+    const structured = (o.givenNames || "").trim();
+    if (structured) return structured;
+    const full = (o.name || "").trim();
+    if (!full) return "";
+    const commaAt = full.indexOf(",");
+    if (commaAt !== -1) {
+      return full.slice(commaAt + 1).trim() || full;
+    }
+    const parts = full.split(/\s+/).filter(Boolean);
+    if (parts.length > 1) {
+      return parts.slice(0, -1).join(" ");
+    }
+    return full;
+  }
+
   function officerInitials(o: any): string {
     const name = (o.name || "").trim();
     if (!name) {
@@ -101,20 +120,20 @@
                   <img
                     src={officerPhoto(o)}
                     alt={o.name}
-                    class="h-20 w-20 rounded-full object-cover"
+                    class="h-25 w-25 rounded-full object-cover"
                     loading="lazy"
                   />
                 </button>
               {:else}
                 <div
-                  class="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-brand/10 text-2xl font-bold text-brand"
+                  class="grid h-25 w-25 shrink-0 place-items-center rounded-full bg-brand/10 text-3xl font-bold text-brand"
                 >
                   {officerInitials(o)}
                 </div>
               {/if}
               <div class="min-w-0 flex-1">
-                <Card.Title class="truncate text-2xl font-bold">
-                  {o.name}
+                <Card.Title class="text-2xl font-bold">
+                  {officerGivenName(o)}
                 </Card.Title>
                 <div class="mt-1 flex flex-col gap-1">
                   <span class="text-xs font-bold tracking-widest text-primary uppercase">
@@ -158,7 +177,9 @@
                 </span>
               {/if}
               {#if o.committee && o.committee !== "N/A"}
-                <span class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                <span
+                  class="flex-1 text-center text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+                >
                   {o.committee} Committee
                 </span>
               {/if}
@@ -173,9 +194,6 @@
 <ResponsiveDialog.Root bind:open={isPreviewOpen}>
   <ResponsiveDialog.Content class="sm:max-w-lg">
     {#if previewOfficer}
-      <ResponsiveDialog.Header>
-        <ResponsiveDialog.Title>{previewOfficer.name}</ResponsiveDialog.Title>
-      </ResponsiveDialog.Header>
       <div class="flex flex-col items-center gap-3">
         {#if !previewBroken}
           <img
@@ -191,9 +209,6 @@
             {officerInitials(previewOfficer)}
           </div>
         {/if}
-        <p class="text-xs font-bold tracking-widest text-primary uppercase">
-          {previewOfficer.position}
-        </p>
       </div>
     {/if}
   </ResponsiveDialog.Content>

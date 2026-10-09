@@ -66,6 +66,9 @@ export const GET: RequestHandler = async ({ request }) => {
         const photoOverride = (row[OFFICER_COL.PHOTO] || "").trim();
         const photoAuto = (row[OFFICER_COL.PHOTO_AUTO] || "").trim();
         const userAvatar = user ? (user[USER_COL.AVATAR_URL] || "").trim() : "";
+        const givenNames = user
+          ? `${user[USER_COL.FIRST_NAME] || ""} ${user[USER_COL.MIDDLE_NAME] || ""}`.trim()
+          : "";
 
         return {
           position: (row[OFFICER_COL.POSITION] || "").trim(),
@@ -74,6 +77,7 @@ export const GET: RequestHandler = async ({ request }) => {
           committee,
           room: room || "N/A",
           fbLink: (row[OFFICER_COL.FB_LINK] || "").trim(),
+          givenNames,
           photoUrl: photoOverride || photoAuto || userAvatar || ""
         };
       });
