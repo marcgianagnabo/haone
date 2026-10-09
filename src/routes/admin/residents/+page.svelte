@@ -56,7 +56,7 @@
 
   // Alias for readability in existing code or keep as tableSync.filters/pagination
   let pagination = $derived.by(() => tableSync.pagination);
-  let selectedIndices = $state<Set<string>>(new Set()); // Uses stno as key
+  let selectedIndices = $state<Set<string>>(new Set()); // Uses account row id as key (matches DataTable rowId)
   let customReminders = $state("");
 
   async function loadData(bypassCache = false) {
@@ -124,7 +124,7 @@
 
   function prepareDispatchForStatementOfAccount() {
     if (selectedIndices.size === 0) return;
-    const selectedResidents = residents.filter((r) => selectedIndices.has(r.stno));
+    const selectedResidents = residents.filter((r) => selectedIndices.has(r.id));
     stageStatementOfAccountEmailBatch(selectedResidents, brandingState.profile, {
       clearQueue: true,
       customReminders,
@@ -134,7 +134,7 @@
 
   function prepareDispatchForPaymentStatus() {
     if (selectedIndices.size === 0) return;
-    const selectedResidents = residents.filter((r) => selectedIndices.has(r.stno));
+    const selectedResidents = residents.filter((r) => selectedIndices.has(r.id));
     stageStatusEmailBatch(selectedResidents, brandingState.profile, {
       clearQueue: true,
       customReminders,
@@ -146,7 +146,7 @@
     if (selectedIndices.size === 0) return;
     const selectedResidents = residents.filter(
       (r) =>
-        selectedIndices.has(r.stno) &&
+        selectedIndices.has(r.id) &&
         r.ceLink &&
         r.ceLink !== "N/A" &&
         r.ceLink !== "" &&
@@ -173,7 +173,7 @@
     }
     const eligible = residents.filter((r) => {
       return (
-        selectedIndices.has(r.stno) &&
+        selectedIndices.has(r.id) &&
         r.bal <= 0 &&
         r.totalBase > 0 &&
         (!r.ceIssued || r.ceIssued === "" || r.ceIssued === "#N/A")
@@ -200,7 +200,7 @@
       return;
     }
     residentsToAward = residents.filter((r) => {
-      return selectedIndices.has(r.stno);
+      return selectedIndices.has(r.id);
     });
     isAwardDialogOpen = true;
   }
