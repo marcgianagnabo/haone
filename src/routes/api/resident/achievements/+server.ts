@@ -11,8 +11,7 @@ import {
   ACHIEVEMENT_COL,
   ACHIEVEMENT_RECORD_COL,
   CURR_COL,
-  USER_COL,
-  USER_SETTINGS_COL
+  USER_COL
 } from "$lib/types";
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
@@ -32,11 +31,10 @@ export const GET: RequestHandler = async ({ request }) => {
     let isAdmin = !!isInstanceAdmin;
 
     const client = await getSheetsClient();
-    const [achRows, logRows, settingRows, userRows, accRows, activeTerm, currRows, dirRows] =
+    const [achRows, logRows, userRows, accRows, activeTerm, currRows, dirRows] =
       await fetchSheetsData(client, [
         "achievements!A:H",
         "achievement_records!A:F",
-        "settings!A:B",
         "users!A:P",
         "accounts!A:L",
         "TERM_CURR",
@@ -115,22 +113,14 @@ export const GET: RequestHandler = async ({ request }) => {
       };
     });
 
-    const settingsMap = new Map<string, boolean>();
-    settingRows.slice(1).forEach((r: any) => {
-      settingsMap.set(
-        (r[USER_SETTINGS_COL.RESIDENT_ID] || "").trim(),
-        (r[USER_SETTINGS_COL.IS_PUBLIC_ACHIEVEMENT_LIST] || "").toUpperCase() === "TRUE"
-      );
-    });
-
     const userMap = new Map<string, string>();
     userRows.slice(1).forEach((r: any) => {
       userMap.set((r[USER_COL.ID] || "").trim(), (r[USER_COL.DISPLAY_NAME] || "").trim());
     });
 
+    // Privacy toggle removed: earner names are always shown.
     const logs = logRows.slice(1).map((row: any) => {
       const accountId = (row[ACHIEVEMENT_RECORD_COL.ACCOUNT_ID] || "").trim();
-      const isPublic = settingsMap.has(accountId) ? settingsMap.get(accountId)! : false;
 
       return {
         id: (row[ACHIEVEMENT_RECORD_COL.ID] || "").trim(),
@@ -138,11 +128,8 @@ export const GET: RequestHandler = async ({ request }) => {
         achievementId: (row[ACHIEVEMENT_RECORD_COL.ACHIEVEMENT_ID] || "").trim(),
         date: (row[ACHIEVEMENT_RECORD_COL.DATE] || "").trim(),
         term: (row[ACHIEVEMENT_RECORD_COL.TERM] || "").trim(),
-        displayName:
-          isPublic || accountId === currentResidentId
-            ? userMap.get(accountId) || "Resident"
-            : "Private Resident",
-        isPublic
+        displayName: userMap.get(accountId) || "Resident",
+        isPublic: true
       };
     });
 

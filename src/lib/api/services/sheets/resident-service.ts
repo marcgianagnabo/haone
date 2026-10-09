@@ -146,7 +146,7 @@ export const sheetsResidentService: ResidentServiceInterface = {
       return [];
     }
 
-    const userRows = await fetchSheetRowsRaw(settings.residentRecordsId, "users!A:P", bypassCache);
+    const userRows = await fetchSheetRowsRaw(settings.residentRecordsId, "users!A:Q", bypassCache);
 
     return userRows
       .slice(1)
@@ -167,6 +167,7 @@ export const sheetsResidentService: ResidentServiceInterface = {
         tags: (row[USER_COL.TAGS] || "").trim(),
         notes: (row[USER_COL.NOTES] || "").trim(),
         id: (row[USER_COL.ID] || "").trim(),
+        avatarUrl: (row[USER_COL.AVATAR_URL] || "").trim(),
         raw: row
       }))
       .filter((u) => u.id !== "");
@@ -259,8 +260,11 @@ export const sheetsResidentService: ResidentServiceInterface = {
     if (data.notes !== undefined) {
       newRow[USER_COL.NOTES] = data.notes;
     }
+    if (data.avatarUrl !== undefined) {
+      newRow[USER_COL.AVATAR_URL] = data.avatarUrl || "";
+    }
 
-    await updateSheetValue(settings.residentRecordsId, `users!A${actualRow}:P${actualRow}`, [
+    await updateSheetValue(settings.residentRecordsId, `users!A${actualRow}:Q${actualRow}`, [
       newRow
     ]);
   },
@@ -271,7 +275,7 @@ export const sheetsResidentService: ResidentServiceInterface = {
       throw new Error("Resident Records ID not configured");
     }
 
-    const row = new Array(16).fill("");
+    const row = new Array(17).fill("");
     row[USER_COL.EMAIL] = (data.email || "").trim().toLowerCase();
     row[USER_COL.LAST_NAME] = (data.lastName || "").trim().toUpperCase();
     row[USER_COL.FIRST_NAME] = (data.firstName || "").trim().toUpperCase();
@@ -291,8 +295,9 @@ export const sheetsResidentService: ResidentServiceInterface = {
     row[USER_COL.TAGS] = data.tags || "";
     row[USER_COL.NOTES] = data.notes || "";
     row[USER_COL.ID] = data.id || crypto.randomUUID();
+    row[USER_COL.AVATAR_URL] = data.avatarUrl || "";
 
-    await appendSheetRow(settings.residentRecordsId, "users!A:P", [row]);
+    await appendSheetRow(settings.residentRecordsId, "users!A:Q", [row]);
   },
 
   async deleteUser(userId: string): Promise<void> {

@@ -39,7 +39,8 @@
     nickname: "",
     committee: "",
     fbLink: "",
-    birthday: ""
+    birthday: "",
+    photoUrl: ""
   });
 
   async function loadData() {
@@ -59,7 +60,8 @@
         nickname: found.nickname,
         committee: found.committee,
         fbLink: found.fbLink,
-        birthday: found.birthday
+        birthday: found.birthday,
+        photoUrl: found.photoUrl || ""
       };
     } catch (e: any) {
       toast.error(e.message);
@@ -104,7 +106,8 @@
         nickname: editData.nickname,
         committee: editData.committee,
         fbLink: editData.fbLink,
-        birthday: editData.birthday
+        birthday: editData.birthday,
+        photoUrl: editData.photoUrl.trim()
       });
       toast.success("Officer record updated");
       goto("/admin/residents/officers");
@@ -250,6 +253,29 @@
         <div class="space-y-2">
           <Label>Birthday (Optional)</Label>
           <Input bind:value={editData.birthday} type="date" readonly={isImmutable} />
+        </div>
+
+        <div class="space-y-2">
+          <Label>Photo URL (Optional)</Label>
+          <div class="flex items-center gap-4">
+            {#if editData.photoUrl.trim() || officer?.photoAutoUrl}
+              <img
+                src={editData.photoUrl.trim() || officer?.photoAutoUrl}
+                alt={officer?.name}
+                class="h-16 w-16 shrink-0 rounded-full object-cover"
+              />
+            {/if}
+            <Input
+              bind:value={editData.photoUrl}
+              placeholder="https://... (leave empty to use the Gmail photo)"
+              readonly={isImmutable}
+            />
+          </div>
+          {#if officer?.photoAutoUrl && !editData.photoUrl.trim()}
+            <p class="text-xs text-muted-foreground">
+              Showing the Gmail photo from sign-in. Enter a URL above to override it.
+            </p>
+          {/if}
         </div>
 
         <div class="rounded-lg border border-destructive/20 bg-destructive/5 p-4">

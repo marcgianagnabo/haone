@@ -150,6 +150,8 @@ CREATE TABLE public.officers (
   committee  TEXT,
   birthday   DATE,
   status     TEXT DEFAULT 'ACTIVE',
+  photo_url      TEXT,
+  photo_auto_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -553,6 +555,31 @@ $$;
 
 REVOKE ALL ON FUNCTION public.get_achievement_eligible_counts() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_achievement_eligible_counts() TO authenticated;
+
+-- Always-public earner names for achievements/leaderboards (privacy toggle
+-- removed). SECURITY DEFINER exposes id + derived display name only.
+CREATE OR REPLACE FUNCTION public.get_achievement_earner_names()
+RETURNS TABLE (account_id UUID, display_name TEXT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT
+    u.id AS account_id,
+    CASE
+      WHEN u.override_name IS NOT NULL AND TRIM(u.override_name) <> ''
+        THEN TRIM(u.override_name)
+      ELSE TRIM(CONCAT(
+        CASE
+          WHEN u.last_name IS NOT NULL AND TRIM(u.last_name) <> ''
+            THEN CONCAT(TRIM(u.last_name), ', ')
+          ELSE ''
+        END,
+        TRIM(CONCAT_WS(' ', NULLIF(TRIM(u.first_name), ''), NULLIF(TRIM(u.suffix), '')))
+      ))
+    END AS display_name
+  FROM public.users u;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_achievement_earner_names() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_achievement_earner_names() TO authenticated;
 
 -- Public e-receipt lookup. SECURITY DEFINER lets an anonymous visitor read the
 -- single requested journal row without relaxing journal RLS. Returns only

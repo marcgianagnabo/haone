@@ -52,6 +52,28 @@ async function fetchEligibleCounts(): Promise<Map<string, number>> {
   return counts;
 }
 
+/**
+ * RLS-safe id -> display name map (see migration 20260927000000). Tolerates
+ * the RPC being absent so the page still renders with fallback names.
+ */
+async function fetchEarnerNames(): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  if (!supabase) {
+    return names;
+  }
+  const { data, error } = await supabase.rpc("get_achievement_earner_names");
+  if (error) {
+    console.error("[Achievements] get_achievement_earner_names failed:", error.message);
+    return names;
+  }
+  for (const row of data || []) {
+    if (row.account_id) {
+      names.set(String(row.account_id).trim(), (row.display_name || "").trim() || "Resident");
+    }
+  }
+  return names;
+}
+
 export const supabaseAchievementService: AchievementServiceInterface = {
   async fetchAchievements(
     options?: PaginationOptions,
@@ -156,6 +178,11 @@ export const supabaseAchievementService: AchievementServiceInterface = {
       });
     }
 
+    // Privacy toggle is removed: earner names are always shown. Names come
+    // from the RLS-safe get_achievement_earner_names() RPC (see migration
+    // 20260927000000); a missing RPC still renders with a fallback name.
+    const earnerNames = await fetchEarnerNames();
+
     const items: AchievementLogRecord[] = data.map((row: any) => ({
       id: row.id,
       recorderId: row.recorder_id,
@@ -163,6 +190,8 @@ export const supabaseAchievementService: AchievementServiceInterface = {
       date: row.date,
       achievementId: row.achievement_id,
       term: row.term,
+      displayName: earnerNames.get((row.account_id || "").trim()) || "Resident",
+      isPublic: true,
       raw: row
     }));
 

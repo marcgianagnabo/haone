@@ -48,6 +48,8 @@ export async function transitionOfficerPosition(id: string, newPosition: string)
     term: current.term,
     committee: current.committee,
     birthday: current.birthday,
+    photoUrl: current.photoUrl || "",
+    photoAutoUrl: current.photoAutoUrl || "",
     status: OfficerStatus.ACTIVE
   });
 }

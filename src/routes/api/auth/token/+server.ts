@@ -4,6 +4,7 @@ import { GI_CLIENT_SECRET, INSTANCE_ADMIN } from "$env/static/private";
 import {
   PUBLIC_DB_PROVIDER,
   PUBLIC_GI_CLIENT_ID,
+  PUBLIC_GS_RR_ID,
   PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   PUBLIC_SUPABASE_URL
 } from "$env/static/public";
@@ -13,7 +14,7 @@ import type {
   TokenExchangeResponse,
   UserRecord
 } from "$lib/types";
-import { USER_COL, UserTag } from "$lib/types";
+import { OFFICER_COL, USER_COL, UserTag } from "$lib/types";
 import { createClient } from "@supabase/supabase-js";
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
@@ -116,6 +117,18 @@ export const POST: RequestHandler = async ({ request }) => {
 
     // Normalize user photo URL to high resolution
     user.avatarUrl = getHighResPictureUrl(userInfoData.picture);
+
+    // Best-effort: persist the Gmail photo for the officer directory (Sheets
+    // backend). Fills users col Q and directory col L (auto photo) only — the
+    // admin-managed override in col K always wins. Supabase is covered
+    // client-side after sign-in (officer session satisfies RLS).
+    if (user.avatarUrl && PUBLIC_DB_PROVIDER !== "supabase") {
+      try {
+        await persistSheetsOfficerPhoto(email, user.avatarUrl);
+      } catch (e: any) {
+        console.error("Officer photo auto-fill failed:", e?.message || e);
+      }
+    }
 
     let credentialJwt = "";
     try {
@@ -228,5 +241,38 @@ async function lookupUser(email: string): Promise<{ user: UserRecord | null; isS
     default: {
       return await lookupUserSheets(email);
     }
+  }
+}
+
+async function persistSheetsOfficerPhoto(email: string, photoUrl: string): Promise<void> {
+  if (!PUBLIC_GS_RR_ID) {
+    return;
+  }
+  const { getSheetsClient } = await import("$api/services/auth-service");
+  const { getSheetValues, updateSheetValue } = await import(
+    "$api/services/server-sheets-service"
+  );
+  const saClient = await getSheetsClient();
+  const [userRows, dirRows] = await Promise.all([
+    getSheetValues(saClient, PUBLIC_GS_RR_ID, "users!A:Q"),
+    getSheetValues(saClient, PUBLIC_GS_RR_ID, "directory!A:L")
+  ]);
+
+  const userIndex = userRows.findIndex(
+    (r: any) => (r[USER_COL.EMAIL] || "").toLowerCase().trim() === email
+  );
+  if (userIndex > 0 && (userRows[userIndex][USER_COL.AVATAR_URL] || "") !== photoUrl) {
+    await updateSheetValue(saClient, PUBLIC_GS_RR_ID, `users!Q${userIndex + 1}`, [[photoUrl]]);
+  }
+
+  for (let i = 1; i < dirRows.length; i++) {
+    const row = dirRows[i];
+    if ((row[OFFICER_COL.EMAIL] || "").toLowerCase().trim() !== email) {
+      continue;
+    }
+    if ((row[OFFICER_COL.PHOTO_AUTO] || "") === photoUrl) {
+      continue;
+    }
+    await updateSheetValue(saClient, PUBLIC_GS_RR_ID, `directory!L${i + 1}`, [[photoUrl]]);
   }
 }

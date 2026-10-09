@@ -16,6 +16,19 @@
   let isLoading = $state(true);
   let error = $state<string | null>(null);
 
+  function officerPhoto(o: any): string {
+    return (o.photoUrl || o.photoAutoUrl || "").trim();
+  }
+
+  function officerInitials(o: any): string {
+    const name = (o.name || "").trim();
+    if (!name) {
+      return "?";
+    }
+    const parts = name.replace(",", " ").split(/\s+/).filter(Boolean);
+    return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || "?";
+  }
+
   async function loadData(bypassCache = false) {
     isLoading = true;
     error = null;
@@ -63,6 +76,20 @@
           class="flex flex-col border-none bg-card text-center transition-all hover:shadow-md"
         >
           <Card.Header class="pb-2">
+            {#if officerPhoto(o)}
+              <img
+                src={officerPhoto(o)}
+                alt={o.name}
+                class="mx-auto mb-3 h-20 w-20 rounded-full object-cover"
+                loading="lazy"
+              />
+            {:else}
+              <div
+                class="mx-auto mb-3 grid h-20 w-20 place-items-center rounded-full bg-brand/10 text-2xl font-bold text-brand"
+              >
+                {officerInitials(o)}
+              </div>
+            {/if}
             <Card.Title class="text-2xl font-bold">
               {o.name}
             </Card.Title>

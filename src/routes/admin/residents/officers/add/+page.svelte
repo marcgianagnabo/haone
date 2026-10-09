@@ -32,7 +32,8 @@
     nickname: "",
     committee: "",
     fbLink: "",
-    birthday: ""
+    birthday: "",
+    photoUrl: ""
   });
 
   async function loadData() {
@@ -119,6 +120,8 @@
         term: settings.currentTerm,
         committee: newOfficerData.committee,
         birthday: newOfficerData.birthday,
+        photoUrl: newOfficerData.photoUrl.trim(),
+        photoAutoUrl: "",
         id: "",
         status: OfficerStatus.ACTIVE
       });
@@ -186,6 +189,14 @@
         <div class="space-y-2">
           <Label>Birthday (Optional)</Label>
           <Input bind:value={newOfficerData.birthday} type="date" />
+        </div>
+
+        <div class="space-y-2">
+          <Label>Photo URL (Optional)</Label>
+          <Input
+            bind:value={newOfficerData.photoUrl}
+            placeholder="https://... (leave empty to use the Gmail photo)"
+          />
         </div>
       </Card.Content>
       <Card.Footer class="justify-end gap-2 border-t pt-6">

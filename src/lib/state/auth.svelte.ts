@@ -126,6 +126,23 @@ class AuthState {
       localStorage.setItem(LS_KEYS.IS_ADMIN, String(isInstanceAdmin));
       this.fetchAvatarUrl();
     }
+
+    // Best-effort: fill the officer directory auto-photo from the Gmail
+    // picture (Supabase backend; the token endpoint owns the Sheets path).
+    // Only an officer session can write under RLS; anything else resolves
+    // silently inside fillAutoPhoto.
+    if (browser && user.avatarUrl && user.email) {
+      const avatarUrl = user.avatarUrl;
+      const email = user.email;
+      import("$api/services/common").then(({ isSupabase }) => {
+        if (!isSupabase) {
+          return;
+        }
+        import("$api/services/officer-service").then(({ officerService }) => {
+          officerService.fillAutoPhoto(email, avatarUrl).catch(() => {});
+        });
+      });
+    }
   }
 
   signOut() {

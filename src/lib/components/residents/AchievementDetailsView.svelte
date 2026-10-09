@@ -33,17 +33,8 @@
     calculateAchievementPercentage(uniqueEarnersCount, achievement.totalEligibleCount || 0)
   );
 
-  let publicEarners = $derived(
-    earners.filter((e: Earner) => {
-      return isAdmin || e.isPublic || e.residentId === currentResidentId;
-    })
-  );
-
-  let privateCount = $derived(
-    earners.filter((e: Earner) => {
-      return !isAdmin && !e.isPublic && e.residentId !== currentResidentId;
-    }).length
-  );
+  // Privacy toggle removed: all earners are shown.
+  let publicEarners = $derived(earners);
 
   let hasCurrentResidentEarned = $derived(
     earners.some((e: Earner) => {
@@ -150,17 +141,6 @@
             </Card.Content>
           </Card.Root>
         {/each}
-
-        {#if privateCount > 0}
-          <Card.Root class="border-0 bg-black text-white">
-            <Card.Content>
-              <div class="text-sm font-bold">I want privacy!</div>
-              <div class="space-y-0.5 text-sm text-neutral-300">
-                {privateCount} resident{privateCount === 1 ? "" : "s"} have chosen to hide their identity.
-              </div>
-            </Card.Content>
-          </Card.Root>
-        {/if}
       </div>
     {:else}
       <div

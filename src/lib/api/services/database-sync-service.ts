@@ -1081,7 +1081,9 @@ export async function syncOfficers(direction: SyncDirection): Promise<SyncResult
           term: item.term,
           committee: item.committee,
           birthday: parseDbDate(item.birthday),
-          status: item.status
+          status: item.status,
+          photo_url: (item as any).photoUrl || null,
+          photo_auto_url: (item as any).photoAutoUrl || null
         }));
         const { error } = await supabase.from("officers").upsert(payload);
         if (error) {
@@ -1102,14 +1104,14 @@ export async function syncOfficers(direction: SyncDirection): Promise<SyncResult
         if (!spreadsheetId) {
           throw new Error("Resident records ID not configured");
         }
-        const rows = await fetchSheetRowsRaw(spreadsheetId, "directory!A:J");
+        const rows = await fetchSheetRowsRaw(spreadsheetId, "directory!A:L");
 
         const updates: { range: string; values: any[][] }[] = [];
         const newRows: string[][] = [];
 
         for (const item of items) {
           const rowIndex = rows.findIndex((r) => r[OFFICER_COL.ID] === item.id);
-          const row = new Array(10).fill("");
+          const row = new Array(12).fill("");
           row[OFFICER_COL.POSITION] = item.position || "";
           row[OFFICER_COL.NAME] = item.name || "";
           row[OFFICER_COL.NICKNAME] = item.nickname || "";
@@ -1120,9 +1122,11 @@ export async function syncOfficers(direction: SyncDirection): Promise<SyncResult
           row[OFFICER_COL.BIRTHDAY] = item.birthday || "";
           row[OFFICER_COL.ID] = item.id;
           row[OFFICER_COL.STATUS] = item.status || "ACTIVE";
+          row[OFFICER_COL.PHOTO] = (item as any).photoUrl || "";
+          row[OFFICER_COL.PHOTO_AUTO] = (item as any).photoAutoUrl || "";
 
           if (rowIndex !== -1) {
-            updates.push({ range: `directory!A${rowIndex + 1}:J${rowIndex + 1}`, values: [row] });
+            updates.push({ range: `directory!A${rowIndex + 1}:L${rowIndex + 1}`, values: [row] });
           } else {
             newRows.push(row);
           }
@@ -1132,7 +1136,7 @@ export async function syncOfficers(direction: SyncDirection): Promise<SyncResult
           await batchUpdateValues(spreadsheetId, updates);
         }
         if (newRows.length > 0) {
-          await appendSheetRow(spreadsheetId, "directory!A:J", newRows);
+          await appendSheetRow(spreadsheetId, "directory!A:L", newRows);
         }
       }
     );

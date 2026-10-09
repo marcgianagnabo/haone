@@ -13,7 +13,7 @@ export const GET: RequestHandler = async ({ request }) => {
   try {
     const client = await getSheetsClient();
     const [rows, currentTerm, userRows, accRows] = await fetchSheetsData(client, [
-      "directory!A:J",
+      "directory!A:L",
       "TERM_CURR",
       "users!A:Z",
       "accounts!A:Z"
@@ -63,12 +63,17 @@ export const GET: RequestHandler = async ({ request }) => {
           committee = "";
         }
 
+        const photoOverride = (row[OFFICER_COL.PHOTO] || "").trim();
+        const photoAuto = (row[OFFICER_COL.PHOTO_AUTO] || "").trim();
+        const userAvatar = user ? (user[USER_COL.AVATAR_URL] || "").trim() : "";
+
         return {
           position: (row[OFFICER_COL.POSITION] || "").trim(),
           name: (row[OFFICER_COL.NAME] || "").trim(),
           nickname: (row[OFFICER_COL.NICKNAME] || "").trim(),
           committee,
-          room: room || "N/A"
+          room: room || "N/A",
+          photoUrl: photoOverride || photoAuto || userAvatar || ""
         };
       });
 

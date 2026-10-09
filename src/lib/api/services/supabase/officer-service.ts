@@ -22,6 +22,8 @@ function mapRow(row: any): OfficerRecord {
     committee: row.committee || "",
     birthday: row.birthday || "",
     status: row.status || OfficerStatus.ACTIVE,
+    photoUrl: row.photo_url || "",
+    photoAutoUrl: row.photo_auto_url || "",
     raw: row
   };
 }
@@ -44,7 +46,9 @@ export const supabaseOfficerService: OfficerServiceInterface = {
 
       const { data, error } = await supabase
         .from("officers")
-        .select("id, position, name, nickname, term, committee, status, created_at")
+        .select(
+          "id, position, name, nickname, term, committee, status, photo_url, photo_auto_url, created_at"
+        )
         .eq("status", OfficerStatus.ACTIVE)
         .eq("term", activeTerm)
         .order("created_at", { ascending: true })
@@ -87,6 +91,7 @@ export const supabaseOfficerService: OfficerServiceInterface = {
       term: data.term,
       committee: data.committee,
       birthday: parseDbDate(data.birthday),
+      photo_url: data.photoUrl || null,
       status: data.status || OfficerStatus.ACTIVE
     });
     if (error) {
@@ -123,6 +128,12 @@ export const supabaseOfficerService: OfficerServiceInterface = {
     if (data.birthday !== undefined) {
       payload.birthday = parseDbDate(data.birthday);
     }
+    if (data.photoUrl !== undefined) {
+      payload.photo_url = data.photoUrl || null;
+    }
+    if (data.photoAutoUrl !== undefined) {
+      payload.photo_auto_url = data.photoAutoUrl || null;
+    }
     if (data.status !== undefined) {
       payload.status = data.status;
     }
@@ -147,5 +158,19 @@ export const supabaseOfficerService: OfficerServiceInterface = {
       handleSupabaseError(error);
     }
     assertSupabaseFound(data, "Officer not found");
+  },
+
+  async fillAutoPhoto(email: string, photoUrl: string): Promise<void> {
+    if (!supabase || !email || !photoUrl) {
+      return;
+    }
+    // No assert: residents' sessions match no rows under RLS and that is fine.
+    const { error } = await supabase
+      .from("officers")
+      .update({ photo_auto_url: photoUrl })
+      .ilike("email", email);
+    if (error) {
+      handleSupabaseError(error);
+    }
   }
 };

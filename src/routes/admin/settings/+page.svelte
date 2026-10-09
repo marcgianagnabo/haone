@@ -3,9 +3,8 @@
   import { pageState } from "$state/page-info.svelte";
   import ContentHeader from "$components/content/ContentHeader.svelte";
   import AppearanceCard from "$components/settings/AppearanceCard.svelte";
-  import NavSettingsCard from "$components/settings/NavSettingsCard.svelte";
-  import PrivacySettingsCard from "$components/settings/PrivacySettingsCard.svelte";
-  import NotificationSettingsCard from "$components/settings/NotificationSettingsCard.svelte";
+import NavSettingsCard from "$components/settings/NavSettingsCard.svelte";
+import NotificationSettingsCard from "$components/settings/NotificationSettingsCard.svelte";
   import DevConfigCard from "$components/settings/DevConfigCard.svelte";
   import VersionCard from "$components/settings/VersionCard.svelte";
 
@@ -23,7 +22,6 @@
       <!-- Appearance Section -->
       <AppearanceCard />
       <NavSettingsCard />
-      <PrivacySettingsCard />
       <NotificationSettingsCard />
       <DevConfigCard />
     </div>

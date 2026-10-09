@@ -108,14 +108,11 @@ class Settings {
   }
 
   get isPublicAchievementList() {
-    return this.#isPublicAchievementList;
+    // Privacy toggle removed: earner names are always shown.
+    return true;
   }
-  set isPublicAchievementList(v: boolean) {
-    this.#isPublicAchievementList = v;
-    if (browser) {
-      localStorage.setItem(LS_KEYS.UI_IS_PUBLIC_ACHIEVEMENTS, String(v));
-    }
-    this.scheduleAutoSave();
+  set isPublicAchievementList(_v: boolean) {
+    this.#isPublicAchievementList = true;
   }
 
   get residentNavIds() {
@@ -249,7 +246,7 @@ class Settings {
           this.calendarView = my.calendarView as "month" | "week" | "day" | "history";
         }
         this.reducedMotion = !!my.isReducedMotion;
-        this.isPublicAchievementList = my.isPublicAchievementList !== false;
+        this.#isPublicAchievementList = true;
 
         if (my.residentNav) {
           const nav = my.residentNav.split(",").filter(Boolean);

@@ -81,7 +81,7 @@
           residentId: l.accountId,
           name: l.displayName || "Resident",
           date: l.date,
-          isPublic: l.isPublic ?? false
+          isPublic: true
         };
       });
     } catch (e: any) {

@@ -182,7 +182,8 @@ export const USER_COL = {
   DEGREE_PROGRAM: 12,
   TAGS: 13,
   NOTES: 14,
-  ID: 15
+  ID: 15,
+  AVATAR_URL: 16
 } as const;
 
 export const CURR_COL = {
@@ -288,7 +289,9 @@ export const OFFICER_COL = {
   COMMITTEE: 6,
   BIRTHDAY: 7,
   ID: 8,
-  STATUS: 9
+  STATUS: 9,
+  PHOTO: 10,
+  PHOTO_AUTO: 11
 } as const;
 
 export const USER_SETTINGS_COL = {
@@ -485,6 +488,8 @@ export interface OfficerRecord {
   birthday: string;
   id: string;
   status: OfficerStatus | string;
+  photoUrl: string;
+  photoAutoUrl: string;
   raw: string[];
 }
 

@@ -11,7 +11,6 @@
     fetchAdminAchievements,
     fetchAchievementLogs
   } from "$api/controllers/achievement-controller";
-  import { fetchUserSettings } from "$api/controllers/settings-controller";
   import { fetchUsers } from "$api/controllers/resident-controller";
   import { settings } from "$state/settings.svelte";
   import { pageState } from "$state/page-info.svelte";
@@ -39,11 +38,10 @@
         logs = [];
         return;
       }
-      const [achievementRows, logRows, users, settings] = await Promise.all([
+      const [achievementRows, logRows, users] = await Promise.all([
         fetchAdminAchievements(bypassCache),
         fetchAchievementLogs(bypassCache),
-        fetchUsers(bypassCache),
-        fetchUserSettings(bypassCache)
+        fetchUsers(bypassCache)
       ]);
 
       const userMap = new Map(
@@ -51,19 +49,14 @@
           return [user.id, user.displayName || "Resident"];
         })
       );
-      const publicMap = new Map(
-        settings.map((setting) => {
-          return [setting.residentId, setting.isPublicAchievementList];
-        })
-      );
 
+      // Privacy toggle removed: earner names are always shown.
       achievements = achievementRows;
       logs = logRows.map((log) => {
-        const isPublic = publicMap.get(log.accountId) !== false;
         return {
           ...log,
-          displayName: isPublic ? userMap.get(log.accountId) || "Resident" : "Private Player",
-          isPublic
+          displayName: userMap.get(log.accountId) || "Resident",
+          isPublic: true
         };
       });
     } catch (e: any) {

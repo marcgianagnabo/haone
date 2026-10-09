@@ -64,8 +64,9 @@
       }
 
       const existing = rowMap.get(log.accountId);
-      const isPublic = log.isPublic === true;
-      const displayName = isPublic ? log.displayName || "RESIDENT" : "MYSTERY RESIDENT";
+      // Privacy toggle removed: names are always shown.
+      const isPublic = true;
+      const displayName = log.displayName || "RESIDENT";
 
       if (!existing) {
         rowMap.set(log.accountId, {

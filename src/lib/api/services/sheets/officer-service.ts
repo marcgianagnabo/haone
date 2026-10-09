@@ -15,7 +15,7 @@ export const sheetsOfficerService: OfficerServiceInterface = {
     if (!settings.residentRecordsId) {
       return [];
     }
-    const rows = await fetchSheetRowsRaw(settings.residentRecordsId, "directory!A:J", bypassCache);
+    const rows = await fetchSheetRowsRaw(settings.residentRecordsId, "directory!A:L", bypassCache);
     return rows
       .slice(1)
       .filter((row) => (row[OFFICER_COL.EMAIL] || "").trim() !== "")
@@ -30,6 +30,8 @@ export const sheetsOfficerService: OfficerServiceInterface = {
         birthday: (row[OFFICER_COL.BIRTHDAY] || "").trim(),
         id: (row[OFFICER_COL.ID] || "").trim(),
         status: (row[OFFICER_COL.STATUS] || OfficerStatus.ACTIVE).trim(),
+        photoUrl: (row[OFFICER_COL.PHOTO] || "").trim(),
+        photoAutoUrl: (row[OFFICER_COL.PHOTO_AUTO] || "").trim(),
         raw: row
       }));
   },
@@ -39,7 +41,7 @@ export const sheetsOfficerService: OfficerServiceInterface = {
     if (!settings.residentRecordsId) {
       throw new Error("Resident Records ID not configured");
     }
-    const row = new Array(10).fill("");
+    const row = new Array(12).fill("");
     row[OFFICER_COL.POSITION] = data.position || "";
     row[OFFICER_COL.NAME] = data.name || "";
     row[OFFICER_COL.NICKNAME] = data.nickname || "";
@@ -50,7 +52,9 @@ export const sheetsOfficerService: OfficerServiceInterface = {
     row[OFFICER_COL.BIRTHDAY] = data.birthday || "";
     row[OFFICER_COL.ID] = data.id || crypto.randomUUID();
     row[OFFICER_COL.STATUS] = data.status || OfficerStatus.ACTIVE;
-    await appendSheetRow(settings.residentRecordsId, "directory!A:J", [row]);
+    row[OFFICER_COL.PHOTO] = data.photoUrl || "";
+    row[OFFICER_COL.PHOTO_AUTO] = data.photoAutoUrl || "";
+    await appendSheetRow(settings.residentRecordsId, "directory!A:L", [row]);
   },
 
   async updateOfficer(id: string, data: Partial<OfficerRecord>): Promise<void> {
@@ -58,7 +62,7 @@ export const sheetsOfficerService: OfficerServiceInterface = {
     if (!settings.residentRecordsId) {
       throw new Error("Resident Records ID not configured");
     }
-    const rows = await fetchSheetRowsRaw(settings.residentRecordsId, "directory!A:J");
+    const rows = await fetchSheetRowsRaw(settings.residentRecordsId, "directory!A:L");
     const rowIndex = rows.findIndex((r) => (r[OFFICER_COL.ID] || "").trim() === id);
     if (rowIndex === -1) {
       throw new Error("Officer not found");
@@ -89,10 +93,16 @@ export const sheetsOfficerService: OfficerServiceInterface = {
     if (data.birthday !== undefined) {
       newRow[OFFICER_COL.BIRTHDAY] = data.birthday;
     }
+    if (data.photoUrl !== undefined) {
+      newRow[OFFICER_COL.PHOTO] = data.photoUrl;
+    }
+    if (data.photoAutoUrl !== undefined) {
+      newRow[OFFICER_COL.PHOTO_AUTO] = data.photoAutoUrl;
+    }
     if (data.status !== undefined) {
       newRow[OFFICER_COL.STATUS] = data.status;
     }
-    await updateSheetValue(settings.residentRecordsId, `directory!A${actualRow}:J${actualRow}`, [
+    await updateSheetValue(settings.residentRecordsId, `directory!A${actualRow}:L${actualRow}`, [
       newRow
     ]);
   },
@@ -102,11 +112,17 @@ export const sheetsOfficerService: OfficerServiceInterface = {
     if (!settings.residentRecordsId) {
       throw new Error("Resident Records ID not configured");
     }
-    const rows = await fetchSheetRowsRaw(settings.residentRecordsId, "directory!A:J");
+    const rows = await fetchSheetRowsRaw(settings.residentRecordsId, "directory!A:L");
     const rowIndex = rows.findIndex((r) => (r[OFFICER_COL.ID] || "").trim() === id);
     if (rowIndex === -1) {
       throw new Error("Officer not found");
     }
     await deleteSheetRow(settings.residentRecordsId, "directory", rowIndex);
+  },
+
+  async fillAutoPhoto(_email: string, _photoUrl: string): Promise<void> {
+    // Sheets auto-fill is owned by the token endpoint (service account), which
+    // updates the directory sheet at sign-in. Client sessions may lack sheet
+    // access, so this is intentionally a no-op.
   }
 };
