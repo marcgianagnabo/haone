@@ -266,7 +266,8 @@ export async function exportReportPDF(options: PDFReportOptions) {
       if (currentPage === 1 && letterheadData) {
         return {
           image: letterheadData,
-          width: 595.28
+          width: 555.28,
+          absolutePosition: { x: 20, y: 20 }
         };
       }
       return null;

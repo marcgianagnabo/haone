@@ -4,6 +4,7 @@
   import ContentHeader from "$components/content/ContentHeader.svelte";
   import AppearanceCard from "$components/settings/AppearanceCard.svelte";
 import NavSettingsCard from "$components/settings/NavSettingsCard.svelte";
+import LaundryHoursCard from "$components/settings/LaundryHoursCard.svelte";
 import NotificationSettingsCard from "$components/settings/NotificationSettingsCard.svelte";
   import DevConfigCard from "$components/settings/DevConfigCard.svelte";
   import VersionCard from "$components/settings/VersionCard.svelte";
@@ -21,6 +22,7 @@ import NotificationSettingsCard from "$components/settings/NotificationSettingsC
     <div class="flex-1 space-y-8">
       <!-- Appearance Section -->
       <AppearanceCard />
+      <LaundryHoursCard />
       <NavSettingsCard />
       <NotificationSettingsCard />
       <DevConfigCard />

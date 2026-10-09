@@ -1,10 +1,6 @@
 <script lang="ts">
   import type { LaundryRecord, UserRecord } from "$lib/types";
-  import {
-    DEFAULT_LAUNDRY_MACHINE,
-    LAUNDRY_MACHINES,
-    type LaundryMachineValue
-  } from "$lib/types";
+  import { DEFAULT_LAUNDRY_MACHINE, LAUNDRY_MACHINES, type LaundryMachineValue } from "$lib/types";
   import { cn } from "$lib/utils";
   import {
     ChevronLeft,
@@ -17,6 +13,7 @@
   import * as Tooltip from "$ui/tooltip";
   import { Button } from "$ui/button";
   import { parseTime } from "$utils/parsers";
+  import { buildLaundrySlots, getAdminLaundryGrid } from "$utils/laundry-slots";
   import { formatTimeRange, laundryMachineLabel } from "$utils/formatters";
   import { settings } from "$state/settings.svelte";
   import ViewLaundryDialog from "$components/forms/ViewLaundryDialog.svelte";
@@ -50,9 +47,26 @@
   const activeMachineFilter = $derived(machineFilter === "ALL" ? "" : machineFilter);
 
   const startHour = 0;
-  const opStartHour = 5;
-  const opEndHour = 22; // Operating hours: 5 AM - 10 PM (last slot 9 PM - 10 PM, hour 21)
+  // Residents: 5 AM - 10 PM grid; admins: full 24-hour range.
+  const opStartHour = $derived(isAdminView ? 0 : 5);
+  const opEndHour = $derived(isAdminView ? 24 : 22); // resident last slot 9 PM - 10 PM (hour 21)
   const hours = Array.from({ length: 24 }, (_, i) => i);
+
+  // Visual-only turnover bands (30 min after every fixed slot). Static data
+  // computed once at import: resident defaults 05:00-22:30, admin 24h grid.
+  // Purely presentational — booking logic is unchanged.
+  function gapsOf(slots: { start: number; end: number }[]): [number, number][] {
+    const gaps: [number, number][] = [];
+    for (let i = 0; i < slots.length - 1; i++) {
+      if (slots[i + 1].start > slots[i].end) {
+        gaps.push([slots[i].end, slots[i + 1].start]);
+      }
+    }
+    return gaps;
+  }
+  const RESIDENT_GAPS = gapsOf(buildLaundrySlots(300, 1350).slots);
+  const ADMIN_GAPS = gapsOf(getAdminLaundryGrid().slots);
+  const turnoverGaps = $derived(isAdminView ? ADMIN_GAPS : RESIDENT_GAPS);
 
   let now = $state(new Date());
 
@@ -285,7 +299,7 @@
     {
       color:
         "bg-muted/40 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,var(--color-border)_2px,var(--color-border)_3px)] opacity-50",
-      label: "Closed"
+      label: "Closed / Turnover"
     }
   ];
 </script>
@@ -540,6 +554,23 @@
                 <div class="h-0.5 w-full bg-red-500 shadow-sm"></div>
               </div>
             {/if}
+          </div>
+        {/each}
+
+        <!-- Turnover buffer bands (visual only — booking logic unchanged) -->
+        {#each weekDays as day, dayIdx}
+          <div
+            class="pointer-events-none relative"
+            style="grid-row: 2 / span {hours.length}; grid-column: {dayIdx + 2};"
+          >
+            {#each turnoverGaps as [gapStart, gapEnd]}
+              <div
+                class="absolute z-0 w-full bg-muted/40 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,var(--color-border)_6px,var(--color-border)_7px)] opacity-50"
+                style="top: {(gapStart - startHour * 60) * 1}px; height: {gapEnd -
+                  gapStart}px; left: 0; right: 0;"
+                title="Turnover break — not bookable"
+              ></div>
+            {/each}
           </div>
         {/each}
 

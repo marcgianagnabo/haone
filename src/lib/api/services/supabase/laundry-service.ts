@@ -3,6 +3,13 @@ import type { LaundryRecord, PaginatedResponse, PaginationOptions } from "$lib/t
 import { DEFAULT_LAUNDRY_MACHINE, LaundryStatus } from "$lib/types";
 import { auth } from "$state/auth.svelte";
 import { formatTime } from "$utils/formatters";
+import {
+  LAUNDRY_BUFFER_MINUTES,
+  LAUNDRY_SLOT_MINUTES,
+  buildLaundrySlots,
+  getLaundryHoursConfig,
+  isFixedLaundrySlot
+} from "$utils/laundry-slots";
 import { isUuid, parseDbUuid, parseTimeMinutes } from "$utils/parsers";
 import {
   assertSupabaseFound,
@@ -149,8 +156,18 @@ export const supabaseLaundryService: LaundryServiceInterface = {
       if (isNaN(startMinutes) || isNaN(endMinutes) || endMinutes <= startMinutes) {
         throw new Error("End time must be after start time");
       }
-      if (endMinutes - startMinutes > 180) {
-        throw new Error("Reservations cannot exceed 3 hours");
+      // Residents book exact fixed 2-hour slots from the per-instance grid
+      // (no custom times, no partial slots). Admins bypass this service path.
+      const { open, close } = await getLaundryHoursConfig();
+      const liveGrid = buildLaundrySlots(open, close);
+      if (!isFixedLaundrySlot(startMinutes, endMinutes, liveGrid)) {
+        throw new Error("Please select an available 2-hour slot");
+      }
+      if (startMinutes < liveGrid.open || endMinutes > liveGrid.effectiveClose) {
+        throw new Error("Outside laundry operating hours");
+      }
+      if (endMinutes - startMinutes > LAUNDRY_SLOT_MINUTES) {
+        throw new Error("Reservations cannot exceed 2 hours");
       }
 
       const { data: existingRows, error: fetchError } = await supabase
@@ -177,7 +194,12 @@ export const supabaseLaundryService: LaundryServiceInterface = {
         const exStart = parseTimeMinutes(res.time_start);
         const exEnd = parseTimeMinutes(res.time_end);
         if (!isNaN(exStart) && !isNaN(exEnd)) {
-          if (startMinutes < exEnd && endMinutes > exStart) {
+          // Turnover buffers are blocked: reject bookings that touch the
+          // 30-minute buffer around an existing booking on the same machine.
+          if (
+            startMinutes < exEnd + LAUNDRY_BUFFER_MINUTES &&
+            endMinutes + LAUNDRY_BUFFER_MINUTES > exStart
+          ) {
             throw new Error(
               `Slot Unavailable: ${machine} clashes with reservation from ${formatTime(res.time_start)} to ${formatTime(res.time_end)}`
             );

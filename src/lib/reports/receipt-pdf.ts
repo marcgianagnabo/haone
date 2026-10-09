@@ -38,7 +38,8 @@ export async function exportReceiptPDF(receiptData: ReceiptData, qrDataUrl: stri
       if (currentPage === 1 && letterheadData) {
         return {
           image: letterheadData,
-          width: 595.28 // A4 width in points
+          width: 555.28,
+          absolutePosition: { x: 20, y: 20 }
         };
       }
       return null;

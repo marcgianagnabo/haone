@@ -1,7 +1,8 @@
 <script lang="ts">
   import { cn } from "$lib/utils";
   import { brandingState } from "$state/branding.svelte";
-  import { onMount } from "svelte";
+  import { browser } from "$app/environment";
+  import { onMount, tick } from "svelte";
   import { Button } from "$ui/button";
   import { RefreshCcw, Plus, Info } from "@lucide/svelte";
   import LoadingView from "$components/content/LoadingView.svelte";
@@ -54,8 +55,16 @@
     }
   }
 
-  onMount(() => {
+  onMount(async () => {
     pageState.title = "Laundry";
+    // Show the rules first on the resident's first visit; dismissal is
+    // remembered in localStorage (see LaundryRulesDialog).
+    await tick();
+    try {
+      if (browser && localStorage.getItem("laundry-rules-seen-v1") !== "1") {
+        laundryRulesDialog?.open();
+      }
+    } catch {}
   });
 
   $effect(() => {

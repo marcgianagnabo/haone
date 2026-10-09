@@ -17,7 +17,7 @@
   <Input
     type="time"
     id="{id}-time"
-    step="1"
+    step="60"
     bind:value
     class="h-9 appearance-none rounded-md border-muted-foreground/20 bg-background px-3 pl-9 font-medium [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
   />

@@ -1,14 +1,25 @@
 import { laundryService } from "$api/services/laundry-service";
 import { fetchFeatureFlagMulti } from "$api/utils/feature-flags";
 import {
-  type LaundryRecord,
-  type PaginatedResponse,
-  type PaginationOptions,
   DEFAULT_LAUNDRY_MACHINE,
   FeatureFlagKey,
-  LaundryStatus
+  LaundryStatus,
+  type LaundryRecord,
+  type PaginatedResponse,
+  type PaginationOptions
 } from "$lib/types";
 import { residentState } from "$state/resident-state.svelte";
+import {
+  DEFAULT_LAUNDRY_CLOSE_MINUTES,
+  DEFAULT_LAUNDRY_OPEN_MINUTES,
+  LAUNDRY_BUFFER_MINUTES,
+  LAUNDRY_SLOT_MINUTES,
+  buildLaundrySlots,
+  getAdminLaundryGrid,
+  getLaundryHoursConfig,
+  isFixedLaundrySlot,
+  type LaundryGrid
+} from "$utils/laundry-slots";
 import { parseTimeMinutes } from "$utils/parsers";
 import { canAccessLaundry, getSignedInUserId } from "./resident-controller";
 
@@ -20,6 +31,9 @@ export interface ValidateLaundryOptions {
   isAdmin?: boolean;
   machine?: string;
   existingReservations?: LaundryRecord[];
+  /** Fixed-slot grid from per-instance hours. When provided (resident path),
+   *  the booking must exactly match one grid slot. */
+  grid?: LaundryGrid;
 }
 
 export function validateLaundryReservation(options: ValidateLaundryOptions): string | null {
@@ -31,7 +45,8 @@ export function validateLaundryReservation(options: ValidateLaundryOptions): str
       residentId,
       isAdmin = false,
       machine,
-      existingReservations = []
+      existingReservations = [],
+      grid
     } = options;
 
     const targetMachine = machine || DEFAULT_LAUNDRY_MACHINE;
@@ -57,8 +72,16 @@ export function validateLaundryReservation(options: ValidateLaundryOptions): str
     }
 
     const durationMinutes = endMinutes - startMinutes;
-    if (!isAdmin && durationMinutes > 120) {
+    if (!isAdmin && durationMinutes > LAUNDRY_SLOT_MINUTES) {
       return "Max 2 hours per day allowed";
+    }
+
+    // Both roles must book an exact fixed 2-hour slot from their grid
+    // (resident: per-instance hours; admin: 24-hour grid). No custom times.
+    if (grid) {
+      if (!isFixedLaundrySlot(startMinutes, endMinutes, grid)) {
+        return "Please select an available 2-hour slot";
+      }
     }
 
     if (!isAdmin) {
@@ -84,7 +107,7 @@ export function validateLaundryReservation(options: ValidateLaundryOptions): str
             return total;
           }, 0);
 
-        if (residentDayMinutes + durationMinutes > 120) {
+        if (residentDayMinutes + durationMinutes > LAUNDRY_SLOT_MINUTES) {
           return "Max 2 hours per day allowed";
         }
       }
@@ -109,11 +132,22 @@ export function validateLaundryReservation(options: ValidateLaundryOptions): str
       if (selectedDateTime > maxAdvance) {
         return "Max 2 weeks in advance";
       }
-      if (startMinutes < 300 || endMinutes > 1320) {
-        return "Open 5 AM - 10 PM only";
+      if (grid) {
+        if (startMinutes < grid.open || endMinutes > grid.effectiveClose) {
+          return "Outside laundry operating hours";
+        }
+      } else if (
+        startMinutes < DEFAULT_LAUNDRY_OPEN_MINUTES ||
+        endMinutes > DEFAULT_LAUNDRY_CLOSE_MINUTES
+      ) {
+        return "Open 5 AM - 10:30 PM only";
       }
     }
 
+    // Buffer-aware clash: the 30-min turnover gap after every slot is
+    // blocked for both roles, so touching a buffer counts as overlapping
+    // (adjacent fixed slots still pass since the check is strict).
+    const buffer = grid ? LAUNDRY_BUFFER_MINUTES : 0;
     const isOverlapping = existingReservations.some((r) => {
       if (r.status !== LaundryStatus.ACTIVE || r.date !== date) {
         return false;
@@ -124,7 +158,7 @@ export function validateLaundryReservation(options: ValidateLaundryOptions): str
       }
       const rStart = parseTimeMinutes(r.timeStart);
       const rEnd = parseTimeMinutes(r.timeEnd);
-      return startMinutes < rEnd && endMinutes > rStart;
+      return startMinutes < rEnd + buffer && endMinutes + buffer > rStart;
     });
     if (isOverlapping) {
       return "Overlaps with existing booking";
@@ -183,8 +217,24 @@ export async function addLaundryReservation(
     throw new Error("Invalid time window specified");
   }
 
-  if (!isAdmin && endMinutes - startMinutes > 120) {
+  if (endMinutes - startMinutes > LAUNDRY_SLOT_MINUTES) {
     throw new Error("Reservations cannot exceed 2 hours");
+  }
+
+  // Fixed grid for both roles: residents use per-instance hours, admins use
+  // the 24-hour grid. Exact 2-hour slot match required (no custom times).
+  {
+    const liveGrid = isAdmin
+      ? getAdminLaundryGrid()
+      : buildLaundrySlots(
+          ...(await getLaundryHoursConfig().then((c) => [c.open, c.close] as const))
+        );
+    if (!isFixedLaundrySlot(startMinutes, endMinutes, liveGrid)) {
+      throw new Error("Please select an available 2-hour slot");
+    }
+    if (startMinutes < liveGrid.open || endMinutes > liveGrid.effectiveClose) {
+      throw new Error("Outside laundry operating hours");
+    }
   }
 
   const currentResidentId = data.residentId || (await getSignedInUserId());
@@ -209,7 +259,7 @@ export async function addLaundryReservation(
         return total;
       }, 0);
 
-    if (existingResidentDayMinutes + durationMinutes > 120) {
+    if (existingResidentDayMinutes + durationMinutes > LAUNDRY_SLOT_MINUTES) {
       throw new Error("Maximum of two (2) hours per day allowed");
     }
   }

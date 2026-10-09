@@ -1,6 +1,7 @@
 <script lang="ts">
   import { auth } from "$state/auth.svelte";
-  import { onMount } from "svelte";
+  import { browser } from "$app/environment";
+  import { onMount, tick } from "svelte";
   import { Button } from "$ui/button";
   import { RefreshCcw, Plus, Info } from "@lucide/svelte";
   import LoadingView from "$components/content/LoadingView.svelte";
@@ -18,6 +19,9 @@
   } from "$api/controllers/resident-controller";
   import { settings } from "$state/settings.svelte";
   import type { LaundryRecord } from "$lib/types";
+  import { LaundryStatus } from "$lib/types";
+  import { getLaundryGrid, isFixedLaundrySlot, type LaundryGrid } from "$utils/laundry-slots";
+  import { parseTimeMinutes } from "$utils/parsers";
   import LaundryCalendar from "$components/residents/LaundryCalendar.svelte";
   import CancelLaundryDialog from "$components/forms/CancelLaundryDialog.svelte";
   import BookLaundryDialog from "$components/forms/BookLaundryDialog.svelte";
@@ -34,6 +38,22 @@
   let activeResidentIds = $state(new Set<string>());
   let cancelLaundryDialog = $state<CancelLaundryDialog | null>(null);
   let laundryRulesDialog = $state<LaundryRulesDialog | null>(null);
+  let slotGrid = $state<LaundryGrid | null>(null);
+
+  // Bookings that no longer match the fixed grid (legacy custom/1hr times
+  // or a hours change) need admin cleanup: new resident bookings must be
+  // exact 2-hour slots.
+  const offGridBookings = $derived.by(() => {
+    const gridSnapshot = slotGrid;
+    if (!gridSnapshot) return [];
+    return reservations.filter((r) => {
+      if (r.status !== LaundryStatus.ACTIVE) return false;
+      const s = parseTimeMinutes(r.timeStart);
+      const e = parseTimeMinutes(r.timeEnd);
+      if (isNaN(s) || isNaN(e)) return true;
+      return !isFixedLaundrySlot(s, e, gridSnapshot);
+    });
+  });
 
   async function loadData() {
     isLoading = true;
@@ -96,8 +116,19 @@
     }
   }
 
-  onMount(() => {
+  onMount(async () => {
     pageState.title = "Laundry";
+    getLaundryGrid()
+      .then((g) => {
+        slotGrid = g;
+      })
+      .catch(() => {});
+    await tick();
+    try {
+      if (browser && localStorage.getItem("laundry-rules-seen-v1") !== "1") {
+        laundryRulesDialog?.open();
+      }
+    } catch {}
   });
 
   $effect(() => {
@@ -162,6 +193,30 @@
       <Button onclick={() => loadData()} class="mt-4" {isLoading} icon={RefreshCcw}>Retry</Button>
     </ErrorView>
   {:else}
+    {#if offGridBookings.length > 0}
+      <div class="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm" role="alert">
+        <p class="font-semibold text-amber-700 dark:text-amber-400">
+          {offGridBookings.length} booking{offGridBookings.length === 1 ? "" : "s"} need{offGridBookings.length ===
+          1
+            ? "s"
+            : ""} cleanup
+        </p>
+        <p class="mt-1 text-muted-foreground">
+          These active bookings don't match the fixed 2-hour slots (legacy custom times or made
+          before the hours changed). Cancel them below so residents can rebook a valid slot.
+        </p>
+        <ul class="mt-2 max-h-40 space-y-1 overflow-y-auto">
+          {#each offGridBookings.slice(0, 20) as b}
+            <li class="flex items-center justify-between gap-2">
+              <span class="truncate">{b.date} · {b.timeStart}–{b.timeEnd}</span>
+              <Button variant="outline" size="sm" onclick={() => cancelLaundryDialog?.open(b.id)}>
+                Cancel
+              </Button>
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
     <LaundryCalendar
       {reservations}
       deprecatedMappedReservations={mappedReservations}
