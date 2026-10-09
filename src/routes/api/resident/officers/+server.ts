@@ -73,6 +73,7 @@ export const GET: RequestHandler = async ({ request }) => {
           nickname: (row[OFFICER_COL.NICKNAME] || "").trim(),
           committee,
           room: room || "N/A",
+          fbLink: (row[OFFICER_COL.FB_LINK] || "").trim(),
           photoUrl: photoOverride || photoAuto || userAvatar || ""
         };
       });

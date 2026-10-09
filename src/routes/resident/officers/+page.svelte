@@ -9,15 +9,23 @@
   import * as Card from "$ui/card";
   import { fetchOfficers } from "$api/controllers/officer-controller";
   import { Badge } from "$ui/badge";
+  import { ResponsiveDialog } from "$ui/haone";
 
   import { pageState } from "$state/page-info.svelte";
 
   let officers = $state<any[]>([]);
   let isLoading = $state(true);
   let error = $state<string | null>(null);
+  let previewOfficer = $state<any | null>(null);
+  let isPreviewOpen = $state(false);
+  let previewBroken = $state(false);
 
   function officerPhoto(o: any): string {
     return (o.photoUrl || o.photoAutoUrl || "").trim();
+  }
+
+  function officerFb(o: any): string {
+    return (o.fbLink || "").trim();
   }
 
   function officerInitials(o: any): string {
@@ -27,6 +35,13 @@
     }
     const parts = name.replace(",", " ").split(/\s+/).filter(Boolean);
     return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || "?";
+  }
+
+  function openPreview(o: any) {
+    if (!officerPhoto(o)) return;
+    previewOfficer = o;
+    previewBroken = false;
+    isPreviewOpen = true;
   }
 
   async function loadData(bypassCache = false) {
@@ -73,36 +88,65 @@
     <div class="mx-auto grid max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {#each officers as o}
         <Card.Root
-          class="flex flex-col border-none bg-card text-center transition-all hover:shadow-md"
+          class="flex flex-col border-none bg-card transition-all hover:shadow-md"
         >
           <Card.Header class="pb-2">
-            {#if officerPhoto(o)}
-              <img
-                src={officerPhoto(o)}
-                alt={o.name}
-                class="mx-auto mb-3 h-20 w-20 rounded-full object-cover"
-                loading="lazy"
-              />
-            {:else}
-              <div
-                class="mx-auto mb-3 grid h-20 w-20 place-items-center rounded-full bg-brand/10 text-2xl font-bold text-brand"
-              >
-                {officerInitials(o)}
-              </div>
-            {/if}
-            <Card.Title class="text-2xl font-bold">
-              {o.name}
-            </Card.Title>
-
-            <div class="mt-1 flex flex-col gap-1">
-              <span class="text-xs font-bold tracking-widest text-primary uppercase">
-                {o.position}
-              </span>
-              {#if o.nickname}
-                <p class="font-serif text-sm font-normal text-muted-foreground italic">
-                  {o.nickname}
-                </p>
+            <div class="flex items-center gap-4 text-left">
+              {#if officerPhoto(o)}
+                <button
+                  onclick={() => openPreview(o)}
+                  class="shrink-0 cursor-zoom-in rounded-full transition-opacity hover:opacity-80"
+                  aria-label="View larger photo of {o.name}"
+                >
+                  <img
+                    src={officerPhoto(o)}
+                    alt={o.name}
+                    class="h-20 w-20 rounded-full object-cover"
+                    loading="lazy"
+                  />
+                </button>
+              {:else}
+                <div
+                  class="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-brand/10 text-2xl font-bold text-brand"
+                >
+                  {officerInitials(o)}
+                </div>
               {/if}
+              <div class="min-w-0 flex-1">
+                <Card.Title class="truncate text-2xl font-bold">
+                  {o.name}
+                </Card.Title>
+                <div class="mt-1 flex flex-col gap-1">
+                  <span class="text-xs font-bold tracking-widest text-primary uppercase">
+                    {o.position}
+                  </span>
+                  {#if o.nickname}
+                    <p class="font-serif text-sm font-normal text-muted-foreground italic">
+                      {o.nickname}
+                    </p>
+                  {/if}
+                </div>
+                {#if officerFb(o)}
+                  <a
+                    href={officerFb(o)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="mt-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand/10 text-brand transition-colors hover:bg-brand hover:text-brand-foreground"
+                    aria-label="Facebook profile of {o.name}"
+                    title="Facebook profile"
+                  >
+                    <svg
+                      viewBox="0 0 320 512"
+                      class="h-4 w-4 fill-current"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M279.14 288l14.22-92.66h-88.91v-60.13c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"
+                      />
+                    </svg>
+                  </a>
+                {/if}
+              </div>
             </div>
           </Card.Header>
 
@@ -125,3 +169,32 @@
     </div>
   {/if}
 </div>
+
+<ResponsiveDialog.Root bind:open={isPreviewOpen}>
+  <ResponsiveDialog.Content class="sm:max-w-lg">
+    {#if previewOfficer}
+      <ResponsiveDialog.Header>
+        <ResponsiveDialog.Title>{previewOfficer.name}</ResponsiveDialog.Title>
+      </ResponsiveDialog.Header>
+      <div class="flex flex-col items-center gap-3">
+        {#if !previewBroken}
+          <img
+            src={officerPhoto(previewOfficer)}
+            alt={previewOfficer.name}
+            class="max-h-[70vh] w-auto rounded-lg object-contain"
+            onerror={() => (previewBroken = true)}
+          />
+        {:else}
+          <div
+            class="grid h-40 w-40 place-items-center rounded-full bg-brand/10 text-5xl font-bold text-brand"
+          >
+            {officerInitials(previewOfficer)}
+          </div>
+        {/if}
+        <p class="text-xs font-bold tracking-widest text-primary uppercase">
+          {previewOfficer.position}
+        </p>
+      </div>
+    {/if}
+  </ResponsiveDialog.Content>
+</ResponsiveDialog.Root>

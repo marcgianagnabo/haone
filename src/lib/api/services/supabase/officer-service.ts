@@ -47,7 +47,7 @@ export const supabaseOfficerService: OfficerServiceInterface = {
       const { data, error } = await supabase
         .from("officers")
         .select(
-          "id, position, name, nickname, term, committee, status, photo_url, photo_auto_url, created_at"
+          "id, position, name, nickname, term, committee, status, photo_url, photo_auto_url, fb_link, created_at"
         )
         .eq("status", OfficerStatus.ACTIVE)
         .eq("term", activeTerm)
@@ -61,7 +61,6 @@ export const supabaseOfficerService: OfficerServiceInterface = {
         .map((row: any) => ({
           ...mapRow(row),
           email: "",
-          fbLink: "",
           birthday: ""
         }));
     }
