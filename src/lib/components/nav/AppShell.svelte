@@ -22,6 +22,14 @@
   const scrollState = createHeaderScrollState();
   const isMobile = new IsMobile();
 
+  // The shell (and its scroll state) persists across client-side navigations
+  // while the scroll container is recreated per page at scrollTop 0. Reset
+  // on navigation so a header hidden on the previous page never carries over.
+  $effect(() => {
+    page.url.pathname;
+    scrollState.reset();
+  });
+
   const headerHidden = $derived(
     scrollState.headerHidden || (isMobile.current && !pageState.isTopLevel)
   );
