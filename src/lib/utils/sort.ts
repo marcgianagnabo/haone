@@ -41,14 +41,23 @@ export function parseTermCode(period: string) {
 }
 
 /**
- * Carryover always lands at the start of the immediately following academic
- * year — the 1st semester (1S). Midyear terms are never carryover targets.
+ * Carryover lands at the start of the immediately following semester —
+ * 1S -> 2S -> Midyear -> next academic year's 1S.
  */
-export function isFollowingYearFirstSemester(sourcePeriod: string, targetPeriod: string) {
+export function isNextSemester(sourcePeriod: string, targetPeriod: string) {
   const src = parseTermCode(sourcePeriod);
   const tgt = parseTermCode(targetPeriod);
   if (!src || !tgt) {
     return false;
   }
-  return tgt.startYear === src.startYear + 1 && tgt.term === "1S";
+  if (src.term === "1S") {
+    return tgt.startYear === src.startYear && tgt.term === "2S";
+  }
+  if (src.term === "2S") {
+    return tgt.startYear === src.startYear && tgt.term === "MY";
+  }
+  if (src.term === "MY") {
+    return tgt.startYear === src.startYear + 1 && tgt.term === "1S";
+  }
+  return false;
 }

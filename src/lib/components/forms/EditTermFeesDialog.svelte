@@ -19,9 +19,6 @@
       water: number;
       maintenance: number;
       total: number;
-      assoc_cp: number;
-      water_cp: number;
-      maintenance_cp: number;
     };
     errorMessage?: string;
     isSaving?: boolean;
@@ -77,28 +74,6 @@
           <span class="text-xl font-black text-foreground"
             >₱{feeData.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span
           >
-        </div>
-      </div>
-
-      <div class="h-px bg-border/50"></div>
-
-      <div class="space-y-4">
-        <Label class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-          >Collection Periods (Times per Term)</Label
-        >
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <Label class="text-xs">Association Fee</Label>
-            <Input type="number" bind:value={feeData.assoc_cp} />
-          </div>
-          <div class="space-y-2">
-            <Label class="text-xs">Water Fee</Label>
-            <Input type="number" bind:value={feeData.water_cp} />
-          </div>
-          <div class="space-y-2">
-            <Label class="text-xs">Maintenance & Gas Fee</Label>
-            <Input type="number" bind:value={feeData.maintenance_cp} />
-          </div>
         </div>
       </div>
     </div>

@@ -6,7 +6,7 @@ import {
 } from "$env/static/public";
 import { TransactionType } from "$lib/types";
 import { getLocalDateString } from "$utils/parsers";
-import { isFollowingYearFirstSemester } from "$utils/sort";
+import { isNextSemester } from "$utils/sort";
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 
@@ -14,8 +14,8 @@ import type { RequestHandler } from "./$types";
  * Computes per-MOP fund balances that should be carried into the next term and
  * returns paired EOS (closing) + CARRYOVER (opening) journal entries.
  *
- * Carryover always lands on the first semester of the immediately following
- * academic year; midyear terms are rejected as targets.
+ * Carryover always lands on the semester immediately following the source
+ * term (1S -> 2S -> Midyear -> next academic year's 1S).
  *
  * The math mirrors the manual EOS flow in TransactionForm.svelte and the
  * financial report (financial-report-pdf.ts): exclude EOS/CARRYOVER rows and
@@ -217,11 +217,11 @@ export const POST: RequestHandler = async ({ request }) => {
   if (sourceTerm === targetTerm) {
     return json({ error: "Source and target terms must be different" }, { status: 400 });
   }
-  if (!isFollowingYearFirstSemester(sourceTerm, targetTerm)) {
+  if (!isNextSemester(sourceTerm, targetTerm)) {
     return json(
       {
         error:
-          "Carryover target must be the 1st semester of the immediately following academic year. Midyear terms are not valid carryover targets."
+          "Carryover target must be the semester immediately following the source term (1S -> 2S -> Midyear -> next 1S)."
       },
       { status: 400 }
     );

@@ -8,7 +8,7 @@
     fetchTerms
   } from "$api/controllers/constants-controller";
   import { translatePeriod } from "$utils/translators";
-  import { sortPeriods, isFollowingYearFirstSemester } from "$utils/sort";
+  import { sortPeriods, isNextSemester } from "$utils/sort";
   import { Button } from "$ui/button";
   import { Plus, GraduationCap, Coins, CircleCheck, ArrowRightLeft } from "@lucide/svelte";
   import { goto } from "$app/navigation";
@@ -33,16 +33,18 @@
   let newStartYear = $state(new Date().getFullYear());
   let newTerm = $state("1S");
 
+  // Fee customization for the Add Term flow (prefilled from active term)
+  let newAssoc = $state(0);
+  let newWater = $state(0);
+  let newMaintenance = $state(0);
+
   // Fee Editing State
   let editingFeesFor = $state<{ value: string; label: string } | null>(null);
   let feeData = $state({
     assoc: 0,
     water: 0,
     maintenance: 0,
-    total: 0,
-    assoc_cp: 0,
-    water_cp: 0,
-    maintenance_cp: 0
+    total: 0
   });
 
   const termOptions = [
@@ -85,6 +87,21 @@
 
   onMount(() => loadTerms());
 
+  function openAdd() {
+    errorMessage = "";
+    // Prefill the new term's fees from the active term's fees so the admin
+    // only adjusts what changed.
+    const getActiveFee = (suffix: string) => {
+      if (!activeTermCode) return 0;
+      const found = allConstants.find((c) => c.key === `FEES_${activeTermCode}_${suffix}`);
+      return found ? parseFloat(found.value) || 0 : 0;
+    };
+    newAssoc = getActiveFee("ASSOC");
+    newWater = getActiveFee("WATER");
+    newMaintenance = getActiveFee("MAINTENANCE");
+    showAddDialog = true;
+  }
+
   async function handleAdd() {
     errorMessage = "";
     const yy = String(newStartYear).slice(-2);
@@ -99,9 +116,23 @@
       return;
     }
 
+    if ((newAssoc || 0) < 0 || (newWater || 0) < 0 || (newMaintenance || 0) < 0) {
+      errorMessage = "Fees cannot be negative.";
+      return;
+    }
+
     isSaving = true;
     try {
       await addConstant(key, value, description);
+      const feeTotal = (newAssoc || 0) + (newWater || 0) + (newMaintenance || 0);
+      await addConstant(`FEES_${value}_ASSOC`, String(newAssoc || 0), `Fee for ${value} (ASSOC)`);
+      await addConstant(`FEES_${value}_WATER`, String(newWater || 0), `Fee for ${value} (WATER)`);
+      await addConstant(
+        `FEES_${value}_MAINTENANCE`,
+        String(newMaintenance || 0),
+        `Fee for ${value} (MAINTENANCE)`
+      );
+      await addConstant(`FEES_${value}_TOTAL`, String(feeTotal), `Fee for ${value} (TOTAL)`);
       showAddDialog = false;
       await loadTerms();
     } catch (e) {
@@ -126,10 +157,7 @@
       assoc: getVal("ASSOC"),
       water: getVal("WATER"),
       maintenance: getVal("MAINTENANCE"),
-      total: getVal("TOTAL"),
-      assoc_cp: getVal("ASSOC_CP"),
-      water_cp: getVal("WATER_CP"),
-      maintenance_cp: getVal("MAINTENANCE_CP")
+      total: getVal("TOTAL")
     };
   }
 
@@ -150,10 +178,7 @@
       { suffix: "ASSOC", val: feeData.assoc },
       { suffix: "WATER", val: feeData.water },
       { suffix: "MAINTENANCE", val: feeData.maintenance },
-      { suffix: "TOTAL", val: feeData.total },
-      { suffix: "ASSOC_CP", val: feeData.assoc_cp },
-      { suffix: "WATER_CP", val: feeData.water_cp },
-      { suffix: "MAINTENANCE_CP", val: feeData.maintenance_cp }
+      { suffix: "TOTAL", val: feeData.total }
     ];
 
     try {
@@ -220,7 +245,7 @@
     isTopLevel={true}
     onRefresh={() => loadTerms(true)}
     isRefreshing={isLoading}
-    actions={[{ label: "Add", onclick: () => (showAddDialog = true), icon: Plus }]}
+    actions={[{ label: "Add", onclick: () => openAdd(), icon: Plus }]}
   />
 
   <div class="space-y-4">
@@ -272,7 +297,7 @@
                   Set Active
                 </Button>
               {/if}
-              {#if activeTermCode !== term.value && isFollowingYearFirstSemester(activeTermCode, term.value)}
+              {#if activeTermCode !== term.value && isNextSemester(activeTermCode, term.value)}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -303,6 +328,9 @@
   bind:open={showAddDialog}
   bind:newStartYear
   bind:newTerm
+  bind:newAssoc
+  bind:newWater
+  bind:newMaintenance
   {termOptions}
   {errorMessage}
   {isSaving}

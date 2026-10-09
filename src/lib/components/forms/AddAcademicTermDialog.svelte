@@ -4,12 +4,15 @@
   import { Input } from "$ui/input";
   import { Label } from "$ui/label";
   import { Combobox } from "$ui/combobox";
-  import { Plus } from "@lucide/svelte";
+  import { Plus, Calculator } from "@lucide/svelte";
 
   let {
     open = $bindable(false),
     newStartYear = $bindable(new Date().getFullYear()),
     newTerm = $bindable("1S"),
+    newAssoc = $bindable(0),
+    newWater = $bindable(0),
+    newMaintenance = $bindable(0),
     termOptions,
     errorMessage = "",
     isSaving = false,
@@ -19,12 +22,17 @@
     open: boolean;
     newStartYear: number;
     newTerm: string;
+    newAssoc: number;
+    newWater: number;
+    newMaintenance: number;
     termOptions: { value: string; label: string }[];
     errorMessage?: string;
     isSaving?: boolean;
     onAdd: () => void;
     onCancel: () => void;
   } = $props();
+
+  const newTotal = $derived((newAssoc || 0) + (newWater || 0) + (newMaintenance || 0));
 </script>
 
 <Dialog.Root bind:open>
@@ -61,6 +69,40 @@
       <div class="space-y-2">
         <Label>Term Type</Label>
         <Combobox bind:value={newTerm} options={termOptions} class="w-full" />
+      </div>
+
+      <div class="h-px bg-border/50"></div>
+
+      <div class="space-y-4">
+        <Label class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
+          >Customize Fees</Label
+        >
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <Label>Association Fee</Label>
+            <Input type="number" bind:value={newAssoc} step="0.01" min="0" />
+          </div>
+          <div class="space-y-2">
+            <Label>Water Fee</Label>
+            <Input type="number" bind:value={newWater} step="0.01" min="0" />
+          </div>
+          <div class="space-y-2">
+            <Label>Maintenance & Gas Fee</Label>
+            <Input type="number" bind:value={newMaintenance} step="0.01" min="0" />
+          </div>
+        </div>
+
+        <div class="rounded-xl border bg-muted/30 p-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 text-muted-foreground">
+              <Calculator class="h-4 w-4" />
+              <span class="text-xs font-medium tracking-wider uppercase">Total Fee</span>
+            </div>
+            <span class="text-xl font-black text-foreground"
+              >₱{newTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span
+            >
+          </div>
+        </div>
       </div>
     </div>
 

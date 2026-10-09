@@ -6,7 +6,7 @@
   import { fetchTerms, fetchMopTypes } from "$api/controllers/constants-controller";
   import { translatePeriod, translateMop } from "$utils/translators";
   import { formatAccounting } from "$utils/formatters";
-  import { isFollowingYearFirstSemester } from "$utils/sort";
+  import { isNextSemester } from "$utils/sort";
   import { Button } from "$ui/button";
   import * as Card from "$ui/card";
   import { Label } from "$ui/label";
@@ -54,7 +54,7 @@
   const targetOptions = $derived(
     sourceTerm
       ? terms
-          .filter((t) => isFollowingYearFirstSemester(sourceTerm, t.value))
+          .filter((t) => isNextSemester(sourceTerm, t.value))
           .map((t) => ({ value: t.value, label: t.label }))
       : []
   );
@@ -90,12 +90,12 @@
       if (values.length > 0 && !values.some((t) => t.value === sourceTerm)) {
         sourceTerm = values[0].value;
       }
-      const first = values.find((t) => isFollowingYearFirstSemester(sourceTerm, t.value));
+      const first = values.find((t) => isNextSemester(sourceTerm, t.value));
       const targetParam = page.url.searchParams.get("target");
       const paramIsValid =
         !!targetParam &&
         values.some(
-          (t) => t.value === targetParam && isFollowingYearFirstSemester(sourceTerm, targetParam)
+          (t) => t.value === targetParam && isNextSemester(sourceTerm, targetParam)
         );
       targetTerm = paramIsValid ? targetParam : (first?.value ?? "");
     } catch (e: any) {
@@ -207,8 +207,7 @@
         <Card.Title>End of Term Settlement</Card.Title>
         <Card.Description>
           Close each fund (method of payment) balance from the source term and reopen it at the
-          start of the following academic year as a CARRYOVER entry. Only the first semester of the
-          next academic year is a valid target; midyear terms are skipped.
+          start of the next semester as a CARRYOVER entry.
         </Card.Description>
       </Card.Header>
       <Card.Content>
@@ -231,8 +230,7 @@
             />
             {#if targetOptions.length === 0}
               <p class="text-xs text-muted-foreground">
-                No following-year term exists. Create the next academic term (1st semester) under
-                Academic Terms.
+                No following semester exists. Create the next semester under Academic Terms.
               </p>
             {/if}
           </div>

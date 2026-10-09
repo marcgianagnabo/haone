@@ -10,7 +10,7 @@
   import { translatePeriod, translateMop } from "$utils/translators";
   import { parseRef } from "$utils/parsers";
   import { formatAmount, formatAccounting } from "$utils/formatters";
-  import { sortPeriods, isFollowingYearFirstSemester } from "$utils/sort";
+  import { sortPeriods, isNextSemester } from "$utils/sort";
   import * as Card from "$ui/card";
   import { Button } from "$ui/button";
   import { Input } from "$ui/input";
@@ -164,7 +164,7 @@
     if (!formData.period) {
       return [];
     }
-    return academicTerms.filter((t) => isFollowingYearFirstSemester(formData.period, t.value));
+    return academicTerms.filter((t) => isNextSemester(formData.period, t.value));
   });
 
   $effect(() => {
