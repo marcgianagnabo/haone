@@ -60,10 +60,6 @@
           >
             Sign In
           </Button>
-
-          <p class="pt-1 text-center text-xs text-muted-foreground">
-            House Council officers can choose their workspace after signing in.
-          </p>
         </div>
       {/if}
     </div>
