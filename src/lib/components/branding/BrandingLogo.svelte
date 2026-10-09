@@ -8,6 +8,12 @@
   }
   const { class: className = "h-8 w-auto mx-auto object-contain", mode = "auto" }: Props = $props();
   const baseImgClass = "h-full w-auto object-contain";
+  const normalizeSrc = (src: string) =>
+    src.startsWith("./") ? src.slice(1) : src;
+  const lightSrc = $derived(normalizeSrc(brandingState.profile.logoUrl));
+  const darkSrc = $derived(
+    normalizeSrc(brandingState.profile.logoUrlDark || brandingState.profile.logoUrl)
+  );
   const lightImgClass = $derived(
     cn(baseImgClass, {
       hidden: mode === "dark",
@@ -24,12 +30,12 @@
 
 <div class={className}>
   <img
-    src={brandingState.profile.logoUrl}
+    src={lightSrc}
     alt={brandingState.profile.logoAlt}
     class={lightImgClass}
   />
   <img
-    src={brandingState.profile.logoUrlDark || brandingState.profile.logoUrl}
+    src={darkSrc}
     alt={brandingState.profile.logoAlt}
     class={darkImgClass}
   />
