@@ -14,6 +14,8 @@ class AuthState {
   avatarUrl = $state<string | null>(null);
   authType = $state<"admin" | "resident" | null>(null);
   isInstanceAdmin = $state(false);
+  workspaceChoiceRequired = $state(false);
+  pendingWorkspaceTarget: string | null = $state(null);
 
   get userId(): string {
     return this.user?.id || "";
@@ -150,6 +152,8 @@ class AuthState {
     this.credentialJwt = null;
     this.user = null;
     this.isRemembered = false;
+    this.workspaceChoiceRequired = false;
+    this.pendingWorkspaceTarget = null;
 
     if (browser) {
       import("$api/services/common").then(({ supabase, invalidateCache }) => {
@@ -188,6 +192,10 @@ class AuthState {
       },
       onSignOut: () => {
         this.signOut();
+      },
+      onWorkspaceRequired: (pendingTarget) => {
+        this.workspaceChoiceRequired = true;
+        this.pendingWorkspaceTarget = pendingTarget;
       }
     });
 
@@ -196,6 +204,11 @@ class AuthState {
     }
 
     return success;
+  }
+
+  clearWorkspaceChoice() {
+    this.workspaceChoiceRequired = false;
+    this.pendingWorkspaceTarget = null;
   }
 }
 

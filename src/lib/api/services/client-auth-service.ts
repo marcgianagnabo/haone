@@ -119,6 +119,45 @@ export interface CallbackOptions {
     credentialJwt: string
   ) => void;
   onSignOut: () => void;
+  /**
+   * Invoked instead of the final navigation when a fresh officer/admin
+   * sign-in should pause on the workspace picker. Receives the pending
+   * resident target for the Resident View choice.
+   */
+  onWorkspaceRequired?: (pendingTarget: string) => void;
+}
+
+/**
+ * Resolves whether the login email belongs to an officer. Best-effort and
+ * fail-closed (false): it only gates the workspace picker, never admin
+ * access itself, which stays enforced server-side.
+ */
+export async function resolveOfficerRole(email: string): Promise<boolean> {
+  try {
+    if (!email) {
+      return false;
+    }
+    if (PUBLIC_DB_PROVIDER === "supabase") {
+      if (!supabase) {
+        return false;
+      }
+      const { data, error } = await supabase
+        .from("officers")
+        .select("id")
+        .ilike("email", email)
+        .eq("status", "ACTIVE")
+        .maybeSingle();
+      if (error) {
+        return false;
+      }
+      return !!data;
+    }
+    const { fetchServer } = await import("$utils/api-client");
+    const res = await fetchServer<{ isOfficer?: boolean }>("/api/auth/role", {}, true);
+    return res?.isOfficer === true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -129,7 +168,15 @@ export async function handleCallback(options: CallbackOptions): Promise<boolean>
     return false;
   }
 
-  const { accessToken, authType, redirectTo, rememberMe = true, onSession, onSignOut } = options;
+  const {
+    accessToken,
+    authType,
+    redirectTo,
+    rememberMe = true,
+    onSession,
+    onSignOut,
+    onWorkspaceRequired
+  } = options;
 
   if (accessToken && !window.location.search.includes("code=")) {
     const target = redirectTo || (authType === "admin" ? "/admin" : "/resident");
@@ -190,6 +237,21 @@ export async function handleCallback(options: CallbackOptions): Promise<boolean>
   }
 
   onSession(newAccessToken, rememberMe, user, savedType, isInstanceAdmin, credentialJwt);
+
+  // Officers and instance admins choose a workspace after sign-in instead of
+  // dropping straight into Resident View. Residents skip this entirely.
+  if (savedType === "resident" && onWorkspaceRequired) {
+    const isOfficer = isInstanceAdmin || (await resolveOfficerRole(user.email));
+    if (isOfficer) {
+      let pendingTarget = redirectTo || exchangeTarget;
+      if (pendingTarget.startsWith("/admin")) {
+        pendingTarget = "/resident";
+      }
+      onWorkspaceRequired(pendingTarget);
+      await goto("/sign-in/workspace");
+      return true;
+    }
+  }
 
   if (savedType === "admin") {
     await settingsService.verifyAccess(newAccessToken);

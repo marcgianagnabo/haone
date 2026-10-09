@@ -32,9 +32,9 @@
     }
   });
 
-  async function handleLogin(type: "admin" | "resident") {
+  async function handleLogin() {
     isSigningIn = true;
-    await auth.signIn(type);
+    await auth.signIn("resident");
   }
 </script>
 
@@ -55,19 +55,15 @@
       {:else}
         <div transition:fade={{ duration: 300 }} class="col-start-1 row-start-1 space-y-3">
           <Button
-            onclick={() => handleLogin("resident")}
+            onclick={handleLogin}
             class="h-14 w-full rounded-xl bg-foreground text-base font-bold text-background transition-opacity hover:opacity-90"
           >
             Sign In
           </Button>
 
-          <Button
-            variant="ghost"
-            onclick={() => handleLogin("admin")}
-            class="h-12 w-full rounded-xl text-sm font-bold transition-colors hover:bg-muted"
-          >
-            Sign In as House Council Officer
-          </Button>
+          <p class="pt-1 text-center text-xs text-muted-foreground">
+            House Council officers can choose their workspace after signing in.
+          </p>
         </div>
       {/if}
     </div>
