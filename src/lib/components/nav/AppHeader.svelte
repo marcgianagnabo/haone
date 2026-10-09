@@ -7,18 +7,15 @@
     LogOut,
     LayoutDashboard,
     Mail,
-    Database,
     Settings,
     PanelLeftCloseIcon,
     PanelLeftOpenIcon
   } from "@lucide/svelte";
   import { Button } from "$ui/button";
-  import { dev } from "$app/environment";
   import { page } from "$app/state";
   import BrandingLogo from "$components/branding/BrandingLogo.svelte";
   import { namecase } from "@compwright/namecase";
   import GlobalTermFilter from "./GlobalTermFilter.svelte";
-  import { env } from "$env/dynamic/public";
 
   const sidebar = Sidebar.useSidebar();
   let imgError = $state(false);
@@ -56,12 +53,6 @@
         title: "Email Dispatcher",
         url: "/admin/email-dispatcher",
         icon: Mail
-      },
-      {
-        title: "Database Sync",
-        url: "/admin/database-sync",
-        icon: Database,
-        hide: !dev || env.PUBLIC_DB_PROVIDER !== "supabase"
       },
       {
         title: "Settings",

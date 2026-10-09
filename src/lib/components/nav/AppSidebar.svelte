@@ -14,7 +14,6 @@
     Megaphone,
     Trophy,
     ListOrdered,
-    Database,
     Refrigerator,
     Wallet,
     House,
@@ -26,7 +25,6 @@
     LogOutIcon
   } from "@lucide/svelte";
   import { Button } from "$ui/button";
-  import { dev } from "$app/environment";
   import { auth } from "$state/auth.svelte";
   import { residentState } from "$state/resident-state.svelte";
   import { features } from "$state/features.svelte";
@@ -35,7 +33,6 @@
   import { getCustomServices } from "$lib/services";
   import { AccountType } from "$lib/types";
   import { namecase } from "@compwright/namecase";
-  import { env } from "$env/dynamic/public";
 
   const sidebar = Sidebar.useSidebar();
 
@@ -78,12 +75,6 @@
         title: "Email Dispatcher",
         url: "/admin/email-dispatcher",
         icon: Mail
-      },
-      {
-        title: "Database Sync",
-        url: "/admin/database-sync",
-        icon: Database,
-        hide: !dev || env.PUBLIC_DB_PROVIDER !== "supabase"
       },
       {
         title: "Settings",
