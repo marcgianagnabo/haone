@@ -104,7 +104,7 @@
       {/snippet}
     </EmptyView>
   {:else}
-    <div class="mx-auto grid max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="mx-auto grid max-w-6xl gap-6 sm:grid-cols-2">
       {#each officers as o}
         <Card.Root
           class="flex flex-col border-none bg-card transition-all hover:shadow-md"
@@ -120,13 +120,13 @@
                   <img
                     src={officerPhoto(o)}
                     alt={o.name}
-                    class="h-25 w-25 rounded-full object-cover"
+                    class="h-30 w-30 rounded-full object-cover"
                     loading="lazy"
                   />
                 </button>
               {:else}
                 <div
-                  class="grid h-25 w-25 shrink-0 place-items-center rounded-full bg-brand/10 text-3xl font-bold text-brand"
+                  class="grid h-30 w-30 shrink-0 place-items-center rounded-full bg-brand/10 text-4xl font-bold text-brand"
                 >
                   {officerInitials(o)}
                 </div>
@@ -139,11 +139,6 @@
                   <span class="text-xs font-bold tracking-widest text-primary uppercase">
                     {o.position}
                   </span>
-                  {#if o.nickname}
-                    <p class="font-serif text-sm font-normal text-muted-foreground italic">
-                      {o.nickname}
-                    </p>
-                  {/if}
                 </div>
                 {#if officerFb(o)}
                   <a
