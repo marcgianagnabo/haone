@@ -1,10 +1,12 @@
 <script lang="ts">
   import * as Card from "$ui/card";
-  import { Bell, TriangleAlert } from "@lucide/svelte";
+  import { Bell, LoaderCircleIcon, TriangleAlert } from "@lucide/svelte";
   import { notifications } from "$state/notifications.svelte";
   import { PUBLIC_VAPID_PUBLIC_KEY } from "$env/static/public";
   import { toast } from "svelte-sonner";
   import SettingsSwitchItem from "$components/settings/SettingsSwitchItem.svelte";
+
+  const isPending = $derived(notifications.isBusy || notifications.isChecking);
 
   async function handleToggle(checked: boolean) {
     if (checked) {
@@ -44,14 +46,21 @@
           </div>
         </div>
       {:else}
-        <SettingsSwitchItem
-          title="Allow push notifications"
-          description="Receive alerts for laundry and announcements."
-          icon={Bell}
-          disabled={!notifications.isSupported}
-          checked={notifications.isSubscribed}
-          onCheckedChange={handleToggle}
-        />
+        <div class="flex items-center gap-2">
+          <div class="flex-1">
+            <SettingsSwitchItem
+              title="Allow push notifications"
+              description="Receive alerts for laundry and announcements."
+              icon={Bell}
+              disabled={!notifications.isSupported || isPending}
+              checked={notifications.isSubscribed}
+              onCheckedChange={handleToggle}
+            />
+          </div>
+          {#if isPending}
+            <LoaderCircleIcon class="h-5 w-5 shrink-0 animate-spin text-muted-foreground" />
+          {/if}
+        </div>
 
         {#if notifications.permission === "denied"}
           <div
