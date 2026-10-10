@@ -12,6 +12,7 @@
   import * as DropdownMenu from "$ui/dropdown-menu";
   import * as Tooltip from "$ui/tooltip";
   import { Button } from "$ui/button";
+  import { tick, untrack } from "svelte";
   import { parseTime } from "$utils/parsers";
   import { buildLaundrySlots, getAdminLaundryGrid } from "$utils/laundry-slots";
   import { formatTimeRange, laundryMachineLabel } from "$utils/formatters";
@@ -43,6 +44,29 @@
   let selectedDate = $state(new Date());
   let viewMode = $state<"month" | "week" | "day" | "history">(settings.calendarView || "week");
   let machineFilter = $state<"ALL" | (typeof LAUNDRY_MACHINES)[number]["value"]>("ALL");
+  let weekScroller = $state<HTMLElement | null>(null);
+
+  // Center the week scroller on today's column (overflowed on phones).
+  // Runs on mount/navigation only — never on the per-minute clock tick —
+  // so manual swipes are never yanked back.
+  $effect(() => {
+    selectedDate;
+    viewMode;
+    if (viewMode === "month" || viewMode === "history") return;
+    const el = weekScroller;
+    if (!el || el.scrollWidth <= el.clientWidth + 4) return;
+    // Read the clock without tracking it: recentering must not re-fire
+    // on the per-minute tick while the user is manually swiping.
+    const todayStr = untrack(() => formatDate(now));
+    const idx = weekDays.findIndex((d) => formatDate(d) === todayStr);
+    if (idx < 0) return;
+    void tick().then(() => {
+      const timeCol = 60; // matches the 60px gutter column
+      const colW = (el.scrollWidth - timeCol) / weekDays.length;
+      const target = timeCol + idx * colW + colW / 2 - el.clientWidth / 2;
+      el.scrollTo({ left: Math.max(0, target), behavior: "auto" });
+    });
+  });
 
   const activeMachineFilter = $derived(machineFilter === "ALL" ? "" : machineFilter);
 
@@ -446,7 +470,7 @@
 {/snippet}
 
 {#snippet calendar()}
-  <div class="overflow-x-auto">
+  <div class="overflow-x-auto" bind:this={weekScroller}>
     <div class={cn(viewMode === "week" ? "min-w-200" : "w-full")}>
       <!-- Unified Grid Container -->
       <div
