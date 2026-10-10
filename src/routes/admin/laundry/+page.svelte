@@ -3,7 +3,7 @@
   import { browser } from "$app/environment";
   import { onMount, tick } from "svelte";
   import { Button } from "$ui/button";
-  import { RefreshCcw, Plus, Info } from "@lucide/svelte";
+  import { RefreshCcw, Info } from "@lucide/svelte";
   import LoadingView from "$components/content/LoadingView.svelte";
   import ErrorView from "$components/content/ErrorView.svelte";
   import ContentHeader from "$components/content/ContentHeader.svelte";
@@ -178,11 +178,6 @@
         onclick: () => laundryRulesDialog?.open(),
         icon: Info,
         variant: "outline"
-      },
-      {
-        label: "Book Slot",
-        onclick: () => bookLaundryDialog?.open(),
-        icon: Plus
       }
     ]}
   />
