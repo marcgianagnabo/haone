@@ -2,14 +2,16 @@
   import { pageState } from "$state/page-info.svelte";
   import { onMount } from "svelte";
   import { settings } from "$state/settings.svelte";
-  import { globalDialog } from "$state/dialog.svelte";
   import {
     getSyncPreview,
     applySync,
     declineRegistration,
     type SyncPreviewAction
   } from "$api/controllers/rooms-controller.svelte";
-  import { pluralize } from "$utils/formatters";
+  import {
+    sendRegistrationApprovedEmail,
+    sendRegistrationOnHoldEmail
+  } from "$api/controllers/registration-notification-controller";
   import { normalizeStudentNo } from "$utils/student-no";
   import { translateCollege, translatePeriod, translateProgram } from "$utils/translators";
   import ContentHeader from "$components/content/ContentHeader.svelte";
@@ -19,27 +21,16 @@
   import AdminResidentsTabs from "$components/tabs/AdminResidentsTabs.svelte";
   import { Button } from "$ui/button";
   import { Badge } from "$ui/badge";
-  import { Checkbox } from "$ui/checkbox";
   import { Textarea } from "$ui/textarea";
   import * as AlertDialog from "$ui/alert-dialog";
-  import {
-    RefreshCcw,
-    CircleCheck,
-    CircleAlert,
-    MoveRight,
-    Check,
-    X,
-    CheckCheck
-  } from "@lucide/svelte";
+  import { RefreshCcw, CircleCheck, CircleAlert, MoveRight, Check, X } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
   import Banner from "$components/content/Banner.svelte";
 
   let isLoading = $state(false);
-  let isSyncing = $state(false);
   let processingIndex = $state<number | null>(null);
   let error = $state<string | null>(null);
   let previewActions = $state<SyncPreviewAction[]>([]);
-  let selectedGroups = $state<Set<number>>(new Set());
 
   // Decline Dialog State
   let declineDialog = $state({
@@ -66,16 +57,6 @@
     }));
   });
 
-  const selectedActions = $derived.by(() => {
-    const actions: SyncPreviewAction[] = [];
-    for (const group of groupedPreview) {
-      if (selectedGroups.has(group.currIndex)) {
-        actions.push(...group.actions);
-      }
-    }
-    return actions;
-  });
-
   async function loadPreview() {
     isLoading = true;
     error = null;
@@ -85,7 +66,6 @@
         return;
       }
       previewActions = await getSyncPreview(settings.activeTerm);
-      selectedGroups = new Set(previewActions.map((a) => a.currIndex ?? -1));
     } catch (e: any) {
       error = e.message || "Failed to load sync preview.";
     } finally {
@@ -93,31 +73,20 @@
     }
   }
 
-  async function handleApproveSelected() {
-    if (selectedActions.length === 0) {
-      globalDialog.show("No Selection", "Please select at least one item to approve.");
-      return;
-    }
-    isSyncing = true;
-    try {
-      const result = await applySync(selectedActions, settings.activeTerm);
-      globalDialog.show(
-        "Sync Complete",
-        `${pluralize(result.usersCreated, "user profile", "user profiles")} and ${pluralize(result.accountsCreated, "assignment", "assignments")} created. ${pluralize(result.usersUpdated, "user profile", "user profiles")} and ${pluralize(result.accountsUpdated, "assignment", "assignments")} updated. Evaluated ${pluralize(result.evaluated || 0, "registration", "registrations")}.`
-      );
-      await loadPreview();
-    } catch (e: any) {
-      globalDialog.show("Sync Failed", e.message || "An error occurred.");
-    } finally {
-      isSyncing = false;
-    }
-  }
-
   async function handleApproveSingle(group: { currIndex: number; actions: SyncPreviewAction[] }) {
     processingIndex = group.currIndex;
     try {
       await applySync(group.actions, settings.activeTerm);
-      toast.success(`Approved registration for ${group.actions[0]?.residentName || "resident"}`);
+      const residentName = group.actions[0]?.residentName || "resident";
+      toast.success(`Approved registration for ${residentName}`);
+      const email = (group.actions[0]?.email || "").trim();
+      if (email) {
+        try {
+          await sendRegistrationApprovedEmail(email, residentName);
+        } catch (e: any) {
+          toast.warning(`Approved, but the notification email failed: ${e.message}`);
+        }
+      }
       await loadPreview();
     } catch (e: any) {
       toast.error(e.message || "Failed to approve registration.");
@@ -143,27 +112,25 @@
     }
     declineDialog.isSubmitting = true;
     try {
+      const reason = declineDialog.reason.trim();
       await declineRegistration(
         declineDialog.email,
         settings.activeTerm,
-        declineDialog.reason.trim(),
+        reason,
         declineDialog.currIndex
       );
       toast.success(`Declined registration for ${declineDialog.residentName}`);
+      try {
+        await sendRegistrationOnHoldEmail(declineDialog.email, declineDialog.residentName, reason);
+      } catch (e: any) {
+        toast.warning(`Declined, but the notification email failed: ${e.message}`);
+      }
       declineDialog.open = false;
       await loadPreview();
     } catch (e: any) {
       toast.error(e.message || "Failed to decline registration.");
     } finally {
       declineDialog.isSubmitting = false;
-    }
-  }
-
-  function toggleAll(checked: boolean) {
-    if (checked) {
-      selectedGroups = new Set(groupedPreview.map((g) => g.currIndex));
-    } else {
-      selectedGroups = new Set();
     }
   }
 
@@ -212,54 +179,12 @@
     </EmptyView>
   {:else}
     <div class="space-y-4">
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex items-center gap-3">
-          <Checkbox
-            id="select-all-sync"
-            checked={selectedGroups.size === groupedPreview.length}
-            indeterminate={selectedGroups.size > 0 && selectedGroups.size < groupedPreview.length}
-            onCheckedChange={(v) => toggleAll(!!v)}
-          />
-          <label for="select-all-sync" class="cursor-pointer text-sm font-medium text-foreground">
-            Select All ({selectedGroups.size} of {groupedPreview.length} items)
-          </label>
-        </div>
-
-        <Button
-          onclick={handleApproveSelected}
-          isLoading={isSyncing}
-          disabled={selectedGroups.size === 0}
-          icon={CheckCheck}
-        >
-          Approve
-        </Button>
-      </div>
-
       <div class="space-y-3">
         {#each groupedPreview as group}
-          {@const isChecked = selectedGroups.has(group.currIndex)}
           {@const primaryAction = group.actions[0]}
           {@const isEntryProcessing = processingIndex === group.currIndex}
-          <div
-            class="rounded-xl border transition-colors {isChecked
-              ? 'border-primary/40 bg-primary/5'
-              : 'border-border bg-muted/20 opacity-60'}"
-          >
+          <div class="rounded-xl border border-border bg-muted/20">
             <div class="flex items-start gap-3 p-4">
-              <Checkbox
-                id={`group-${group.currIndex}`}
-                checked={isChecked}
-                onCheckedChange={(v) => {
-                  const next = new Set(selectedGroups);
-                  if (v) {
-                    next.add(group.currIndex);
-                  } else {
-                    next.delete(group.currIndex);
-                  }
-                  selectedGroups = next;
-                }}
-                class="mt-0.5"
-              />
               <div class="min-w-0 flex-1 space-y-3">
                 <!-- Header: Name + Account Type + Action Buttons -->
                 <div class="flex flex-wrap items-center justify-between gap-2">
@@ -279,7 +204,7 @@
                       size="sm"
                       onclick={() => handleApproveSingle(group)}
                       isLoading={isEntryProcessing}
-                      disabled={isSyncing || processingIndex !== null}
+                      disabled={processingIndex !== null}
                       icon={Check}
                     >
                       Approve
@@ -288,7 +213,7 @@
                       variant="outline"
                       size="sm"
                       onclick={() => openDeclineDialog(primaryAction)}
-                      disabled={isSyncing || processingIndex !== null}
+                      disabled={processingIndex !== null}
                       icon={X}
                     >
                       Decline
@@ -307,7 +232,9 @@
                   {#if primaryAction.studentNo}
                     <div>
                       <span class="font-semibold text-muted-foreground">Student No.</span>
-                      <p class="font-medium text-foreground">{normalizeStudentNo(primaryAction.studentNo)}</p>
+                      <p class="font-medium text-foreground">
+                        {normalizeStudentNo(primaryAction.studentNo)}
+                      </p>
                     </div>
                   {/if}
                   {#if primaryAction.college}
