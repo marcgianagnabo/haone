@@ -92,9 +92,10 @@
     progress = 0;
 
     const total = emailDispatcher.queue.length;
+    let sent = 0;
 
-    for (let i = 0; i < total; i++) {
-      const item = emailDispatcher.queue[i];
+    while (emailDispatcher.queue.length > 0) {
+      const item = emailDispatcher.queue[0];
       try {
         const data = { ...item.data };
         if ("reminders" in data) {
@@ -121,7 +122,15 @@
           await item.onSuccess();
         }
 
-        progress = Math.round(((i + 1) / total) * 100);
+        // Remove the sent item so a mid-batch failure or refresh never
+        // resends it; retry continues with the unsent remainder only.
+        emailDispatcher.queue.splice(0, 1);
+        sent += 1;
+        if (previewIndex > 0) {
+          previewIndex -= 1;
+        }
+
+        progress = total > 0 ? Math.round((sent / total) * 100) : 100;
         // Throttle to avoid rate limits
         await new Promise((r) => setTimeout(r, 200));
       } catch (e: any) {
@@ -131,8 +140,18 @@
       }
     }
 
+    emailDispatcher.clear();
+    previewIndex = 0;
+    progress = 100;
     isSuccess = true;
     isSending = false;
+  }
+
+  function handleDone() {
+    isSuccess = false;
+    error = null;
+    progress = 0;
+    previewIndex = 0;
   }
 
   function handleBack() {
@@ -160,9 +179,9 @@
       },
       {
         label: isSuccess ? "Done" : isSending ? "Sending…" : "Run Batch",
-        onclick: runBatch,
+        onclick: () => (isSuccess ? handleDone() : runBatch()),
         isLoading: isSending,
-        disabled: isSuccess || emailDispatcher.queue.length === 0,
+        disabled: isSending || (!isSuccess && emailDispatcher.queue.length === 0),
         icon: isSuccess ? CircleCheckBig : Play
       }
     ]}
