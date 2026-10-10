@@ -22,3 +22,13 @@ RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
       ''
     )) = LOWER((SELECT value FROM public.constants WHERE key = 'INSTANCE_ADMIN_EMAIL'));
 $$;
+
+-- One-time setup (TEMPLATE — EDIT BEFORE USE).
+-- The constant is auto-seeded on the instance admin's first sign-in (needs
+-- SUPABASE_SERVICE_ROLE_KEY in hosting). If that key is absent, run this once
+-- with the real admin Gmail instead. Never commit a real address here — like
+-- the first-officer template in baseline 001, a live placeholder is a
+-- data-exposure risk.
+-- INSERT INTO public.constants (key, value, description)
+-- VALUES ('INSTANCE_ADMIN_EMAIL', 'you@your-institution.edu', 'Instance admin: officer privilege by default')
+-- ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;

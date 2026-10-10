@@ -364,6 +364,15 @@ real data. For local Workers testing: `npx wrangler dev`.
 - [ ] Your real academic term(s) added and `TERM_CURR` set to the active term.
 - [ ] Real fee amounts seeded for the active term.
 - [ ] At least one officer added (their real email).
+- [ ] Instance admin holds privilege by default: `INSTANCE_ADMIN` set in env,
+      migrations applied through `20260930000000` (the `is_officer()` +
+      `INSTANCE_ADMIN_EMAIL` branch), and the constant seeded — automatic on
+      the instance admin's first sign-in (needs `SUPABASE_SERVICE_ROLE_KEY`
+      in hosting), else run the commented template in that migration file.
+      Proof: remove any placeholder `officers` row for the admin, reload
+      Sync/Users — populated means the constant path holds. The real
+      President is managed separately via Officers → Add and is never
+      required for admin access.
 - [ ] `PUBLIC_DB_PROVIDER` matches the backend you actually installed.
 - [ ] `JWT_SECRET` set to a strong random secret.
 - [ ] Supabase Auth providers enabled and Google redirect URL configured.
@@ -426,6 +435,19 @@ SELECT email FROM public.users
 
 -- 7. An officer exists (no rows here means nobody can write yet).
 SELECT email, position FROM public.officers;
+
+-- 8. The instance admin path is armed (migration 20260930000000).
+SELECT value FROM public.constants WHERE key = 'INSTANCE_ADMIN_EMAIL';
+-- expect: the instance admin Gmail (auto-seeded on their first sign-in, or
+-- set manually). Then:
+SELECT pg_get_functiondef('public.is_officer()'::regprocedure);
+-- expect: body contains INSTANCE_ADMIN_EMAIL. Then run:
+NOTIFY pgrst, 'reload schema';
+-- wait ~30s and hard-reload the app. Traps: testing
+-- `SELECT public.is_officer();` in the editor always reads false (no user
+-- JWT there) — judge by app behavior (Sync/Users load for the admin), not
+-- the editor. Compare the constant char-for-char with the login Gmail
+-- (check char_length for stray whitespace) if access is still denied.
 ```
 
 ---
