@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "prebuild": "node -e \"for (const d of ['src-private/routes/admin','src-private/routes/api','src-private/routes/resident']) require('fs').mkdirSync(d, {recursive:true})\"",
+    "prebuild": "node scripts/restore-src-private.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
