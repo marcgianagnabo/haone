@@ -112,6 +112,7 @@
   <input
     type="file"
     accept="image/*"
+    capture="environment"
     class="hidden"
     bind:this={fileInput}
     onchange={handleFileInputChange}
