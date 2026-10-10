@@ -47,7 +47,7 @@
 {#if !isLoading}
   <Sidebar.Provider class="h-svh w-full overflow-hidden bg-sidebar">
     <div
-      class="fixed inset-x-0 top-0 z-20 h-16 transition-transform duration-300 ease-in-out {headerHidden
+      class="fixed inset-x-0 top-0 z-40 h-16 transition-transform duration-300 ease-in-out {headerHidden
         ? '-translate-y-full'
         : 'translate-y-0'}"
     >
@@ -65,7 +65,7 @@
             in:fly={{ duration: 200, delay: 80, y: 6, opacity: 0 }}
             out:fly={{ duration: 120, y: -6, opacity: 0 }}
             class="absolute inset-0 {pageState.isTopLevel
-              ? 'bottom-16'
+              ? 'bottom-[calc(4rem+env(safe-area-inset-bottom,0px))]'
               : 'bottom-0'} overflow-y-auto md:bottom-0"
             onscroll={scrollState.handleScroll}
           >

@@ -115,7 +115,7 @@
 </script>
 
 <div
-  class="relative z-10 w-full shrink-0 bg-sidebar pb-[env(safe-area-inset-bottom,0px)] md:hidden"
+  class="fixed inset-x-0 bottom-0 z-40 w-full shrink-0 bg-sidebar pb-[env(safe-area-inset-bottom,0px)] md:hidden"
 >
   <nav class="flex h-16 items-center justify-around px-2">
     {#each navItems as item}
