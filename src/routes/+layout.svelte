@@ -13,10 +13,12 @@
   import UIProvider from "$components/UIProvider.svelte";
   import GlobalAlertDialog from "$components/forms/GlobalAlertDialog.svelte";
   import { brandingState } from "$state/branding.svelte";
+  import { pwaInstall } from "$state/pwa-install.svelte";
 
   let { children } = $props();
 
   onMount(async () => {
+    pwaInstall.init();
     // Service Worker Registration
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch((err) => {

@@ -33,6 +33,7 @@
   import { getCustomServices } from "$lib/services";
   import { AccountType } from "$lib/types";
   import { namecase } from "@compwright/namecase";
+  import PwaInstallCard from "$components/branding/PwaInstallCard.svelte";
 
   const sidebar = Sidebar.useSidebar();
 
@@ -182,6 +183,7 @@
             <span>Sign out</span>
           </button>
         </div>
+        <PwaInstallCard />
       </div>
       <Sidebar.Group class="mt-auto">
         <Sidebar.Menu>

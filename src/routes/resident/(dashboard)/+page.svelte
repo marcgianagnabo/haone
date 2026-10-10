@@ -135,9 +135,11 @@
     maybePromptNotifications();
   });
 
-  // Forced notification prompt: every dashboard visit until granted.
-  // Skipped when unsupported, unconfigured, still resolving, subscribed,
-  // or already granted. Denied origins open straight at the info step.
+  // Forced notification prompt: every dashboard visit while unsubscribed.
+  // Skipped when unsupported, unconfigured, or still resolving. Denied
+  // origins open straight at the info step (re-prompting them is a dead end).
+  // Note: permission persists per origin, so an already-granted user who
+  // unsubscribed re-subscribes silently with no visible browser prompt.
   async function maybePromptNotifications() {
     try {
       if (!notifications.isSupported || !PUBLIC_VAPID_PUBLIC_KEY) {
@@ -146,7 +148,7 @@
       while (notifications.isChecking) {
         await new Promise((r) => setTimeout(r, 150));
       }
-      if (notifications.isSubscribed || notifications.permission === "granted") {
+      if (notifications.isSubscribed) {
         return;
       }
       notificationPromptDialog?.open();
