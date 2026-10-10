@@ -352,6 +352,7 @@
                 bind:file={pendingFile}
                 bind:previewUrl
                 allowUrl={false}
+                allowCamera={true}
                 disabled={isSubmitting}
               />
             {/if}

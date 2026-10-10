@@ -13,13 +13,14 @@
   import { settings } from "$state/settings.svelte";
   import { compressImage, transformGoogleDriveLink } from "$utils/image-utils";
   import { toast } from "svelte-sonner";
-  import { Upload, X } from "@lucide/svelte";
+  import { Camera, Upload, X } from "@lucide/svelte";
 
   interface Props {
     value?: string;
     file?: File | Blob | null;
     previewUrl?: string | null;
     allowUrl?: boolean;
+    allowCamera?: boolean;
     disabled?: boolean;
     label?: string;
     class?: string;
@@ -31,6 +32,7 @@
     file = $bindable(null),
     previewUrl = $bindable(null),
     allowUrl = true,
+    allowCamera = false,
     disabled = false,
     label,
     class: className = "",
@@ -38,6 +40,7 @@
   }: Props = $props();
 
   let fileInput: HTMLInputElement | undefined = $state();
+  let cameraInput: HTMLInputElement | undefined = $state();
   let isProcessing = $state(false);
   let fileName = $state<string>("");
 
@@ -112,12 +115,24 @@
   <input
     type="file"
     accept="image/*"
-    capture="environment"
     class="hidden"
     bind:this={fileInput}
     onchange={handleFileInputChange}
     {disabled}
   />
+
+  {#if allowCamera}
+    <!-- Rear-camera picker (phones). Shares the file handler/pipeline. -->
+    <input
+      type="file"
+      accept="image/*"
+      capture="environment"
+      class="hidden"
+      bind:this={cameraInput}
+      onchange={handleFileInputChange}
+      {disabled}
+    />
+  {/if}
 
   {#if effectivePreview}
     <div class="space-y-2">
@@ -182,21 +197,58 @@
     </div>
   {:else}
     <!-- Direct upload only (e.g. Fridge items) -->
-    <div
-      role="button"
-      tabindex="0"
-      onclick={() => !disabled && !isProcessing && fileInput?.click()}
-      onkeydown={(e) => {
-        if (!disabled && !isProcessing && (e.key === "Enter" || e.key === " ")) {
-          fileInput?.click();
-        }
-      }}
-      class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted p-6 text-center transition-colors hover:border-border hover:bg-muted/30"
-    >
-      <Upload class="h-6 w-6 text-muted-foreground" />
-      <div class="text-xs text-muted-foreground">
-        <span class="font-medium text-foreground">Click to upload photo</span> or take picture
+    {#if allowCamera}
+      <div class="grid grid-cols-2 gap-2">
+        <div
+          role="button"
+          tabindex="0"
+          onclick={() => !disabled && !isProcessing && fileInput?.click()}
+          onkeydown={(e) => {
+            if (!disabled && !isProcessing && (e.key === "Enter" || e.key === " ")) {
+              fileInput?.click();
+            }
+          }}
+          class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted p-6 text-center transition-colors hover:border-border hover:bg-muted/30"
+        >
+          <Upload class="h-6 w-6 text-muted-foreground" />
+          <div class="text-xs text-muted-foreground">
+            <span class="font-medium text-foreground">Upload file</span>
+          </div>
+        </div>
+        <div
+          role="button"
+          tabindex="0"
+          onclick={() => !disabled && !isProcessing && cameraInput?.click()}
+          onkeydown={(e) => {
+            if (!disabled && !isProcessing && (e.key === "Enter" || e.key === " ")) {
+              cameraInput?.click();
+            }
+          }}
+          class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted p-6 text-center transition-colors hover:border-border hover:bg-muted/30"
+        >
+          <Camera class="h-6 w-6 text-muted-foreground" />
+          <div class="text-xs text-muted-foreground">
+            <span class="font-medium text-foreground">Take photo</span>
+          </div>
+        </div>
       </div>
-    </div>
+    {:else}
+      <div
+        role="button"
+        tabindex="0"
+        onclick={() => !disabled && !isProcessing && fileInput?.click()}
+        onkeydown={(e) => {
+          if (!disabled && !isProcessing && (e.key === "Enter" || e.key === " ")) {
+            fileInput?.click();
+          }
+        }}
+        class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted p-6 text-center transition-colors hover:border-border hover:bg-muted/30"
+      >
+        <Upload class="h-6 w-6 text-muted-foreground" />
+        <div class="text-xs text-muted-foreground">
+          <span class="font-medium text-foreground">Click to upload photo</span> or take picture
+        </div>
+      </div>
+    {/if}
   {/if}
 </div>
