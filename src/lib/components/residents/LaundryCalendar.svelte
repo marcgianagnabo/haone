@@ -619,7 +619,7 @@
           >
             {#if isToday && currentTimeIndicator}
               <div
-                class="absolute z-30 flex w-full items-center"
+                class="absolute z-20 flex w-full items-center"
                 style="top: {currentTimeIndicator.top}px; left: 0; right: 0;"
               >
                 <div

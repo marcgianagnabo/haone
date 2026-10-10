@@ -283,7 +283,7 @@
 {/snippet}
 
 <header
-  class="sticky top-0 z-50 -mx-4 -mt-4 mb-4 flex flex-col gap-3 bg-background px-4 pt-4 pb-3 sm:static sm:z-auto sm:mx-0 sm:mt-0 sm:flex-row sm:items-center sm:justify-between sm:border-0 sm:bg-transparent sm:p-0 md:gap-2"
+  class="sticky top-0 z-30 -mx-4 -mt-4 mb-4 flex flex-col gap-3 bg-background px-4 pt-4 pb-3 sm:static sm:z-auto sm:mx-0 sm:mt-0 sm:flex-row sm:items-center sm:justify-between sm:border-0 sm:bg-transparent sm:p-0 md:gap-2"
 >
   <div class="flex items-center justify-between gap-2">
     <div class="flex items-center gap-2">
