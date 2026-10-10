@@ -104,7 +104,11 @@
       return;
     }
     if (residentState.status) {
-      if (residentState.status.hasActiveAccount || !residentState.status.waitingForConfirmation) {
+      const st = residentState.status;
+      // A declined registration is neither approved nor waiting: stay on the
+      // onboarding form (step effect shows the decline banner + resubmit).
+      const declined = !!st.currEntry?.declineReason?.trim();
+      if (st.hasActiveAccount || (!st.waitingForConfirmation && !declined)) {
         goto("/resident");
       }
     }
