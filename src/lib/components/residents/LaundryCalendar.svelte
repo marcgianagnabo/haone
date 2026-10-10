@@ -12,7 +12,7 @@
   import * as DropdownMenu from "$ui/dropdown-menu";
   import * as Tooltip from "$ui/tooltip";
   import { Button } from "$ui/button";
-  import { tick, untrack } from "svelte";
+  import { tick } from "svelte";
   import { parseTime } from "$utils/parsers";
   import { buildLaundrySlots, getAdminLaundryGrid } from "$utils/laundry-slots";
   import { formatTimeRange, laundryMachineLabel } from "$utils/formatters";
@@ -47,25 +47,52 @@
   let weekScroller = $state<HTMLElement | null>(null);
 
   // Center the week scroller on today's column (overflowed on phones).
-  // Runs on mount/navigation only — never on the per-minute clock tick —
-  // so manual swipes are never yanked back.
-  $effect(() => {
-    selectedDate;
-    viewMode;
+  // Explicit calls only (mount + navigation actions) — never reactive, never
+  // on the per-minute clock tick — so manual swipes are never yanked back.
+  function centerOnToday() {
     if (viewMode === "month" || viewMode === "history") return;
     const el = weekScroller;
-    if (!el || el.scrollWidth <= el.clientWidth + 4) return;
-    // Read the clock without tracking it: recentering must not re-fire
-    // on the per-minute tick while the user is manually swiping.
-    const todayStr = untrack(() => formatDate(now));
+    if (!el) {
+      // Snippet not instantiated yet (e.g. view just switched): retry shortly.
+      scheduleCenterRetry();
+      return;
+    }
+    if (el.scrollWidth > el.clientWidth + 4) {
+      doCenter(el);
+      return;
+    }
+    // Layout not settled yet (fonts/transitions): retry until overflow
+    // appears or attempts run out.
+    scheduleCenterRetry();
+  }
+
+  let centerRetries = 0;
+
+  function scheduleCenterRetry() {
+    if (centerRetries >= 5) return;
+    centerRetries += 1;
+    requestAnimationFrame(() => requestAnimationFrame(centerOnToday));
+  }
+
+  function doCenter(el: HTMLElement) {
+    centerRetries = 0;
+    const todayStr = formatDate(now);
     const idx = weekDays.findIndex((d) => formatDate(d) === todayStr);
     if (idx < 0) return;
-    void tick().then(() => {
-      const timeCol = 60; // matches the 60px gutter column
-      const colW = (el.scrollWidth - timeCol) / weekDays.length;
-      const target = timeCol + idx * colW + colW / 2 - el.clientWidth / 2;
-      el.scrollTo({ left: Math.max(0, target), behavior: "auto" });
-    });
+    const timeCol = 60; // matches the 60px gutter column
+    const colW = (el.scrollWidth - timeCol) / weekDays.length;
+    const target = timeCol + idx * colW + colW / 2 - el.clientWidth / 2;
+    el.scrollTo({ left: Math.max(0, target), behavior: "auto" });
+  }
+
+  function requestCenterOnToday() {
+    centerRetries = 0;
+    void tick().then(() => requestAnimationFrame(() => requestAnimationFrame(centerOnToday)));
+  }
+
+  $effect(() => {
+    // Mount-time centering (also re-fires if the calendar remounts).
+    requestCenterOnToday();
   });
 
   const activeMachineFilter = $derived(machineFilter === "ALL" ? "" : machineFilter);
@@ -301,6 +328,7 @@
       d.setDate(d.getDate() + 1);
     }
     selectedDate = d;
+    requestCenterOnToday();
   }
 
   function prev() {
@@ -313,10 +341,12 @@
       d.setDate(d.getDate() - 1);
     }
     selectedDate = d;
+    requestCenterOnToday();
   }
 
   function goToToday() {
     selectedDate = new Date();
+    requestCenterOnToday();
   }
 
   let viewLaundryDialog = $state<ViewLaundryDialog | null>(null);
@@ -423,8 +453,18 @@
       {/snippet}
     </DropdownMenu.Trigger>
     <DropdownMenu.Content align="end" class="w-32 rounded-xl">
-      <DropdownMenu.Item onclick={() => (viewMode = "day")}>Day</DropdownMenu.Item>
-      <DropdownMenu.Item onclick={() => (viewMode = "week")}>Week</DropdownMenu.Item>
+      <DropdownMenu.Item
+        onclick={() => {
+          viewMode = "day";
+          requestCenterOnToday();
+        }}>Day</DropdownMenu.Item
+      >
+      <DropdownMenu.Item
+        onclick={() => {
+          viewMode = "week";
+          requestCenterOnToday();
+        }}>Week</DropdownMenu.Item
+      >
       <DropdownMenu.Item onclick={() => (viewMode = "month")}>Month</DropdownMenu.Item>
       <DropdownMenu.Item onclick={() => (viewMode = "history")}>History</DropdownMenu.Item>
     </DropdownMenu.Content>
