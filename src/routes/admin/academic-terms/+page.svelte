@@ -125,18 +125,33 @@
     try {
       await addConstant(key, value, description);
       const feeTotal = (newAssoc || 0) + (newWater || 0) + (newMaintenance || 0);
-      await addConstant(`FEES_${value}_ASSOC`, String(newAssoc || 0), `Fee for ${value} (ASSOC)`);
-      await addConstant(`FEES_${value}_WATER`, String(newWater || 0), `Fee for ${value} (WATER)`);
-      await addConstant(
-        `FEES_${value}_MAINTENANCE`,
-        String(newMaintenance || 0),
-        `Fee for ${value} (MAINTENANCE)`
-      );
-      await addConstant(`FEES_${value}_TOTAL`, String(feeTotal), `Fee for ${value} (TOTAL)`);
+      // Upsert: fee rows may already exist (seed, earlier partial run, or a
+      // retry after the TERM row was created) — plain inserts would collide.
+      const feeEntries = [
+        { suffix: "ASSOC", val: newAssoc || 0 },
+        { suffix: "WATER", val: newWater || 0 },
+        { suffix: "MAINTENANCE", val: newMaintenance || 0 },
+        { suffix: "TOTAL", val: feeTotal }
+      ];
+      // Refresh so the existence check sees the just-created TERM row set.
+      await loadTerms(true);
+      for (const f of feeEntries) {
+        const feeKey = `FEES_${value}_${f.suffix}`;
+        try {
+          const existing = allConstants.find((c) => c.key === feeKey);
+          if (existing) {
+            await updateConstant(feeKey, String(f.val));
+          } else {
+            await addConstant(feeKey, String(f.val), `Fee for ${value} (${f.suffix})`);
+          }
+        } catch (e: any) {
+          throw new Error(`Failed to save ${feeKey}: ${e.message || e}`);
+        }
+      }
       showAddDialog = false;
       await loadTerms();
-    } catch (e) {
-      errorMessage = "Failed to append to constants. Please try again.";
+    } catch (e: any) {
+      errorMessage = e.message || "Failed to append to constants. Please try again.";
       console.error(e);
     } finally {
       isSaving = false;

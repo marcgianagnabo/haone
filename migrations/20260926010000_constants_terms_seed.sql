@@ -6,7 +6,8 @@
 -- via Admin -> Academic Terms -> Add). This file:
 --
 --   1. Inserts the AY 2026-2027 academic terms (1S, 2S)
---   2. Seeds the fee rows for the active term (defaulting to 0)
+--   2. Seeds the fee rows for the active term (ASSOC 200 / WATER 500 /
+--      MAINTENANCE 100 / TOTAL 800)
 --   3. Sets TERM_CURR so rooms/laundry/register pages work immediately
 --
 -- Adjust the terms in this file to match your actual academic year.
@@ -17,10 +18,10 @@ INSERT INTO public.constants (key, value, description) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO public.constants (key, value, description) VALUES
-  ('FEES_2627_1S_ASSOC',          '0', 'Fee for 2627_1S (ASSOC)'),
-  ('FEES_2627_1S_WATER',          '0', 'Fee for 2627_1S (WATER)'),
-  ('FEES_2627_1S_MAINTENANCE',    '0', 'Fee for 2627_1S (MAINTENANCE)'),
-  ('FEES_2627_1S_TOTAL',          '0', 'Fee for 2627_1S (TOTAL)'),
+  ('FEES_2627_1S_ASSOC',          '200', 'Fee for 2627_1S (ASSOC)'),
+  ('FEES_2627_1S_WATER',          '500', 'Fee for 2627_1S (WATER)'),
+  ('FEES_2627_1S_MAINTENANCE',    '100', 'Fee for 2627_1S (MAINTENANCE)'),
+  ('FEES_2627_1S_TOTAL',          '800', 'Fee for 2627_1S (TOTAL)'),
   ('FEES_2627_1S_ASSOC_CP',       '0', 'Fee for 2627_1S (ASSOC_CP)'),
   ('FEES_2627_1S_WATER_CP',       '0', 'Fee for 2627_1S (WATER_CP)'),
   ('FEES_2627_1S_MAINTENANCE_CP', '0', 'Fee for 2627_1S (MAINTENANCE_CP)')
