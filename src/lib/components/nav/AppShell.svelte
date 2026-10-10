@@ -30,9 +30,9 @@
     scrollState.reset();
   });
 
-  const headerHidden = $derived(
-    scrollState.headerHidden || (isMobile.current && !pageState.isTopLevel)
-  );
+  // Mobile: header stays pinned (no auto-hide, always visible even on
+  // subpages). Desktop keeps hide-on-scroll-down / show-on-scroll-up.
+  const headerHidden = $derived(isMobile.current ? false : scrollState.headerHidden);
 </script>
 
 {#if isLoading}

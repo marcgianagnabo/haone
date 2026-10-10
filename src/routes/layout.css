@@ -141,6 +141,13 @@
   }
 }
 
+/* Mobile readability: slightly smaller base type on phones only (sm breakpoint). */
+@media (max-width: 639px) {
+  html {
+    font-size: 15px;
+  }
+}
+
 /* Design System Utilities */
 .font-archivo {
   font-family: "Archivo", sans-serif;
