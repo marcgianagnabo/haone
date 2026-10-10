@@ -47,7 +47,7 @@ SET student_no =
   || SUBSTRING(REGEXP_REPLACE(student_no, '[^0-9]', '', 'g') FROM 5)
 WHERE student_no ~ '^[0-9 \-]+$'
   AND LENGTH(REGEXP_REPLACE(student_no, '[^0-9]', '', 'g')) > 4
-  AND student_no NOT ~ '^[0-9]{4}-[0-9]+$';
+  AND student_no !~ '^[0-9]{4}-[0-9]+$';
 
 UPDATE public.registrations
 SET student_no =
@@ -56,4 +56,4 @@ SET student_no =
   || SUBSTRING(REGEXP_REPLACE(student_no, '[^0-9]', '', 'g') FROM 5)
 WHERE student_no ~ '^[0-9 \-]+$'
   AND LENGTH(REGEXP_REPLACE(student_no, '[^0-9]', '', 'g')) > 4
-  AND student_no NOT ~ '^[0-9]{4}-[0-9]+$';
+  AND student_no !~ '^[0-9]{4}-[0-9]+$';
