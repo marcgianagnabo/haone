@@ -616,20 +616,24 @@ export const supabaseResidentService: ResidentServiceInterface = {
 
     const isAlreadyRegistered = (userRows || []).length > 0;
 
-    // Guard: an approved (evaluated) registration OR an active account means
-    // this email is truly onboarded — the form shouldn't be reachable at all.
-    // Surface that instead of silently dropping the submission.
+    // Guard: an approved (evaluated, non-declined) registration OR an active
+    // account means this email is truly onboarded — the form shouldn't be
+    // reachable at all. Surface that instead of silently dropping the
+    // submission. Declined rows (decline_reason set) are excluded so a
+    // declined resident can correct and resubmit.
     const { data: approvedReg, error: approvedErr } = await supabase
       .from("registrations")
-      .select("id")
+      .select("id, decline_reason")
       .eq("email", targetEmail)
       .eq("term", activeTerm)
-      .eq("evaluated", true)
-      .limit(1);
+      .eq("evaluated", true);
     if (approvedErr) {
       handleSupabaseError(approvedErr);
     }
-    if ((approvedReg || []).length > 0) {
+    const blockingApproval = (approvedReg || []).some(
+      (r: any) => !((r.decline_reason || "").trim())
+    );
+    if (blockingApproval) {
       throw new Error(
         "Your registration for this term is already approved. Contact the administrator to update your details."
       );
