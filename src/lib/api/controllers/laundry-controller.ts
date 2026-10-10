@@ -36,6 +36,25 @@ export interface ValidateLaundryOptions {
   grid?: LaundryGrid;
 }
 
+/**
+ * Current calendar-week window (Monday 00:00 → Sunday 23:59, local time).
+ * Resident bookings are limited to the week containing today.
+ */
+export function isDateInCurrentWeek(dateStr: string, now = new Date()): boolean {
+  const parts = (dateStr || "").split("-").map(Number);
+  if (parts.length < 3 || parts.some((n) => !Number.isFinite(n))) {
+    return false;
+  }
+  const monday = new Date(now);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setDate(sunday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  const selDay = new Date(parts[0], parts[1] - 1, parts[2]);
+  return selDay >= monday && selDay <= sunday;
+}
+
 export function validateLaundryReservation(options: ValidateLaundryOptions): string | null {
   try {
     const {
@@ -127,10 +146,8 @@ export function validateLaundryReservation(options: ValidateLaundryOptions): str
         return "Cannot reserve for a past time";
       }
 
-      const maxAdvance = new Date();
-      maxAdvance.setDate(now.getDate() + 14);
-      if (selectedDateTime > maxAdvance) {
-        return "Max 2 weeks in advance";
+      if (!isDateInCurrentWeek(date, now)) {
+        return "Bookings are only open for the current week (Monday to Sunday)";
       }
       if (grid) {
         if (startMinutes < grid.open || endMinutes > grid.effectiveClose) {
@@ -235,6 +252,10 @@ export async function addLaundryReservation(
     if (startMinutes < liveGrid.open || endMinutes > liveGrid.effectiveClose) {
       throw new Error("Outside laundry operating hours");
     }
+  }
+
+  if (!isAdmin && !isDateInCurrentWeek(date)) {
+    throw new Error("Bookings are only open for the current week (Monday to Sunday)");
   }
 
   const currentResidentId = data.residentId || (await getSignedInUserId());

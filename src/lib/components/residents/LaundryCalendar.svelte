@@ -109,6 +109,15 @@
     return days;
   });
 
+  // End (Sunday) of the current calendar week (Monday–Sunday). Resident
+  // booking is limited to this week; later days render blocked.
+  const weekEndStr = $derived.by(() => {
+    const monday = new Date(now);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7) + 6);
+    return formatDate(monday);
+  });
+
   const monthWeeks = $derived.by(() => {
     const year = selectedDate.getFullYear();
     const month = selectedDate.getMonth();
@@ -507,7 +516,8 @@
           {#each weekDays as day, dayIdx}
             {@const dateStr = formatDate(day)}
             {@const isOutsideHours = hour < opStartHour || hour >= opEndHour}
-            {@const isBlocked = !isAdminView && isOutsideHours}
+            {@const isOutsideWeek = !isAdminView && dateStr > weekEndStr}
+            {@const isBlocked = (!isAdminView && isOutsideHours) || isOutsideWeek}
             {@const isSlotOccupiedByMachine = isSlotOccupied(dateStr, hour)}
             <!-- Slot Button (Background) -->
             <button
