@@ -148,6 +148,17 @@ export const POST: RequestHandler = async ({ request }) => {
       }
     }
 
+    // Best-effort: seed the INSTANCE_ADMIN_EMAIL constant so the extended
+    // is_officer() grants the instance admin officer privilege by default.
+    // No officers row is created — elected positions are untouched.
+    if (isInstanceAdmin && PUBLIC_DB_PROVIDER === "supabase") {
+      try {
+        await seedInstanceAdminConstant(email);
+      } catch (e: any) {
+        console.error("Instance admin seed failed:", e?.message || e);
+      }
+    }
+
     let credentialJwt = "";
     try {
       credentialJwt = await createCredentialJwt({
@@ -287,6 +298,25 @@ async function persistSupabaseAvatarFillOnce(email: string, photoUrl: string): P
     if (error) {
       throw error;
     }
+  }
+}
+
+async function seedInstanceAdminConstant(email: string): Promise<void> {
+  const serviceKey = privateEnv.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
+    return;
+  }
+  const admin = createClient(PUBLIC_SUPABASE_URL, serviceKey);
+  const { error } = await admin.from("constants").upsert(
+    {
+      key: "INSTANCE_ADMIN_EMAIL",
+      value: email.trim().toLowerCase(),
+      description: "Instance admin: officer privilege by default (see is_officer)"
+    },
+    { onConflict: "key" }
+  );
+  if (error) {
+    throw error;
   }
 }
 
