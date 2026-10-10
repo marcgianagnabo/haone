@@ -30,6 +30,9 @@
   import { settings } from "$state/settings.svelte";
   import ErrorView from "$components/content/ErrorView.svelte";
   import { features } from "$state/features.svelte";
+  import { notifications } from "$state/notifications.svelte";
+  import { PUBLIC_VAPID_PUBLIC_KEY } from "$env/static/public";
+  import NotificationPromptDialog from "$components/dialogs/NotificationPromptDialog.svelte";
 
   let status = $state<ResidentStatus | null>(null);
   let isLoading = $state(true);
@@ -129,7 +132,30 @@
   onMount(() => {
     pageState.title = "Dashboard";
     pageState.isTopLevel = true;
+    maybePromptNotifications();
   });
+
+  // Forced notification prompt: every dashboard visit until granted.
+  // Skipped when unsupported, unconfigured, still resolving, subscribed,
+  // or already granted. Denied origins open straight at the info step.
+  async function maybePromptNotifications() {
+    try {
+      if (!notifications.isSupported || !PUBLIC_VAPID_PUBLIC_KEY) {
+        return;
+      }
+      while (notifications.isChecking) {
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      if (notifications.isSubscribed || notifications.permission === "granted") {
+        return;
+      }
+      notificationPromptDialog?.open();
+    } catch {
+      // Never block the dashboard over the prompt.
+    }
+  }
+
+  let notificationPromptDialog = $state<NotificationPromptDialog | null>(null);
 
   $effect(() => {
     settings.currentTerm;
@@ -188,3 +214,5 @@
     </div>
   </div>
 </div>
+
+<NotificationPromptDialog bind:this={notificationPromptDialog} />
