@@ -19,6 +19,7 @@
     checkFeatureEnabled
   } from "$api/controllers/fridge-controller";
   import { fetchResidents, getSignedInUserId } from "$api/controllers/resident-controller";
+  import { normalizeStudentNo } from "$utils/student-no";
   import { fetchServer } from "$utils/api-client";
   import { settings } from "$state/settings.svelte";
   import { toast } from "svelte-sonner";
@@ -233,7 +234,7 @@
                     >
                     {#if formData.residentStNo}
                       <span class="mt-0.5 font-mono text-xs text-muted-foreground"
-                        >{formData.residentStNo}</span
+                        >{normalizeStudentNo(formData.residentStNo)}</span
                       >
                     {/if}
                   </div>

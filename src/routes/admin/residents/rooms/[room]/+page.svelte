@@ -11,6 +11,7 @@
   import { RefreshCcw, Users, Bed, Info } from "@lucide/svelte";
   import { onMount } from "svelte";
   import { pageState } from "$state/page-info.svelte";
+  import { normalizeStudentNo } from "$utils/student-no";
   import { settings } from "$state/settings.svelte.js";
 
   let { data } = $props();
@@ -67,7 +68,7 @@
   const userOptions = $derived(
     users.map((u) => ({
       value: u.id,
-      label: `${u.displayName} (${u.studentNo || u.email})`
+      label: `${u.displayName} (${normalizeStudentNo(u.studentNo) || u.email})`
     }))
   );
 

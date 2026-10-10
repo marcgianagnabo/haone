@@ -27,6 +27,7 @@
   import { residentState, type ResidentStatus } from "$state/resident-state.svelte";
   import { roomsState } from "$state/rooms.svelte";
   import { translatePeriod } from "$utils/translators";
+  import { maskStudentNoInput, normalizeStudentNo } from "$utils/student-no";
   import * as Stepper from "$ui/stepper";
   import { globalDialog } from "$state/dialog.svelte";
 
@@ -152,8 +153,9 @@
     if (status) {
       formData.room = formData.room || status.currEntry?.room || status.account?.room || "";
       formData.bed = formData.bed || status.currEntry?.bed || status.account?.bed || "";
-      formData.studentNo =
-        formData.studentNo || status.currEntry?.studentNo || status.profile?.studentNo || "";
+      formData.studentNo = normalizeStudentNo(
+        formData.studentNo || status.currEntry?.studentNo || status.profile?.studentNo || ""
+      );
       formData.college =
         formData.college ||
         status.currEntry?.college ||
@@ -197,6 +199,9 @@
 
   async function handleSubmit() {
     const isStudentNoRequired = accountType === AccountType.STUDENT || hasStudentNo;
+
+    // Canonicalize once so checks, storage, and downstream matching agree.
+    formData.studentNo = normalizeStudentNo(formData.studentNo);
 
     if (!useLivedName) {
       formData.overrideName = "";
@@ -491,7 +496,9 @@
                 <Input
                   id="studentNo"
                   bind:value={formData.studentNo}
+                  oninput={(e) => (formData.studentNo = maskStudentNoInput(e.currentTarget.value))}
                   placeholder="XXXX-XXXXX"
+                  inputmode="numeric"
                   disabled={isStudentNoDisabled}
                 />
               </div>

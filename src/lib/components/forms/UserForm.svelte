@@ -23,6 +23,7 @@
   import { Combobox } from "$ui/combobox";
   import ContentHeader from "$components/content/ContentHeader.svelte";
   import EmptyView from "$components/content/EmptyView.svelte";
+  import { maskStudentNoInput } from "$utils/student-no";
 
   let {
     formData = $bindable({}),
@@ -276,7 +277,13 @@
 
           <div class="space-y-2">
             <Label for="studentNo" class="flex items-center gap-1.5">Student Number</Label>
-            <Input id="studentNo" bind:value={formData.studentNo} />
+            <Input
+              id="studentNo"
+              bind:value={formData.studentNo}
+              oninput={(e) => (formData.studentNo = maskStudentNoInput(e.currentTarget.value))}
+              placeholder="XXXX-XXXXX"
+              inputmode="numeric"
+            />
           </div>
 
           <div class="space-y-2">

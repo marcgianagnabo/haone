@@ -12,6 +12,7 @@
   import { Button } from "$ui/button";
   import { Badge } from "$ui/badge";
   import { Combobox } from "$ui/combobox";
+  import { normalizeStudentNo } from "$utils/student-no";
   import { Label } from "$ui/label";
   import { Checkbox } from "$ui/checkbox";
   import * as Card from "$ui/card";
@@ -88,7 +89,7 @@
   const userOptions = $derived(
     users.map((u) => ({
       value: u.id,
-      label: `${u.displayName} (${u.studentNo || u.email})`
+      label: `${u.displayName} (${normalizeStudentNo(u.studentNo) || u.email})`
     }))
   );
 

@@ -10,6 +10,7 @@
     type SyncPreviewAction
   } from "$api/controllers/rooms-controller.svelte";
   import { pluralize } from "$utils/formatters";
+  import { normalizeStudentNo } from "$utils/student-no";
   import { translateCollege, translatePeriod, translateProgram } from "$utils/translators";
   import ContentHeader from "$components/content/ContentHeader.svelte";
   import LoadingView from "$components/content/LoadingView.svelte";
@@ -306,7 +307,7 @@
                   {#if primaryAction.studentNo}
                     <div>
                       <span class="font-semibold text-muted-foreground">Student No.</span>
-                      <p class="font-medium text-foreground">{primaryAction.studentNo}</p>
+                      <p class="font-medium text-foreground">{normalizeStudentNo(primaryAction.studentNo)}</p>
                     </div>
                   {/if}
                   {#if primaryAction.college}

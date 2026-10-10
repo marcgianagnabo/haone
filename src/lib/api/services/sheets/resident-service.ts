@@ -3,6 +3,7 @@ import { ACCOUNT_COL, TRANSACTION_TYPE_CONFIG, TransactionType, USER_COL } from 
 import { auth } from "$state/auth.svelte";
 import { fetchServer } from "$utils/api-client";
 import { parseCSVAmount } from "$utils/math";
+import { normalizeStudentNo } from "$utils/student-no";
 import { computeDisplayNames, mapRowToJournal, mapRowToResident } from "../../utils/row-mappers";
 import {
   appendSheetRow,
@@ -182,7 +183,7 @@ export const sheetsResidentService: ResidentServiceInterface = {
       return false;
     }
     const userRows = await fetchSheetRowsRaw(settings.residentRecordsId, "users!A:P");
-    const needle = studentNo.trim().toLowerCase();
+    const needle = normalizeStudentNo(studentNo).toLowerCase();
     if (!needle) {
       return false;
     }
@@ -190,7 +191,7 @@ export const sheetsResidentService: ResidentServiceInterface = {
       .slice(1)
       .some(
         (row) =>
-          (row[USER_COL.STUDENT_NO] || "").trim().toLowerCase() === needle
+          normalizeStudentNo(row[USER_COL.STUDENT_NO]).toLowerCase() === needle
       );
   },
 
@@ -240,7 +241,7 @@ export const sheetsResidentService: ResidentServiceInterface = {
     newRow[USER_COL.DISPLAY_NAME_FL] = computed.displayNameFormal;
 
     if (data.studentNo !== undefined) {
-      newRow[USER_COL.STUDENT_NO] = data.studentNo;
+      newRow[USER_COL.STUDENT_NO] = normalizeStudentNo(data.studentNo);
     }
     if (data.secondaryContact !== undefined) {
       newRow[USER_COL.SECONDARY_CONTACT] = data.secondaryContact;
@@ -287,7 +288,7 @@ export const sheetsResidentService: ResidentServiceInterface = {
     row[USER_COL.DISPLAY_NAME] = computed.displayName;
     row[USER_COL.DISPLAY_NAME_FL] = computed.displayNameFormal;
 
-    row[USER_COL.STUDENT_NO] = data.studentNo || "";
+    row[USER_COL.STUDENT_NO] = normalizeStudentNo(data.studentNo || "");
     row[USER_COL.SECONDARY_CONTACT] = data.secondaryContact || "";
     row[USER_COL.ADDRESS] = data.address || "";
     row[USER_COL.COLLEGE] = data.college || "";

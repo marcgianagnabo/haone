@@ -5,6 +5,7 @@
   import { settings } from "$state/settings.svelte";
   import { globalDialog } from "$state/dialog.svelte";
   import { translateCollege, translateProgram } from "$utils/translators";
+  import { normalizeStudentNo } from "$utils/student-no";
   import { pluralize } from "$utils/formatters";
   import { parseDateWeight } from "$utils/parsers";
   import * as Card from "$ui/card";
@@ -132,7 +133,8 @@
         .filter(
           (r) =>
             (user?.email && r.account.trim().toLowerCase() === user.email.toLowerCase()) ||
-            (user?.studentNo && r.stno.trim() === user.studentNo)
+            (user?.studentNo &&
+              normalizeStudentNo(r.stno) === normalizeStudentNo(user.studentNo))
         )
         .filter((r) => !settings.currentTerm || r.period === settings.currentTerm)
         .map((journal) => ({
@@ -405,7 +407,7 @@
             >
               <IdCard class="h-3 w-3" /> Student Number
             </Label>
-            <p class="text-sm font-semibold">{user.studentNo}</p>
+              <p class="text-sm font-semibold">{normalizeStudentNo(user.studentNo)}</p>
           </div>
 
           <div class="space-y-1">

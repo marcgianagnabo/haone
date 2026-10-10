@@ -7,6 +7,7 @@
   import { Lock, LockOpen } from "@lucide/svelte";
   import { Spinner } from "../ui/spinner";
   import BrandingLogo from "../branding/BrandingLogo.svelte";
+  import { maskStudentNoInput } from "$utils/student-no";
 
   let {
     studentNo = $bindable(),
@@ -49,8 +50,10 @@
         name="stno"
         type="text"
         bind:value={studentNo}
-        placeholder="e.g., 2021-0001"
+        oninput={(e) => (studentNo = maskStudentNoInput(e.currentTarget.value))}
+        placeholder="e.g., 2021-00001"
         autocomplete="off"
+        inputmode="numeric"
         onkeydown={(e) => e.key === "Enter" && onAuthenticate()}
       />
     </div>

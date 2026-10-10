@@ -21,6 +21,7 @@
   import type { LaundryRecord } from "$lib/types";
   import { LaundryStatus } from "$lib/types";
   import { getLaundryGrid, isFixedLaundrySlot, type LaundryGrid } from "$utils/laundry-slots";
+  import { normalizeStudentNo } from "$utils/student-no";
   import { parseTimeMinutes } from "$utils/parsers";
   import LaundryCalendar from "$components/residents/LaundryCalendar.svelte";
   import CancelLaundryDialog from "$components/forms/CancelLaundryDialog.svelte";
@@ -141,7 +142,7 @@
     for (const u of users) {
       if (u.id) map.set(u.id, u);
       if (u.email) map.set(u.email.trim().toLowerCase(), u);
-      if (u.studentNo) map.set(u.studentNo.trim(), u);
+      if (u.studentNo) map.set(normalizeStudentNo(u.studentNo), u);
     }
     return map;
   });

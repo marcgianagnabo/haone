@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { decryptJSON } from "$utils/crypto";
+  import { studentNoVariants } from "$utils/student-no";
   import { goto } from "$app/navigation";
   import StudentNumberAuthCard from "$components/lookup/StudentNumberAuthCard.svelte";
   import ReceiptErrorCard from "$components/lookup/ReceiptErrorCard.svelte";
@@ -49,11 +50,27 @@
     isDecrypting = true;
     error = "";
     try {
-      const payload = await decryptJSON(encryptedData, studentNo);
+      // Links encrypted before the dash convention use the raw number as the
+      // key — try each equivalent representation until one decrypts.
+      let payload: any = null;
+      let workingKey = studentNo;
+      let lastErr: any = null;
+      for (const candidate of studentNoVariants(studentNo)) {
+        try {
+          payload = await decryptJSON(encryptedData, candidate);
+          workingKey = candidate;
+          break;
+        } catch (e: any) {
+          lastErr = e;
+        }
+      }
+      if (!payload) {
+        throw lastErr || new Error("Failed to verify receipt credentials.");
+      }
       const prRefNo = payload.seriesNumber;
 
       if (rememberMe) {
-        localStorage.setItem(LS_KEYS.STUDENT_NUMBER, studentNo);
+        localStorage.setItem(LS_KEYS.STUDENT_NUMBER, workingKey);
       } else {
         localStorage.removeItem(LS_KEYS.STUDENT_NUMBER);
       }
@@ -62,7 +79,7 @@
       const resp = await fetch("/api/receipt/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pr_refno: prRefNo, stno: studentNo })
+        body: JSON.stringify({ pr_refno: prRefNo, stno: workingKey })
       });
 
       const result = await resp.json();
@@ -71,7 +88,7 @@
       }
 
       // Hand off student ID to avoid double prompt (cleared after use)
-      sessionStorage.setItem(`receipt_handoff_${result.id}`, studentNo);
+      sessionStorage.setItem(`receipt_handoff_${result.id}`, workingKey);
 
       // Redirect to the clean secret ID URL: /receipt/[id]
       goto(`/receipt/${result.id}`, { replaceState: true });

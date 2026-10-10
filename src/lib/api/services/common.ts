@@ -6,6 +6,7 @@ import {
 import { auth } from "$state/auth.svelte";
 import { brandingState } from "$state/branding.svelte";
 import { isUuid } from "$utils/parsers";
+import { normalizeStudentNo } from "$utils/student-no";
 import { createClient } from "@supabase/supabase-js";
 
 export const isSupabase = PUBLIC_DB_PROVIDER === "supabase";
@@ -125,10 +126,12 @@ export async function resolveSupabaseUserId(
         return data.id;
       }
     } else {
+      // normalizeStudentNo is identity for emails, canonicalizes numeric ids.
+      const lookup = normalizeStudentNo(candidate);
       const { data } = await supabase
         .from("users_view")
         .select("id")
-        .or(`email.ilike.${candidate},student_no.ilike.${candidate}`)
+        .or(`email.ilike.${lookup},student_no.ilike.${lookup}`)
         .maybeSingle();
       if (data?.id) {
         return data.id;

@@ -1,6 +1,7 @@
 import type { JournalRecord, PaginatedResponse, PaginationOptions } from "$lib/types";
 import { auth } from "$state/auth.svelte";
 import { parseCSVAmount } from "$utils/math";
+import { normalizeStudentNo } from "$utils/student-no";
 import { getLocalDateString, isUuid, parseDbDate } from "$utils/parsers";
 import {
   assertSupabaseFound,
@@ -209,10 +210,11 @@ export const supabaseJournalService: JournalServiceInterface = {
         if (isUuid(data.account)) {
           aId = data.account;
         } else {
+          const lookup = normalizeStudentNo(data.account);
           const { data: u } = await supabase
             .from("users_view")
             .select("id")
-            .or(`email.ilike.${data.account.trim()},student_no.ilike.${data.account.trim()}`)
+            .or(`email.ilike.${lookup},student_no.ilike.${lookup}`)
             .maybeSingle();
           if (u?.id) {
             aId = u.id;

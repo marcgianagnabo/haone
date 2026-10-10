@@ -14,6 +14,7 @@
     UserCog
   } from "@lucide/svelte";
   import { translateAccountType, translateCollege, translateProgram } from "$utils/translators";
+  import { normalizeStudentNo } from "$utils/student-no";
   import { formatDate } from "$utils/formatters";
   import type { ResidentRecord } from "$lib/types";
 
@@ -105,7 +106,7 @@
       >
         <IdCard class="h-3 w-3" /> Student Number
       </Label>
-      <p class="text-sm font-semibold">{account.stno}</p>
+        <p class="text-sm font-semibold">{normalizeStudentNo(account.stno)}</p>
     </div>
 
     {#if semesterCount !== undefined}

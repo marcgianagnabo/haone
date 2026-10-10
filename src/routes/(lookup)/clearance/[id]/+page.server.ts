@@ -2,6 +2,7 @@ import { getSheetsClient } from "$api/services/auth-service";
 import { getSheetValues } from "$api/services/server-sheets-service";
 import { PUBLIC_GS_AW_ID, PUBLIC_GS_RR_ID } from "$env/static/public";
 import { ACCOUNT_COL, OFFICER_COL, USER_COL } from "$lib/types";
+import { matchesStudentNo } from "$utils/student-no";
 import { fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -42,7 +43,7 @@ export const actions: Actions = {
       }
 
       const correctStNo = (user[USER_COL.STUDENT_NO] || "").toString().trim();
-      if (stno === correctStNo) {
+      if (matchesStudentNo(stno, correctStNo)) {
         // Resolve Signatory Info
         const issuerId = row[9]; // Column J (ISSUER_ID)
         const period = row[ACCOUNT_COL.PERIOD];

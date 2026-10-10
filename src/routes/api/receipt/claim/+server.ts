@@ -1,6 +1,7 @@
 import { getSheetsClient } from "$api/services/auth-service";
 import { fetchSheetsData } from "$api/services/server-sheets-service";
 import { JOURNAL_COL, USER_COL } from "$lib/types";
+import { matchesStudentNo } from "$utils/student-no";
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 
@@ -28,7 +29,7 @@ export const POST: RequestHandler = async ({ request }) => {
       }
       const accountId = (r[JOURNAL_COL.ACCOUNT_ID] || "").trim();
       const resolvedStno = accountId ? userMap.get(accountId) : "";
-      return resolvedStno === targetStno;
+      return matchesStudentNo(targetStno, resolvedStno);
     });
 
     if (!row) {

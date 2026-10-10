@@ -21,6 +21,7 @@
   import { columns } from "./columns";
   import DataTable from "$ui/data-table/data-table.svelte";
   import { translateCollege, translateProgram } from "$utils/translators";
+  import { normalizeStudentNo } from "$utils/student-no";
 
   let users = $state<User[]>([]);
   let isLoading = $state(false);
@@ -83,6 +84,7 @@
     return users
       .filter((u) => {
         const search = tableSync.filters!.search.toLowerCase();
+        const stSearch = normalizeStudentNo(tableSync.filters!.search).toLowerCase();
         const college = tableSync.filters!.college;
         const program = tableSync.filters!.program;
         const tags = tableSync.filters!.tags;
@@ -90,7 +92,8 @@
         const matchesSearch =
           u.displayName?.toLowerCase().includes(search) ||
           u.email?.toLowerCase().includes(search) ||
-          u.studentNo?.toLowerCase().includes(search);
+          u.studentNo?.toLowerCase().includes(search) ||
+          normalizeStudentNo(u.studentNo).toLowerCase().includes(stSearch);
 
         const matchesCollege =
           college === "ALL" || translateCollege(u.college).some((c) => c === college);

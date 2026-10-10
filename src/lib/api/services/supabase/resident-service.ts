@@ -2,6 +2,7 @@ import type { ResidentRecord, UserRecord } from "$lib/types";
 import { AccountType, TRANSACTION_TYPE_CONFIG, TransactionType } from "$lib/types";
 import { auth } from "$state/auth.svelte";
 import { parseCSVAmount } from "$utils/math";
+import { normalizeStudentNo } from "$utils/student-no";
 import { parseDateWeight, parseDbDate, parseDbUuid } from "$utils/parsers";
 import {
   assertSupabaseFound,
@@ -60,7 +61,7 @@ function mapUserRecordToDb(data: Partial<UserRecord>): Record<string, any> {
     payload.override_name = data.overrideName.trim();
   }
   if (data.studentNo !== undefined) {
-    payload.student_no = data.studentNo;
+    payload.student_no = normalizeStudentNo(data.studentNo);
   }
   if (data.secondaryContact !== undefined) {
     payload.secondary_contact = data.secondaryContact;
@@ -476,7 +477,7 @@ export const supabaseResidentService: ResidentServiceInterface = {
       return false;
     }
     const { data, error } = await supabase.rpc("student_no_taken", {
-      student_no: studentNo.trim()
+      student_no: normalizeStudentNo(studentNo)
     });
     if (error) {
       handleSupabaseError(error);
@@ -666,7 +667,7 @@ export const supabaseResidentService: ResidentServiceInterface = {
       handleSupabaseError(pendingErr);
     }
 
-    let finalStudentNo = data.studentNo;
+    let finalStudentNo = normalizeStudentNo(data.studentNo);
     if (resolvedAccountType !== AccountType.STUDENT && !data.studentNo) {
       const randomUuid = crypto.randomUUID();
       finalStudentNo = `${resolvedAccountType}-${activeTerm}-${randomUuid}`;

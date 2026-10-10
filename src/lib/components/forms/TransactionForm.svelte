@@ -8,6 +8,7 @@
   import { fetchJournalEntries } from "$api/controllers/journal-controller";
   import { fetchConstants } from "$api/controllers/constants-controller";
   import { translatePeriod, translateMop } from "$utils/translators";
+  import { normalizeStudentNo } from "$utils/student-no";
   import { parseRef } from "$utils/parsers";
   import { formatAmount, formatAccounting } from "$utils/formatters";
   import { sortPeriods, isNextSemester } from "$utils/sort";
@@ -502,6 +503,9 @@
           (a) =>
             (a.residentId && a.residentId.toLowerCase() === targetAccountParam.toLowerCase()) ||
             (a.stno && a.stno.toLowerCase() === targetAccountParam.toLowerCase()) ||
+            (a.stno &&
+              normalizeStudentNo(a.stno).toLowerCase() ===
+                normalizeStudentNo(targetAccountParam).toLowerCase()) ||
             (a.email && a.email.toLowerCase() === targetAccountParam.toLowerCase())
         );
         if (targetAcc) {
@@ -904,7 +908,7 @@
                     >
                     {#if formData.creatorStNo}
                       <span class="mt-0.5 font-mono text-xs text-muted-foreground"
-                        >{formData.creatorStNo}</span
+                        >{normalizeStudentNo(formData.creatorStNo)}</span
                       >
                     {/if}
                   </div>
@@ -935,7 +939,7 @@
                       >
                       {#if formData.accountStNo}
                         <span class="mt-0.5 font-mono text-xs text-muted-foreground"
-                          >{formData.accountStNo}</span
+                          >{normalizeStudentNo(formData.accountStNo)}</span
                         >
                       {/if}
                     </div>

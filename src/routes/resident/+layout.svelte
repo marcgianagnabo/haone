@@ -10,10 +10,18 @@
   let { children } = $props();
   let isLoadingAuth = $state(true);
 
+  // While the status is unresolved — or while a needs-onboarding user is
+  // awaiting the redirect to /onboarding — keep the fullscreen loader up and
+  // never paint the resident views underneath.
   const isLoading = $derived(
     isLoadingAuth ||
       (auth.accessToken && !residentState.status) ||
-      (!auth.accessToken && page.url.pathname !== "/sign-in")
+      (!auth.accessToken && page.url.pathname !== "/sign-in") ||
+      !!residentState.needsOnboarding
+  );
+
+  const canShowChildren = $derived(
+    !!auth.accessToken && !!residentState.status && !residentState.needsOnboarding
   );
 
   onMount(async () => {
@@ -59,5 +67,7 @@
 </script>
 
 <AppShell {isLoading}>
-  {@render children()}
+  {#if canShowChildren}
+    {@render children()}
+  {/if}
 </AppShell>

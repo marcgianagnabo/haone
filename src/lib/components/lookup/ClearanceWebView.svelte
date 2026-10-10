@@ -5,6 +5,7 @@
   import { Spinner } from "$ui/spinner";
   import { brandingState } from "$state/branding.svelte";
   import { formatDate } from "$utils/formatters";
+  import { normalizeStudentNo } from "$utils/student-no";
   import { translatePeriod } from "$utils/translators";
 
   interface Props {
@@ -53,7 +54,7 @@
 
   const clearanceDetails = $derived([
     { label: "Date Issued", value: formatDate(clearanceData.dateIssued) },
-    { label: "Student Number", value: clearanceData.stno, mono: true },
+    { label: "Student Number", value: normalizeStudentNo(clearanceData.stno), mono: true },
     { label: "Reference Number", value: clearanceData.refNo, mono: true }
   ]);
 </script>

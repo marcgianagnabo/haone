@@ -2,6 +2,7 @@ import { USER_TAG_COLORS, UserTag, type UserRecord as User } from "$lib/types";
 import DataTableColumnHeader from "$ui/data-table/data-table-column-header.svelte";
 import { renderComponent, renderSnippet, type ColumnDef } from "$ui/data-table/index.js";
 import { translateCollege, translateProgram } from "$utils/translators";
+import { normalizeStudentNo } from "$utils/student-no";
 import { createRawSnippet } from "svelte";
 
 export const columns: ColumnDef<User>[] = [
@@ -26,7 +27,14 @@ export const columns: ColumnDef<User>[] = [
   {
     accessorKey: "studentNo",
     header: ({ column }) =>
-      renderComponent(DataTableColumnHeader, { column, title: "Student Number" })
+      renderComponent(DataTableColumnHeader, { column, title: "Student Number" }),
+    cell: ({ row }) => {
+      const snippet = createRawSnippet<[{ val: string }]>((p) => ({
+        render: () =>
+          `<span class="text-sm text-foreground font-medium">${p().val}</span>`
+      }));
+      return renderSnippet(snippet, { val: normalizeStudentNo(row.original.studentNo) });
+    }
   },
   {
     accessorKey: "college",

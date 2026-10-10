@@ -10,6 +10,7 @@ import {
 import type { ReceiptData, ReceiptItem } from "$lib/types";
 import { JOURNAL_COL, USER_COL } from "$lib/types";
 import { parseCSVAmount } from "$utils/math";
+import { matchesStudentNo } from "$utils/student-no";
 import { isUuid } from "$utils/parsers";
 import { createClient } from "@supabase/supabase-js";
 import { fail } from "@sveltejs/kit";
@@ -70,7 +71,7 @@ async function verifySheets(id: string, stno: string) {
       ? (accountUser[USER_COL.STUDENT_NO] || "").trim()
       : (row[JOURNAL_COL.STNO] || "").toString().trim();
 
-    if (stno === correctStNo) {
+    if (matchesStudentNo(stno, correctStNo)) {
       // Build receipt data to return directly
       const prRefNo = row[JOURNAL_COL.PR_REFNO];
       const items: ReceiptItem[] = [];
@@ -134,7 +135,7 @@ async function verifySupabase(id: string, stno: string) {
     }
 
     const correctStNo = (row.account_stno || "").toString().trim();
-    if (stno !== correctStNo) {
+    if (!matchesStudentNo(stno, correctStNo)) {
       return fail(401, { error: "Student number does not match this record" });
     }
 

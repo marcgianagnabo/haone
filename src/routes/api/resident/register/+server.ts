@@ -2,6 +2,7 @@ import { authenticateResident, getSheetsClient } from "$api/services/auth-servic
 import { appendSheetValue, getSheetValues, serverError } from "$api/services/server-sheets-service";
 import { PUBLIC_GS_AW_ID, PUBLIC_GS_RR_ID } from "$env/static/public";
 import { AccountType, CURR_COL } from "$lib/types";
+import { normalizeStudentNo } from "$utils/student-no";
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 
@@ -51,7 +52,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     // Generate random code for temporary student number if resident is not a student
     // and the student number field is empty
-    let finalStudentNo = studentNo;
+    let finalStudentNo = normalizeStudentNo(studentNo);
     if (resolvedAccountType !== AccountType.STUDENT && !studentNo) {
       const randomUuid = crypto.randomUUID();
       finalStudentNo = `${resolvedAccountType}-${activeTerm}-${randomUuid}`;
