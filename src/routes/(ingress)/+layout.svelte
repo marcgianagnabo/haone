@@ -4,10 +4,12 @@
   import { page } from "$app/state";
 
   const isOnboarding = $derived(page.url.pathname === "/onboarding");
-  // Full-screen photo backdrop (mobile only) behind the sign-in content.
-  // Desktop rendering is untouched.
+  // Full-screen photo backdrop (mobile only) behind the landing and
+  // sign-in content. Desktop rendering is untouched.
   const mobilePhotoBackground = $derived(
-    page.url.pathname === "/sign-in" || page.url.pathname === "/sign-in/workspace"
+    page.url.pathname === "/" ||
+      page.url.pathname === "/sign-in" ||
+      page.url.pathname === "/sign-in/workspace"
   );
 </script>
 
