@@ -36,6 +36,11 @@
     isSigningIn = true;
     await auth.signIn("resident");
   }
+
+  async function handleAdminLogin() {
+    isSigningIn = true;
+    await auth.signIn("admin");
+  }
 </script>
 
 <div class="flex flex-col items-center justify-center">
@@ -62,6 +67,16 @@
           >
             Sign In
           </Button>
+          <Button
+            onclick={handleAdminLogin}
+            variant="outline"
+            class="h-12 w-full rounded-xl text-sm font-bold"
+          >
+            House Council sign-in
+          </Button>
+          <p class="text-center text-xs text-muted-foreground">
+            Officers use House Council sign-in to go straight to the admin workspace.
+          </p>
         </div>
       {/if}
     </div>

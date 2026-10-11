@@ -177,8 +177,8 @@ class AuthState {
     globalDialog.show(title, description);
   }
 
-  async signIn(type: "admin" | "resident"): Promise<void> {
-    return clientAuthService.signIn(type, this.redirectTo);
+  async signIn(type: "admin" | "resident", loginHint?: string | null): Promise<void> {
+    return clientAuthService.signIn(type, this.redirectTo, loginHint);
   }
 
   async handleCallback(rememberMe = true): Promise<boolean> {
