@@ -17,6 +17,7 @@ import {
   buildLaundrySlots,
   getAdminLaundryGrid,
   getLaundryHoursConfig,
+  getUnfinishedBooking,
   isFixedLaundrySlot,
   type LaundryGrid
 } from "$utils/laundry-slots";
@@ -106,6 +107,12 @@ export function validateLaundryReservation(options: ValidateLaundryOptions): str
     if (!isAdmin) {
       const targetResidentId = residentId;
       if (targetResidentId) {
+        // One active booking at a time: an unfinished booking blocks any new
+        // booking on any day until it ends or is cancelled.
+        const unfinished = getUnfinishedBooking(existingReservations, targetResidentId);
+        if (unfinished) {
+          return `Finish or cancel your booking on ${unfinished.date} before booking another day`;
+        }
         const residentDayMinutes = existingReservations
           .filter((r) => {
             if (
@@ -268,6 +275,12 @@ export async function addLaundryReservation(
   );
 
   if (!isAdmin && currentResidentId) {
+    const unfinished = getUnfinishedBooking(list, currentResidentId);
+    if (unfinished) {
+      throw new Error(
+        `Finish or cancel your booking on ${unfinished.date} before booking another day`
+      );
+    }
     const durationMinutes = endMinutes - startMinutes;
     const existingResidentDayMinutes = active
       .filter((r) => r.date === date && r.residentId === currentResidentId)

@@ -1,5 +1,13 @@
 import { fetchConstantByKey } from "$api/controllers/constants-controller";
+import {
+  DEFAULT_LAUNDRY_MACHINE,
+  LaundryStatus,
+  type LaundryMachineValue,
+  type LaundryRecord
+} from "$lib/types";
+import { brandingState } from "$state/branding.svelte";
 import { parseTimeMinutes } from "$utils/parsers";
+import { getUnitForRoom } from "$utils/rooms-utils";
 
 /**
  * Fixed laundry slot engine.
@@ -204,4 +212,85 @@ export async function getLaundryGrid(bypassCache = false): Promise<LaundryGrid> 
  */
 export function getAdminLaundryGrid(): LaundryGrid {
   return buildLaundrySlots(0, 1440);
+}
+
+/**
+ * End datetime of a booking, or null when the date/time cannot be parsed.
+ * Mirrors the effective-COMPLETED derivation in LaundryReservationHistory
+ * (minute precision instead of hour precision).
+ */
+export function getBookingEndDate(record: Pick<LaundryRecord, "date" | "timeEnd">): Date | null {
+  const parts = (record.date || "").split("-").map(Number);
+  if (parts.length < 3 || parts.some((n) => !Number.isFinite(n))) {
+    return null;
+  }
+  const endMin = parseTimeMinutes(record.timeEnd || "");
+  if (!Number.isFinite(endMin) || endMin < 0) {
+    return null;
+  }
+  return new Date(parts[0], parts[1] - 1, parts[2], Math.floor(endMin / 60), endMin % 60);
+}
+
+/**
+ * A booking is finished once its end datetime has passed. Cancelled and
+ * stored-completed bookings never block. Unparseable rows stay blocking
+ * (fail closed), matching the history display semantics.
+ */
+export function isBookingUnfinished(
+  record: Pick<LaundryRecord, "date" | "timeEnd" | "status">,
+  now = new Date()
+): boolean {
+  if (record.status !== LaundryStatus.ACTIVE) {
+    return false;
+  }
+  const end = getBookingEndDate(record);
+  if (!end) {
+    return true;
+  }
+  return end.getTime() >= now.getTime();
+}
+
+/**
+ * The resident's unfinished booking (if any): their single ACTIVE booking
+ * whose end datetime has not passed yet. Earliest-ending first.
+ */
+export function getUnfinishedBooking(
+  reservations: Pick<LaundryRecord, "date" | "timeEnd" | "status" | "residentId">[],
+  residentId: string,
+  now = new Date()
+): LaundryRecord | null {
+  if (!residentId) {
+    return null;
+  }
+  const mine = (reservations || []).filter(
+    (r) => r.residentId === residentId && isBookingUnfinished(r, now)
+  );
+  mine.sort((a, b) => {
+    const ea = getBookingEndDate(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    const eb = getBookingEndDate(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    return ea - eb;
+  });
+  return (mine[0] as LaundryRecord) ?? null;
+}
+
+/**
+ * Wing machine for a room number: L* rooms focus Left Wing, R* rooms focus
+ * Right Wing, anything else (U / upper floors / unknown) sees all machines.
+ */
+export function wingMachineForRoom(room: string, profile?: string): LaundryMachineValue | "ALL" {
+  const key = profile || brandingState.selectedKey;
+  const unit = getUnitForRoom((room || "").trim(), key);
+  const id = (unit?.id || "").toUpperCase();
+  if (id === "L") {
+    return "LEFT_WING";
+  }
+  if (id === "R") {
+    return "RIGHT_WING";
+  }
+  return "ALL";
+}
+
+export function defaultMachineForRoom(room: string): LaundryMachineValue {
+  const wing = wingMachineForRoom(room);
+  return wing === "ALL" ? DEFAULT_LAUNDRY_MACHINE : wing;
 }

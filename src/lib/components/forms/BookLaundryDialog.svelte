@@ -25,6 +25,7 @@
     formatSlotMinutes,
     getAdminLaundryGrid,
     getLaundryGrid,
+    getUnfinishedBooking,
     minutesToHHMM,
     type LaundryGrid
   } from "$utils/laundry-slots";
@@ -37,12 +38,14 @@
     reservations,
     onSuccess,
     isAdmin = false,
-    activeUsers = []
+    activeUsers = [],
+    defaultMachine = DEFAULT_LAUNDRY_MACHINE
   }: {
     reservations: LaundryRecord[];
     onSuccess: () => void;
     isAdmin?: boolean;
     activeUsers?: { id: string; displayName: string; room?: string }[];
+    defaultMachine?: LaundryMachineValue;
   } = $props();
 
   let isLoading = $state(false);
@@ -83,6 +86,16 @@
       }, 0);
   });
   const dayIsFull = $derived(userDayMinutes >= LAUNDRY_SLOT_MINUTES);
+
+  // One active booking at a time (residents): an unfinished booking on any
+  // day blocks new bookings until it ends or is cancelled.
+  const activeBooking = $derived.by(() => {
+    if (isAdmin) return null;
+    const uid = targetUserId;
+    if (!uid) return null;
+    return getUnfinishedBooking(reservations || [], uid);
+  });
+  const hasActiveBooking = $derived(activeBooking !== null);
 
   function resolveMyResidentId() {
     if (isAdmin || myResidentId) {
@@ -167,6 +180,9 @@
     if (gridLoading && !grid) {
       return "Loading available slots…";
     }
+    if (hasActiveBooking) {
+      return "You still have an unfinished booking — finish or cancel it before booking another day";
+    }
     if (dayIsFull) {
       return "Only one booking per day allowed — try the next day";
     }
@@ -227,6 +243,9 @@
 
   export function open() {
     isDialogOpen = true;
+    if (!isAdmin && defaultMachine) {
+      newReservation.machine = defaultMachine;
+    }
     resolveMyResidentId();
     void ensureGrid();
   }
@@ -242,9 +261,13 @@
       if (machine && !isSlotTaken(date, startMin, endMin, machine)) {
         newReservation.machine = machine;
       } else {
-        const firstFree = LAUNDRY_MACHINES.find(
-          (m) => !isSlotTaken(date, startMin, endMin, m.value)
-        );
+        // Prefer the resident's wing machine when it is free.
+        const wingFree =
+          defaultMachine && !isSlotTaken(date, startMin, endMin, defaultMachine)
+            ? LAUNDRY_MACHINES.find((m) => m.value === defaultMachine)
+            : undefined;
+        const firstFree =
+          wingFree ?? LAUNDRY_MACHINES.find((m) => !isSlotTaken(date, startMin, endMin, m.value));
         if (firstFree) {
           newReservation.machine = firstFree.value;
         } else if (machine) {
@@ -351,6 +374,13 @@
           <CircleXIcon class="h-4 w-4" />
           {validationError}
         </div>
+      {/if}
+      {#if hasActiveBooking}
+        <p class="px-1 text-xs text-muted-foreground">
+          You still have an unfinished booking{activeBooking?.date
+            ? ` on ${activeBooking.date}`
+            : ""} — finish or cancel it before booking another day.
+        </p>
       {/if}
       {#if dayIsFull}
         <p class="px-1 text-xs text-muted-foreground">

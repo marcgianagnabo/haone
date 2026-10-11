@@ -177,6 +177,41 @@ export const POST: RequestHandler = async ({ request }) => {
       (r: any) => r.status !== "CANCELLED_BY_ADMIN" && r.status !== "CANCELLED_BY_USER"
     );
 
+    // One active booking at a time per resident: an unfinished ACTIVE
+    // booking (end datetime not yet passed) blocks any new booking.
+    // Inline here to keep this route free of client state modules.
+    const nowMs = Date.now();
+    const unfinished = activeReservations.find((r: any) => {
+      if ((r.residentId || "") !== residentId || r.status !== "ACTIVE") {
+        return false;
+      }
+      const parts = (r.date || "").split("-").map(Number);
+      if (parts.length < 3 || parts.some((n: number) => !Number.isFinite(n))) {
+        return true;
+      }
+      const endMin = parseTimeMinutes(r.timeEnd || "");
+      if (!Number.isFinite(endMin) || endMin < 0) {
+        return true;
+      }
+      return (
+        new Date(
+          parts[0],
+          parts[1] - 1,
+          parts[2],
+          Math.floor(endMin / 60),
+          endMin % 60
+        ).getTime() >= nowMs
+      );
+    });
+    if (unfinished) {
+      return json(
+        {
+          error: `Finish or cancel your booking on ${unfinished.date} before booking another day`
+        },
+        { status: 409 }
+      );
+    }
+
     const dateClashes = activeReservations.filter(
       (r: any) => r.date === date && r.machine === bookedMachine
     );

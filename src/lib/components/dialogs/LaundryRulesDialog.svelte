@@ -68,6 +68,10 @@
           <li>Operating Hours: 5:00 AM – 10:30 PM.</li>
         {/if}
         <li>Maximum of two (2) hours per day.</li>
+        <li>
+          One active booking at a time — finish or cancel your current booking before booking
+          another day.
+        </li>
       </ul>
 
       {#if extraBrandingRules.length > 0}

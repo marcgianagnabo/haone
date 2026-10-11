@@ -28,6 +28,7 @@
     currentUserId = "",
     isAdminView = false,
     canSeeNames = true,
+    initialMachineFilter = "ALL",
     onSelectSlot,
     onCancelReservation
   }: {
@@ -37,6 +38,7 @@
     currentUserId?: string;
     isAdminView?: boolean;
     canSeeNames?: boolean;
+    initialMachineFilter?: "ALL" | (typeof LAUNDRY_MACHINES)[number]["value"];
     onSelectSlot?: (date: string, hour: number, machine?: LaundryMachineValue) => void;
     onCancelReservation?: (id: string) => void;
   } = $props();
@@ -44,6 +46,21 @@
   let selectedDate = $state(new Date());
   let viewMode = $state<"month" | "week" | "day" | "history">(settings.calendarView || "week");
   let machineFilter = $state<"ALL" | (typeof LAUNDRY_MACHINES)[number]["value"]>("ALL");
+  let filterTouched = $state(false);
+
+  function selectMachineFilter(v: "ALL" | (typeof LAUNDRY_MACHINES)[number]["value"]) {
+    filterTouched = true;
+    machineFilter = v;
+  }
+
+  // One-shot preset (e.g. resident's wing machine): applies until the user
+  // picks a filter themselves. Re-applies if the preset resolves late.
+  $effect(() => {
+    const preset = initialMachineFilter;
+    if (!filterTouched && preset && machineFilter !== preset) {
+      machineFilter = preset;
+    }
+  });
   let weekScroller = $state<HTMLElement | null>(null);
 
   // Center the week scroller on today's column (overflowed on phones).
@@ -362,7 +379,7 @@
     {
       color:
         "bg-muted/40 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,var(--color-border)_2px,var(--color-border)_3px)] opacity-50",
-      label: "Closed / Turnover"
+      label: "Closed / Past / Turnover"
     }
   ];
 </script>
@@ -478,7 +495,7 @@
       variant={machineFilter === "ALL" ? "default" : "outline"}
       size="sm"
       class="h-9 rounded-full"
-      onclick={() => (machineFilter = "ALL")}
+      onclick={() => selectMachineFilter("ALL")}
     >
       All Machines
     </Button>
@@ -488,7 +505,7 @@
         variant={machineFilter === m.value ? "default" : "outline"}
         size="sm"
         class="h-9 rounded-full"
-        onclick={() => (machineFilter = m.value)}
+        onclick={() => selectMachineFilter(m.value)}
       >
         {m.label}
       </Button>
@@ -579,9 +596,10 @@
 
           {#each weekDays as day, dayIdx}
             {@const dateStr = formatDate(day)}
+            {@const isPastDay = dateStr < formatDate(now)}
             {@const isOutsideHours = hour < opStartHour || hour >= opEndHour}
             {@const isOutsideWeek = !isAdminView && dateStr > weekEndStr}
-            {@const isBlocked = (!isAdminView && isOutsideHours) || isOutsideWeek}
+            {@const isBlocked = isPastDay || (!isAdminView && isOutsideHours) || isOutsideWeek}
             {@const isSlotOccupiedByMachine = isSlotOccupied(dateStr, hour)}
             <!-- Slot Button (Background) -->
             <button
@@ -742,6 +760,7 @@
               {@const dateStr = formatDate(day)}
               {@const isCurrentMonth = day.getMonth() === selectedDate.getMonth()}
               {@const isToday = dateStr === formatDate(now)}
+              {@const isPastDay = dateStr < formatDate(now)}
               {@const dayReservations = getActiveReservationsForDay(dateStr)}
               {@const maxVisible = 3}
               {@const remainingCount = dayReservations.length - maxVisible}
@@ -749,7 +768,9 @@
                 class={cn(
                   "flex min-h-32 flex-col p-2 transition-colors",
                   !isCurrentMonth && "bg-muted/10 opacity-40",
-                  isCurrentMonth && "hover:bg-muted/5"
+                  isPastDay &&
+                    "bg-muted/40 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,var(--color-border)_6px,var(--color-border)_7px)]",
+                  isCurrentMonth && !isPastDay && "hover:bg-muted/5"
                 )}
               >
                 <!-- Day Header -->
@@ -769,7 +790,7 @@
                     {day.getDate()}
                   </button>
 
-                  {#if onSelectSlot && isCurrentMonth}
+                  {#if onSelectSlot && isCurrentMonth && !isPastDay}
                     <button
                       type="button"
                       class="text-[10px] font-semibold text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-primary focus:opacity-100"

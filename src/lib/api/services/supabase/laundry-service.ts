@@ -8,6 +8,7 @@ import {
   LAUNDRY_SLOT_MINUTES,
   buildLaundrySlots,
   getLaundryHoursConfig,
+  getUnfinishedBooking,
   isFixedLaundrySlot
 } from "$utils/laundry-slots";
 import { isUuid, parseDbUuid, parseTimeMinutes } from "$utils/parsers";
@@ -180,6 +181,23 @@ export const supabaseLaundryService: LaundryServiceInterface = {
 
       const machine = data.machine || DEFAULT_LAUNDRY_MACHINE;
       const activeReservations = existingRows || [];
+
+      // One active booking at a time per resident: an unfinished booking
+      // blocks any new booking until it ends or is cancelled.
+      const unfinished = getUnfinishedBooking(
+        activeReservations.map((r) => ({
+          residentId: r.resident_id || "",
+          date: r.date || "",
+          timeEnd: r.time_end || "",
+          status: (r.status || LaundryStatus.ACTIVE) as LaundryStatus
+        })),
+        residentUuid
+      );
+      if (unfinished) {
+        throw new Error(
+          `Finish or cancel your booking on ${unfinished.date} before booking another day`
+        );
+      }
 
       // Slots are per machine: a clash only applies to the same machine/area.
       // Legacy rows without a machine are treated as the default machine.

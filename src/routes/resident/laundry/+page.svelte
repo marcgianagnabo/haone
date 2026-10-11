@@ -13,9 +13,11 @@
     fetchLaundryReservations
   } from "$api/controllers/laundry-controller";
   import { fetchUsers } from "$api/controllers/resident-controller";
-  import { type LaundryRecord, type UserRecord } from "$lib/types";
+  import { type LaundryRecord, type UserRecord, DEFAULT_LAUNDRY_MACHINE } from "$lib/types";
   import LaundryCalendar from "$components/residents/LaundryCalendar.svelte";
   import { pageState } from "$state/page-info.svelte";
+  import { residentState } from "$state/resident-state.svelte";
+  import { wingMachineForRoom } from "$utils/laundry-slots";
   import CancelLaundryDialog from "$components/forms/CancelLaundryDialog.svelte";
   import BookLaundryDialog from "$components/forms/BookLaundryDialog.svelte";
   import LaundryRulesDialog from "$components/dialogs/LaundryRulesDialog.svelte";
@@ -78,6 +80,17 @@
     }
     return reservations.filter((r) => r.residentId === currentResidentId);
   });
+
+  // Wing focus: L* rooms preset the Left Wing machine, R* rooms the Right
+  // Wing machine, anything else (U / upper floors / unknown) sees all.
+  const wingMachine = $derived(
+    wingMachineForRoom(
+      residentState.status?.account?.room || residentState.status?.currEntry?.room || ""
+    )
+  );
+  const wingDefaultMachine = $derived(
+    wingMachine === "ALL" ? DEFAULT_LAUNDRY_MACHINE : wingMachine
+  );
 
   // For residents, fetchUsers() deliberately returns an empty list, so the
   // calendar has no names to look up and every slot falls back to "Resident".
@@ -156,6 +169,7 @@
       deprecatedMappedReservations={mappedUserReservations}
       users={calendarUsers}
       currentUserId={currentResidentId}
+      initialMachineFilter={wingMachine}
       isAdminView={false}
       canSeeNames={false}
       onCancelReservation={(id) => {
@@ -166,7 +180,12 @@
   {/if}
 </div>
 
-<BookLaundryDialog bind:this={bookLaundryDialog} {reservations} onSuccess={() => loadData()} />
+<BookLaundryDialog
+  bind:this={bookLaundryDialog}
+  {reservations}
+  defaultMachine={wingDefaultMachine}
+  onSuccess={() => loadData()}
+/>
 
 <CancelLaundryDialog bind:this={cancelLaundryDialog} isAdmin={false} onSuccess={() => loadData()} />
 
