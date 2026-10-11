@@ -10,9 +10,10 @@
   import ContentHeader from "$components/content/ContentHeader.svelte";
   import {
     checkFeatureEnabled,
+    fetchLaundryBookerNames,
     fetchLaundryReservations
   } from "$api/controllers/laundry-controller";
-  import { fetchUsers } from "$api/controllers/resident-controller";
+  import { fetchUsers, canSeeLaundryNames } from "$api/controllers/resident-controller";
   import { type LaundryRecord, type UserRecord, DEFAULT_LAUNDRY_MACHINE } from "$lib/types";
   import LaundryCalendar from "$components/residents/LaundryCalendar.svelte";
   import { pageState } from "$state/page-info.svelte";
@@ -26,6 +27,7 @@
 
   let reservations = $state<LaundryRecord[]>([]);
   let users = $state<UserRecord[]>([]);
+  let bookers = $state<Map<string, { name: string; room: string }>>(new Map());
   let currentResidentId = $state("");
   let isLoading = $state(true);
   let error = $state<string | null>(null);
@@ -38,9 +40,10 @@
     try {
       await checkFeatureEnabled();
 
-      const [resResult, userData] = await Promise.all([
+      const [resResult, userData, bookerData] = await Promise.all([
         fetchLaundryReservations(true),
-        fetchUsers(true)
+        fetchUsers(true),
+        fetchLaundryBookerNames()
       ]);
 
       if (Array.isArray(resResult)) {
@@ -50,6 +53,7 @@
         currentResidentId = resResult.currentResidentId;
       }
       users = userData;
+      bookers = bookerData;
     } catch (e: any) {
       error = e.message;
     } finally {
@@ -92,21 +96,35 @@
     wingMachine === "ALL" ? DEFAULT_LAUNDRY_MACHINE : wingMachine
   );
 
-  // For residents, fetchUsers() deliberately returns an empty list, so the
-  // calendar has no names to look up and every slot falls back to "Resident".
-  // Include the signed-in resident themselves so their own bookings show their
-  // name instead of the generic fallback.
-  const calendarUsers = $derived<(UserRecord & { room?: string })[]>(
-    users.length > 0 || !currentResidentId
-      ? users
-      : [
+  // Booker names for the calendar. RLS hides other residents, so names
+  // resolve through the get_laundry_booker_names() RPC (Supabase) or the
+  // per-row displayName the Sheets GET already sends non-transients.
+  // TRANSIENT viewers stay masked: the RPC returns nothing for them and
+  // viewerMaySeeNames is false. The signed-in resident is always included
+  // so their own bookings show their name instead of the generic fallback.
+  const calendarUsers = $derived<(UserRecord & { room?: string })[]>([
+    ...users,
+    ...Array.from(bookers.entries()).map(
+      ([id, b]) => ({ id, displayName: b.name, room: b.room }) as UserRecord & { room?: string }
+    ),
+    ...(currentResidentId
+      ? [
           {
             ...auth.user,
             id: currentResidentId,
-            room: "",
+            room: residentState.status?.account?.room || "",
             name: auth.user?.displayName || auth.user?.displayNameFormal || ""
           } as UserRecord & { room?: string }
         ]
+      : [])
+  ]);
+
+  // Non-transients see booker names + rooms like the admin view;
+  // TRANSIENT accounts keep seeing "Reserved".
+  const viewerMaySeeNames = $derived(
+    canSeeLaundryNames(
+      residentState.status?.account?.type || residentState.status?.currEntry?.accountType || ""
+    )
   );
 
   const userMap = $derived(
@@ -171,7 +189,7 @@
       currentUserId={currentResidentId}
       initialMachineFilter={wingMachine}
       isAdminView={false}
-      canSeeNames={false}
+      canSeeNames={viewerMaySeeNames}
       onCancelReservation={(id) => {
         cancelLaundryDialog?.open(id);
       }}

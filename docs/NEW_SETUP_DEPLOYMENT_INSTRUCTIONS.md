@@ -400,13 +400,14 @@ SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY 1;
 --         registrations, user_settings, users
 SELECT to_regclass('public.curr');  -- expect: NULL
 
--- 2. All 9 helper/RPC functions exist.
+-- 2. All 10 helper/RPC functions exist.
 SELECT routine_name FROM information_schema.routines
- WHERE routine_schema='public'
-   AND routine_name IN ('is_officer','current_user_id','can_access_laundry',
-     'get_occupied_beds','student_no_taken','get_achievement_eligible_counts',
-     'get_receipt_by_id','handle_new_auth_user','link_users_to_auth')
- ORDER BY 1;
+  WHERE routine_schema='public'
+    AND routine_name IN ('is_officer','current_user_id','can_access_laundry',
+      'get_occupied_beds','student_no_taken','get_achievement_eligible_counts',
+      'get_achievement_earner_names','get_laundry_booker_names',
+      'get_receipt_by_id','handle_new_auth_user','link_users_to_auth')
+  ORDER BY 1;
 
 -- 3. Both identity triggers exist.
 SELECT tgname FROM pg_trigger

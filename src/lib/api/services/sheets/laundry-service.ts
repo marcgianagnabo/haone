@@ -7,7 +7,10 @@ import {
   type PaginationOptions
 } from "$lib/types";
 import { appendSheetRow, fetchSheetRowsRaw, updateSheetValue } from "../common";
-import type { LaundryServiceInterface } from "../interfaces/laundry-service.interface";
+import type {
+  LaundryBookerName,
+  LaundryServiceInterface
+} from "../interfaces/laundry-service.interface";
 
 import { auth } from "$state/auth.svelte";
 import { fetchServer } from "$utils/api-client";
@@ -126,5 +129,14 @@ export const sheetsLaundryService: LaundryServiceInterface = {
       updateSheetValue(settings.sharedRecordsId, `laundry!G${actualRow}`, [[reason]]),
       updateSheetValue(settings.sharedRecordsId, `laundry!I${actualRow}`, [[nowStr]])
     ]);
+  },
+
+  /**
+   * Sheets needs no booker RPC: the resident GET already carries
+   * displayName/room per reservation row for non-transients (masked only
+   * for TRANSIENT), and the calendar falls back to r.displayName.
+   */
+  async fetchBookerNames(): Promise<Map<string, LaundryBookerName>> {
+    return new Map();
   }
 };

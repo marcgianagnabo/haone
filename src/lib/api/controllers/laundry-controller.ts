@@ -334,6 +334,13 @@ export async function cancelLaundryReservation(
   return await laundryService.cancelReservation(reservationId, reason || "Cancelled by resident");
 }
 
+export async function fetchLaundryBookerNames(): Promise<
+  Map<string, { name: string; room: string }>
+> {
+  await checkFeatureEnabled();
+  return laundryService.fetchBookerNames();
+}
+
 export async function fetchAdminLaundryReservations(
   bypassCache = false,
   options?: PaginationOptions

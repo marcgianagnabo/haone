@@ -598,6 +598,61 @@ $$;
 REVOKE ALL ON FUNCTION public.get_achievement_earner_names() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_achievement_earner_names() TO authenticated;
 
+-- Resident-visible laundry booker names + rooms (admin view unchanged).
+-- Residents cannot read other users' rows or rooms, so the resident calendar
+-- falls back to "Resident". SECURITY DEFINER exposes resident_id + display
+-- name + active-term room only. TRANSIENT callers get no rows (masked).
+CREATE OR REPLACE FUNCTION public.get_laundry_booker_names()
+RETURNS TABLE (resident_id UUID, display_name TEXT, room TEXT)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_me UUID;
+  v_term TEXT;
+  v_type TEXT;
+BEGIN
+  v_me := public.current_user_id();
+  IF v_me IS NULL THEN
+    RETURN;
+  END IF;
+
+  SELECT value INTO v_term FROM public.constants WHERE key = 'TERM_CURR' LIMIT 1;
+
+  SELECT UPPER(TRIM(COALESCE(a.type, ''))) INTO v_type
+  FROM public.accounts a
+  WHERE a.resident_id = v_me AND a.period = COALESCE(v_term, '')
+  LIMIT 1;
+
+  IF COALESCE(v_type, '') = 'TRANSIENT' THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT DISTINCT
+    u.id AS resident_id,
+    CASE
+      WHEN u.override_name IS NOT NULL AND TRIM(u.override_name) <> ''
+        THEN TRIM(u.override_name)
+      ELSE TRIM(CONCAT(
+        CASE
+          WHEN u.last_name IS NOT NULL AND TRIM(u.last_name) <> ''
+            THEN CONCAT(TRIM(u.last_name), ', ')
+          ELSE ''
+        END,
+        TRIM(CONCAT_WS(' ', NULLIF(TRIM(u.first_name), ''), NULLIF(TRIM(u.suffix), '')))
+      ))
+    END AS display_name,
+    COALESCE(a.room, '') AS room
+  FROM public.users u
+  JOIN public.laundry l ON l.resident_id = u.id
+  LEFT JOIN public.accounts a
+    ON a.resident_id = u.id AND a.period = COALESCE(v_term, '')
+  ORDER BY 2, 1;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_laundry_booker_names() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_laundry_booker_names() TO authenticated;
+
 -- Public e-receipt lookup. SECURITY DEFINER lets an anonymous visitor read the
 -- single requested journal row without relaxing journal RLS. Returns only
 -- receipt-safe fields (never notes_private).
@@ -801,12 +856,13 @@ CREATE POLICY fridge_items_delete ON public.fridge_items FOR DELETE TO authentic
 --      registrations, user_settings, users
 -- SELECT to_regclass('public.curr');  -- -> NULL
 
--- 2. All 9 public functions present.
+-- 2. All public functions present.
 -- SELECT routine_name FROM information_schema.routines
 --  WHERE routine_schema = 'public'
 --    AND routine_name IN ('is_officer','current_user_id','can_access_laundry',
 --                         'get_occupied_beds','student_no_taken',
---                         'get_achievement_eligible_counts','get_receipt_by_id',
+--                         'get_achievement_eligible_counts','get_achievement_earner_names',
+--                         'get_laundry_booker_names','get_receipt_by_id',
 --                         'handle_new_auth_user','link_users_to_auth')
 --  ORDER BY 1;
 

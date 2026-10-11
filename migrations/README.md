@@ -92,6 +92,8 @@ This document MUST be followed to migrate (or set up) the HAOne Supabase databas
 | 15  | `20260926100000_users_auto_link_auth.sql`         | BEFORE INSERT trigger that auto-fills `users.auth_uids` from `auth.users` by email + links existing unlinked profiles. Prevents onboarding lock-out for manually/sync-approved residents.                                                                                             | Yes                            |
 | 16  | `20260926020000_mop_types_seed.sql`               | Seeds payment methods (`MOP_*`) into `constants` (CASH, GCASH, MAYA). Add custom rows the same way; `value` is the exact string stored in `journal.mop`.                                                                                                                              | Yes                            |
 | 17  | `20260927000000_officer_photos.sql`               | `officers.photo_url` (admin override) / `officers.photo_auto_url` (Gmail auto-fill on officer sign-in) + RLS-safe `get_achievement_earner_names()` (always-public earner names now that the Privacy toggle is removed).                                                               | Yes                            |
+| 18  | `20261011000000_others_misc_only.sql`             | CHECKs keeping `COLLECTION_OTHERS` misc-only on `journal` + `payment_requests` (dorm fees must be `COLLECTION`). Backstop for the submit-split rule.                                                                                                                                  | Yes                            |
+| 19  | `20261012000000_laundry_booker_names.sql`         | RLS-safe `get_laundry_booker_names()` (resident-visible booker names + active-term rooms; TRANSIENT callers get no rows).                                                                                                                                                             | Yes                            |
 | 17  | `seed.sql`                                        | Seed data: sample resident, RHA system accounts (`_funds`, `_imported`, `_dummy`), an officer.                                                                                                                                                                                        | Yes                            |
 
 **Why 13 (the last numbered file before seed) matters:** in Supabase mode the resident achievements page cannot count eligible residents itself (RLS blinds it), so `get_achievement_eligible_counts()` provides per-term headcounts. At the same time the `FEATURE_ACHIEVEMENTS_ENABLED = 'FALSE'` constant **hides Achievements and Leaderboards from navigation and pages**. Toggle to `TRUE` to re-enable.
@@ -110,6 +112,7 @@ WHERE routine_schema = 'public'
     'is_officer', 'current_user_id', 'can_access_laundry',
     'get_occupied_beds', 'student_no_taken',
     'get_achievement_eligible_counts', 'get_achievement_earner_names',
+    'get_laundry_booker_names',
     'get_receipt_by_id', 'get_clearance_by_refno',
     'handle_new_auth_user'
   )

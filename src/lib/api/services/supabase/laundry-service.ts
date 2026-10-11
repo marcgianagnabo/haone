@@ -18,7 +18,10 @@ import {
   handleSupabaseError,
   supabase
 } from "../common";
-import type { LaundryServiceInterface } from "../interfaces/laundry-service.interface";
+import type {
+  LaundryBookerName,
+  LaundryServiceInterface
+} from "../interfaces/laundry-service.interface";
 
 const INACTIVE_STATUSES = [LaundryStatus.CANCELLED_BY_ADMIN, LaundryStatus.CANCELLED_BY_USER];
 
@@ -112,6 +115,33 @@ export const supabaseLaundryService: LaundryServiceInterface = {
     }
 
     return items;
+  },
+
+  /**
+   * RLS-safe resident_id -> { name, room } map (see migration
+   * 20261012000000). Tolerates the RPC being absent so the page still
+   * renders masked ("Reserved"). TRANSIENT callers get an empty map from
+   * the RPC itself.
+   */
+  async fetchBookerNames(): Promise<Map<string, LaundryBookerName>> {
+    const names = new Map<string, LaundryBookerName>();
+    if (!supabase) {
+      return names;
+    }
+    const { data, error } = await supabase.rpc("get_laundry_booker_names");
+    if (error) {
+      console.error("[Laundry] get_laundry_booker_names failed:", error.message);
+      return names;
+    }
+    for (const row of data || []) {
+      if (row.resident_id) {
+        names.set(String(row.resident_id).trim(), {
+          name: (row.display_name || "").trim() || "Resident",
+          room: (row.room || "").trim()
+        });
+      }
+    }
+    return names;
   },
 
   async addReservation(data: Partial<LaundryRecord>): Promise<void> {
