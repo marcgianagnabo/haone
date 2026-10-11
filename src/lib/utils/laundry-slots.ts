@@ -214,6 +214,71 @@ export function getAdminLaundryGrid(): LaundryGrid {
   return buildLaundrySlots(0, 1440);
 }
 
+// PROMO-REMOVE-AFTER-2026-10-25: two-week advance booking window
+// (Oct 12-25, 2026). To retire: delete the promo constants and the four
+// helpers below, then restore `isDateInCurrentWeek` + the hardcoded
+// current-week message at the two controller call sites and the `weekEndStr`
+// derivation in LaundryCalendar. `grep PROMO-REMOVE-AFTER-2026-10-25`
+// lists every line. Behavior reverts to current-week-only automatically.
+export const BOOKING_PROMO_START = "2026-10-12";
+export const BOOKING_HARD_CAP = "2026-10-25";
+
+/** True while today falls inside the one-time Oct 12-25, 2026 promo. */
+export function isTwoWeekWindow(now = new Date()): boolean {
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate()
+  ).padStart(2, "0")}`;
+  return today >= BOOKING_PROMO_START && today <= BOOKING_HARD_CAP;
+}
+
+function startOfMonday(now: Date): Date {
+  const monday = new Date(now);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  return monday;
+}
+
+function endOfWeekSunday(monday: Date): Date {
+  const sunday = new Date(monday);
+  sunday.setDate(sunday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return sunday;
+}
+
+/**
+ * Latest bookable instant: end of next week during the promo (hard-capped
+ * at Oct 25, 2026), otherwise end of the current week.
+ */
+export function getBookingWindowEnd(now = new Date()): Date {
+  const thisSunday = endOfWeekSunday(startOfMonday(now));
+  if (!isTwoWeekWindow(now)) {
+    return thisSunday;
+  }
+  const nextSunday = new Date(thisSunday);
+  nextSunday.setDate(nextSunday.getDate() + 7);
+  const [cy, cm, cd] = BOOKING_HARD_CAP.split("-").map(Number);
+  const cap = new Date(cy, cm - 1, cd, 23, 59, 59, 999);
+  return nextSunday < cap ? nextSunday : cap;
+}
+
+/** Monday of the current week through the booking window end. */
+export function isBookingDateAllowed(dateStr: string, now = new Date()): boolean {
+  const parts = (dateStr || "").split("-").map(Number);
+  if (parts.length < 3 || parts.some((n) => !Number.isFinite(n))) {
+    return false;
+  }
+  const monday = startOfMonday(now);
+  const selDay = new Date(parts[0], parts[1] - 1, parts[2]);
+  return selDay >= monday && selDay <= getBookingWindowEnd(now);
+}
+
+export function bookingWindowMessage(now = new Date()): string {
+  if (isTwoWeekWindow(now)) {
+    return "Bookings are open until Oct 25";
+  }
+  return "Bookings are only open for the current week (Monday to Sunday)";
+}
+
 /**
  * End datetime of a booking, or null when the date/time cannot be parsed.
  * Mirrors the effective-COMPLETED derivation in LaundryReservationHistory

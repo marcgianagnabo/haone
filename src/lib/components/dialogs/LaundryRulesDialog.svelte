@@ -3,7 +3,12 @@
   import { Button } from "$ui/button";
   import { brandingState } from "$state/branding.svelte";
   import { settings } from "$state/settings.svelte";
-  import { getLaundryGrid, formatSlotMinutes, type LaundryGrid } from "$utils/laundry-slots";
+  import {
+    getLaundryGrid,
+    formatSlotMinutes,
+    isTwoWeekWindow,
+    type LaundryGrid
+  } from "$utils/laundry-slots";
   import { browser } from "$app/environment";
 
   let isDialogOpen = $state(false);
@@ -72,6 +77,11 @@
           One active booking at a time — finish or cancel your current booking before booking
           another day.
         </li>
+        <!-- PROMO-REMOVE-AFTER-2026-10-25: two-week advance booking window
+             (Oct 12-25, 2026). Delete this bullet after the window ends. -->
+        {#if isTwoWeekWindow()}
+          <li class="font-bold">October 19 - 25, 2026 is now available for advance booking!</li>
+        {/if}
       </ul>
 
       {#if extraBrandingRules.length > 0}

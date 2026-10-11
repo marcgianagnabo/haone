@@ -14,7 +14,11 @@
   import { Button } from "$ui/button";
   import { tick } from "svelte";
   import { parseTime } from "$utils/parsers";
-  import { buildLaundrySlots, getAdminLaundryGrid } from "$utils/laundry-slots";
+  import {
+    buildLaundrySlots,
+    getAdminLaundryGrid,
+    getBookingWindowEnd
+  } from "$utils/laundry-slots";
   import { formatTimeRange, laundryMachineLabel } from "$utils/formatters";
   import { settings } from "$state/settings.svelte";
   import ViewLaundryDialog from "$components/forms/ViewLaundryDialog.svelte";
@@ -177,13 +181,13 @@
     return days;
   });
 
-  // End (Sunday) of the current calendar week (Monday–Sunday). Resident
-  // booking is limited to this week; later days render blocked.
+  // PROMO-REMOVE-AFTER-2026-10-25: two-week window. Retire by restoring
+  // the current-week Sunday computation below.
+  // Latest bookable date: end of next week (hard-capped at Oct 25, 2026)
+  // during the promo, else end of the current week. Resident booking is
+  // limited to this horizon; later days render blocked.
   const weekEndStr = $derived.by(() => {
-    const monday = new Date(now);
-    monday.setHours(0, 0, 0, 0);
-    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7) + 6);
-    return formatDate(monday);
+    return formatDate(getBookingWindowEnd(now));
   });
 
   const monthWeeks = $derived.by(() => {

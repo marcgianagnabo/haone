@@ -14,10 +14,12 @@ import {
   DEFAULT_LAUNDRY_OPEN_MINUTES,
   LAUNDRY_BUFFER_MINUTES,
   LAUNDRY_SLOT_MINUTES,
+  bookingWindowMessage,
   buildLaundrySlots,
   getAdminLaundryGrid,
   getLaundryHoursConfig,
   getUnfinishedBooking,
+  isBookingDateAllowed,
   isFixedLaundrySlot,
   type LaundryGrid
 } from "$utils/laundry-slots";
@@ -153,8 +155,11 @@ export function validateLaundryReservation(options: ValidateLaundryOptions): str
         return "Cannot reserve for a past time";
       }
 
-      if (!isDateInCurrentWeek(date, now)) {
-        return "Bookings are only open for the current week (Monday to Sunday)";
+      // PROMO-REMOVE-AFTER-2026-10-25: two-week window. Retire by
+      // restoring `isDateInCurrentWeek(date, now)` + the hardcoded
+      // current-week message below.
+      if (!isBookingDateAllowed(date, now)) {
+        return bookingWindowMessage(now);
       }
       if (grid) {
         if (startMinutes < grid.open || endMinutes > grid.effectiveClose) {
@@ -261,8 +266,10 @@ export async function addLaundryReservation(
     }
   }
 
-  if (!isAdmin && !isDateInCurrentWeek(date)) {
-    throw new Error("Bookings are only open for the current week (Monday to Sunday)");
+  // PROMO-REMOVE-AFTER-2026-10-25: two-week window. Retire by
+  // restoring `isDateInCurrentWeek(date)`.
+  if (!isAdmin && !isBookingDateAllowed(date)) {
+    throw new Error(bookingWindowMessage());
   }
 
   const currentResidentId = data.residentId || (await getSignedInUserId());
