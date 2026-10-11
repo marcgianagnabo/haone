@@ -20,14 +20,26 @@ export function generateRegistrationApprovedHtml(
   branding: BrandingProfile
 ) {
   const content = `
-    <p style="font-size: 16px; margin-bottom: 5px; font-weight: normal; display: block; color: #000;">You are all set! <strong style="font-weight: bold;">${data.accountName}</strong></p>
+    <p style="font-size: 16px; margin-bottom: 5px; font-weight: bold; display: block; color: #000;">HAOne Account Approved</p>
 
     <p style="font-size: 14px; color: #000; margin-bottom: 20px; line-height: 1.5; display: block;">
-      Please be advised that your HAOne Account has been successfully approved. Please refresh your browser and check the app. If you have any clarifications or concerns you can message us at <a href="mailto:${branding.replyTo}" style="color: #0047AB; text-decoration: underline;">${branding.replyTo}</a> or message any available officer.
+      Hello, ${data.accountName}.
     </p>
 
     <p style="font-size: 14px; color: #000; margin-bottom: 20px; line-height: 1.5; display: block;">
-      Thank you.<br>-NFRH Association
+      Your HAOne account has been successfully approved. You may now access HAOne using your registered account.
+    </p>
+
+    <p style="font-size: 14px; color: #000; margin-bottom: 20px; line-height: 1.5; display: block;">
+      To get started, refresh your browser and open the HAOne application.
+    </p>
+
+    <p style="font-size: 14px; color: #000; margin-bottom: 20px; line-height: 1.5; display: block;">
+      If you have any questions or encounter any issues, contact us at <a href="mailto:${branding.replyTo}" style="color: #0047AB; text-decoration: underline;">${branding.replyTo}</a> or reach out to any available NFRH officer.
+    </p>
+
+    <p style="font-size: 14px; color: #000; margin-bottom: 20px; line-height: 1.5; display: block;">
+      Thank you.<br><strong style="font-weight: bold;">${branding.issuerName}</strong>
     </p>
   `;
 
@@ -36,7 +48,7 @@ export function generateRegistrationApprovedHtml(
 
 export const RegistrationApprovedTemplate: EmailTemplate<RegistrationApprovedData> = {
   subject: (data, branding) => {
-    return `[${branding.shortName}] Your HAOne Account Has Been Approved`;
+    return `[${branding.shortName}] HAOne Account Approval Confirmation`;
   },
   generateHtml: generateRegistrationApprovedHtml
 };
@@ -51,22 +63,30 @@ export function generateRegistrationOnHoldHtml(
   branding: BrandingProfile
 ) {
   const content = `
-    <p style="font-size: 16px; margin-bottom: 5px; font-weight: normal; display: block; color: #000;">Hi, <strong style="font-weight: bold;">${data.accountName}</strong></p>
+    <p style="font-size: 16px; margin-bottom: 5px; font-weight: bold; display: block; color: #000;">HAOne Account Application: Further Verification Required</p>
 
     <p style="font-size: 14px; color: #000; margin-bottom: 20px; line-height: 1.5; display: block;">
-      Please be advised that your HAOne Account application has been put on hold. You can send us an email at <a href="mailto:${branding.replyTo}" style="color: #0047AB; text-decoration: underline;">${branding.replyTo}</a> or contact an officer if you have any questions.
+      Hello, ${data.accountName}.
     </p>
 
     <p style="font-size: 14px; color: #000; margin-bottom: 20px; line-height: 1.5; display: block;">
-      Reason: <strong style="font-weight: bold;">${data.reason}</strong>
+      Your HAOne account application has been placed on hold pending further verification.
     </p>
 
     <p style="font-size: 14px; color: #000; margin-bottom: 20px; line-height: 1.5; display: block;">
-      After your account has been fully resolved, you can try to submit your application once again.
+      Reason for Hold: <strong style="font-weight: bold;">${data.reason}</strong>
     </p>
 
     <p style="font-size: 14px; color: #000; margin-bottom: 20px; line-height: 1.5; display: block;">
-      - NFRH Association
+      Please review the reason stated above and contact us at <a href="mailto:${branding.replyTo}" style="color: #0047AB; text-decoration: underline; font-weight: bold;">${branding.replyTo}</a> or reach out to any available NFRH officer if you need clarification or assistance.
+    </p>
+
+    <p style="font-size: 14px; color: #000; margin-bottom: 20px; line-height: 1.5; display: block;">
+      Once the issue has been addressed, you may resubmit your HAOne account application for review.
+    </p>
+
+    <p style="font-size: 14px; color: #000; margin-bottom: 20px; line-height: 1.5; display: block;">
+      Thank you for your cooperation.<br><strong style="font-weight: bold;">${branding.issuerName}</strong>
     </p>
   `;
 
@@ -75,7 +95,7 @@ export function generateRegistrationOnHoldHtml(
 
 export const RegistrationOnHoldTemplate: EmailTemplate<RegistrationOnHoldData> = {
   subject: (data, branding) => {
-    return `[${branding.shortName}] ACTION REQUIRED: Your HAOne Account needs Further Verification`;
+    return `[${branding.shortName}] Action Required: Further Verification of Your HAOne Account`;
   },
   generateHtml: generateRegistrationOnHoldHtml
 };
