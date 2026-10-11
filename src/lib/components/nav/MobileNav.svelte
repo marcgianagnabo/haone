@@ -57,6 +57,7 @@
     dispatcher: { label: "Email", href: "/admin/email-dispatcher", icon: Mail },
     settings: { label: "Settings", href: "/admin/settings", icon: Settings },
     laundry: { label: "Laundry", href: "/admin/laundry", icon: WashingMachine },
+    fridge: { label: "Fridge", href: "/admin/fridge", icon: Refrigerator },
     news: { label: "News", href: "/admin/announcements", icon: Megaphone },
     achievements: { label: "Trophy", href: "/admin/achievements", icon: Trophy },
     leaderboards: {
