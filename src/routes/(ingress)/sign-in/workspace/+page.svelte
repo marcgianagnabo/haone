@@ -39,7 +39,9 @@
 </script>
 
 <div class="flex flex-col items-center justify-center">
-  <div class="relative z-10 w-full max-w-sm space-y-6">
+  <div
+    class="relative z-10 w-full max-w-sm space-y-6 rounded-2xl bg-background/85 p-6 shadow-xl backdrop-blur-md md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none"
+  >
     <div class="flex flex-col items-center space-y-8 text-center">
       <BrandingLogo class="h-28 w-auto" />
     </div>

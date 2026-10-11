@@ -11,16 +11,19 @@
     X
   } from "@lucide/svelte";
   import { brandingState } from "$state/branding.svelte";
+  import { pwaInstall } from "$state/pwa-install.svelte";
   import type { FeaturedImageItem } from "$lib/types";
 
   let {
     children,
     heroId = undefined,
-    contentClass = "max-w-100"
+    contentClass = "max-w-100",
+    mobilePhotoBackground = false
   }: {
     children: Snippet;
     heroId?: string;
     contentClass?: string;
+    mobilePhotoBackground?: boolean;
   } = $props();
 
   const LEGAL_LINKS = [
@@ -38,6 +41,14 @@
   );
 
   let isMobileHeroOpen = $state(false);
+  const bannerVisible = $derived(pwaInstall.shouldShowBanner);
+  // Background mode (mobile sign-in): photo is always visible as a full-screen
+  // backdrop, so the expand toggle and its open state don't apply.
+  const heroPanelClass = $derived(
+    mobilePhotoBackground
+      ? "inset-0 z-0"
+      : `right-0 left-0 z-50 ${bannerVisible ? "top-10" : "top-0"} ${isMobileHeroOpen ? "h-full" : "h-20"}`
+  );
   function toggleMobileHero() {
     isMobileHeroOpen = !isMobileHeroOpen;
   }
@@ -48,11 +59,20 @@
 >
   <!-- Panel: Hero -->
   <div
-    class="fixed top-0 right-0 left-0 z-50 flex flex-col justify-between overflow-hidden bg-zinc-950 text-white transition-all duration-300 ease-in-out md:relative md:z-auto md:order-1 md:h-full lg:w-1/2 {isMobileHeroOpen
-      ? 'h-full'
-      : 'h-20'}"
+    class="fixed flex flex-col justify-between overflow-hidden bg-zinc-950 text-white transition-all duration-300 ease-in-out md:relative md:z-auto md:order-1 md:h-full lg:w-1/2 {heroPanelClass}"
   >
-    <HeroVisual {heroId} isMobileHidden={!isMobileHeroOpen} />
+    <HeroVisual
+      {heroId}
+      isMobileHidden={!isMobileHeroOpen && !mobilePhotoBackground}
+      captionMobileHidden={mobilePhotoBackground}
+    />
+    {#if mobilePhotoBackground}
+      <!-- Mobile-only readability scrim over the backdrop photo -->
+      <div
+        class="absolute inset-0 z-[6] bg-black/55 bg-gradient-to-b from-black/60 via-black/35 to-black/70 md:hidden"
+        role="none"
+      ></div>
+    {/if}
 
     <!-- Top header overlay -->
     <div
@@ -76,7 +96,7 @@
 
       <!-- Header Action Buttons -->
       <div class="flex items-center gap-1 {isMobileHeroOpen ? 'ml-auto' : ''}">
-        {#if hasHeroImage}
+        {#if hasHeroImage && !mobilePhotoBackground}
           <!-- Mobile Hero Image Toggle (Image / X) -->
           <div class="md:hidden">
             <Button
@@ -131,7 +151,9 @@
 
   <!-- Panel: Main Content -->
   <div
-    class="relative order-1 flex flex-1 flex-col items-center overflow-y-auto p-6 pt-20 md:h-full md:p-8"
+    class="relative order-1 flex flex-1 flex-col items-center overflow-y-auto p-6 md:h-full md:p-8 {mobilePhotoBackground
+      ? 'z-10'
+      : ''} {bannerVisible ? 'pt-[7.5rem] md:pt-8' : 'pt-20 md:pt-8'}"
   >
     <div class="my-auto flex w-full {contentClass} flex-col justify-center space-y-8 py-8">
       {@render children()}

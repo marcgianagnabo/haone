@@ -8,9 +8,11 @@
 
   let {
     isMobileHidden = false,
+    captionMobileHidden = false,
     heroId = undefined
   }: {
     isMobileHidden?: boolean;
+    captionMobileHidden?: boolean;
     heroId?: string;
   } = $props();
   let heroItem = $state<FeaturedImageItem | null>(null);
@@ -78,7 +80,8 @@
       <!-- Gradient tied tightly to the bottom card with gentle fade -->
       <div
         in:fly={{ y: 20, duration: 600, delay: 150 }}
-        class="relative z-10 space-y-3 bg-linear-to-t from-black/85 via-black/50 to-transparent p-6 pt-12 text-white md:p-8 md:pt-16 {isMobileHidden
+        class="relative z-10 space-y-3 bg-linear-to-t from-black/85 via-black/50 to-transparent p-6 pt-12 text-white md:p-8 md:pt-16 {isMobileHidden ||
+        captionMobileHidden
           ? 'hidden md:block'
           : 'block'}"
       >
