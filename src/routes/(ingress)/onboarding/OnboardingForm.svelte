@@ -564,8 +564,13 @@
                     <Checkbox id="fb-page" bind:checked={formData.likedFBPage} />
                     <Label for="fb-page" class="text-sm leading-none font-medium">
                       <span
-                        >I have liked the <span class="text-primary underline hover:text-primary/80"
-                          >Official Facebook Page</span
+                        >I have liked the <a
+                          href="https://www.facebook.com/newforeha/"
+                          target="_blank"
+                          rel="noopener"
+                          class="text-primary underline hover:text-primary/80"
+                          onclick={(e) => e.stopPropagation()}
+                          >Official Facebook Page</a
                         > of the Association</span
                       >
                     </Label>
@@ -574,9 +579,13 @@
                     <Checkbox id="fb-group" bind:checked={formData.joinedFBGroup} />
                     <Label for="fb-group" class="text-sm leading-none font-medium">
                       <span
-                        >I have joined the <span
+                        >I have joined the <a
+                          href="https://facebook.com/groups/newforeha"
+                          target="_blank"
+                          rel="noopener"
                           class="text-primary underline hover:text-primary/80"
-                          >Official Facebook Group</span
+                          onclick={(e) => e.stopPropagation()}
+                          >Official Facebook Group</a
                         > of the Association</span
                       >
                     </Label>
@@ -585,10 +594,8 @@
                     <Checkbox id="fb-chat" bind:checked={formData.joinedFBChat} />
                     <Label for="fb-chat" class="text-sm leading-none font-medium">
                       <span
-                        >I have joined the <span
-                          class="text-primary underline hover:text-primary/80"
-                          >Official Facebook Messenger Group Chat</span
-                        > of the Residence Hall</span
+                        >I have joined the Official Facebook Messenger Group Chat of the Residence
+                        Hall</span
                       >
                     </Label>
                   </div>
