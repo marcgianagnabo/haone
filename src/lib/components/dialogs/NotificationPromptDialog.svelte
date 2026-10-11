@@ -68,7 +68,10 @@
 </script>
 
 <ResponsiveDialog.Root bind:open={isDialogOpen} onOpenChange={handleOpenChange}>
-  <ResponsiveDialog.Content>
+  <ResponsiveDialog.Content
+    showCloseButton={false}
+    class="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+  >
     <ResponsiveDialog.Header>
       <ResponsiveDialog.Title>
         {step === "ask" ? "Stay updated" : "Notifications live in Settings"}
@@ -97,7 +100,7 @@
         </div>
       {/if}
     </div>
-    <ResponsiveDialog.Footer class="grid grid-cols-2 gap-2 md:flex">
+    <ResponsiveDialog.Footer class="flex flex-col gap-2 sm:flex-col">
       {#if step === "ask"}
         <Button variant="outline" class="w-full" disabled={isWorking} onclick={handleNotNow}>
           Not now
