@@ -25,7 +25,10 @@ export const LS_KEYS = {
   UI_CALENDAR_VIEW: "halsk.ui.calendar_view",
   UI_IS_PUBLIC_ACHIEVEMENTS: "halsk.ui.is_public_achievements",
   UI_NAV_RESIDENT: "halsk.ui.nav.res",
-  UI_NAV_ADMIN: "halsk.ui.nav.adm"
+  UI_NAV_ADMIN: "halsk.ui.nav.adm",
+  PWA_INSTALLED: "halsk.pwa.installed",
+  PWA_BANNER_DISMISSED_AT: "halsk.pwa.banner_dismissed_at",
+  SESSION_LAST_ACTIVITY: "halsk.auth.last_activity"
 } as const;
 
 export const SYSTEM_IDS = {

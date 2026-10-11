@@ -14,11 +14,13 @@
   import GlobalAlertDialog from "$components/forms/GlobalAlertDialog.svelte";
   import { brandingState } from "$state/branding.svelte";
   import { pwaInstall } from "$state/pwa-install.svelte";
+  import { sessionTimeout } from "$state/session-timeout.svelte";
 
   let { children } = $props();
 
   onMount(async () => {
     pwaInstall.init();
+    sessionTimeout.init();
     // Service Worker Registration
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch((err) => {
@@ -42,6 +44,14 @@
       });
     } catch (e) {
       console.error("Failed to sync settings:", e);
+    }
+  });
+
+  $effect(() => {
+    // A (new) session counts as activity so the inactivity clock starts here.
+    // Kept separate so unrelated state changes never reset the idle timer.
+    if (auth.accessToken) {
+      sessionTimeout.recordActivity();
     }
   });
 
