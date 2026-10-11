@@ -4,7 +4,7 @@ import { LS_KEYS } from "$lib/constants";
 import { auth } from "$state/auth.svelte";
 
 /** Idle time after which the session is signed out. */
-export const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
+export const SESSION_TIMEOUT_MS = 10 * 60 * 1000;
 
 const CHECK_INTERVAL_MS = 30 * 1000;
 const WRITE_THROTTLE_MS = 5 * 1000;
@@ -68,8 +68,8 @@ class SessionTimeout {
     }
     if (Date.now() - last >= SESSION_TIMEOUT_MS) {
       auth.signOutWithMessage(
-        "Signed out due to inactivity",
-        "You were signed out after 15 minutes of inactivity. Please sign in again."
+        "You have been signed out",
+        "We've detected inactivity. Please sign in again."
       );
       goto("/sign-in");
     }
