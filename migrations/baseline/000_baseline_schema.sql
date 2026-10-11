@@ -217,6 +217,15 @@ CREATE INDEX journal_account_id_idx ON public.journal (account_id);
 CREATE INDEX journal_creator_id_idx ON public.journal (creator_id);
 CREATE INDEX journal_period         ON public.journal (period);
 
+-- Collection (Others) is misc-only: dorm fees (water/assoc/maintenance/gas)
+-- always belong to COLLECTION. Mirrors 20261011000000_others_misc_only.sql.
+ALTER TABLE public.journal ADD CONSTRAINT journal_others_misc_only CHECK (
+  type <> 'COLLECTION_OTHERS' OR (
+    COALESCE(water, 0) = 0 AND COALESCE(assoc, 0) = 0 AND
+    COALESCE(maintenance, 0) = 0 AND COALESCE(gas, 0) = 0
+  )
+);
+
 
 -- =============================================================================
 -- SECTION 5 — LAUNDRY
@@ -263,6 +272,14 @@ CREATE TABLE public.payment_requests (
 );
 
 CREATE INDEX payment_requests_resident_id ON public.payment_requests (resident_id);
+
+-- Collection (Others) is misc-only. Mirrors 20261011000000_others_misc_only.sql.
+ALTER TABLE public.payment_requests ADD CONSTRAINT payment_requests_others_misc_only CHECK (
+  type <> 'COLLECTION_OTHERS' OR (
+    COALESCE(water_fee, 0) = 0 AND COALESCE(assoc_fee, 0) = 0 AND
+    COALESCE(maintenance_fee, 0) = 0 AND COALESCE(gas_fee, 0) = 0
+  )
+);
 
 
 -- =============================================================================

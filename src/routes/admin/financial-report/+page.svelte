@@ -560,7 +560,7 @@
                   <!-- WATER FEE Group -->
                   <Table.Row>
                     <Table.Cell
-                      rowspan={waterColl.aquaAltria > 0 ? 10 : 9}
+                      rowspan={waterColl.aquaAltria > 0 ? 9 : 8}
                       class="border-r align-middle font-bold">WATER FEE</Table.Cell
                     >
                     <Table.Cell class="text-foreground">TARGET</Table.Cell>
@@ -581,16 +581,10 @@
                     <Table.Cell class="text-right">{formatAccounting(waterColl.refunds)}</Table.Cell
                     >
                   </Table.Row>
-                  <Table.Row>
-                    <Table.Cell class="text-foreground">TOTAL COLLECTION FROM UHO</Table.Cell>
-                    <Table.Cell class="text-right">{formatAccounting(waterColl.uho)}</Table.Cell>
-                  </Table.Row>
                   <Table.Row class="bg-muted/30 font-bold">
                     <Table.Cell>TOTAL COLLECTION</Table.Cell>
                     <Table.Cell class="text-right"
-                      >{formatAccounting(
-                        waterColl.resident - waterColl.refunds + waterColl.uho
-                      )}</Table.Cell
+                      >{formatAccounting(waterColl.resident - waterColl.refunds)}</Table.Cell
                     >
                   </Table.Row>
                   <Table.Row class="font-bold">

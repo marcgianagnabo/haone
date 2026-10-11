@@ -1,7 +1,10 @@
 <script lang="ts">
   import { pageState } from "$state/page-info.svelte";
   import { onMount } from "svelte";
-  import { addPaymentRequest } from "$api/controllers/payment-request-controller";
+  import {
+    addPaymentRequest,
+    cancelPaymentRequest
+  } from "$api/controllers/payment-request-controller";
   import { fetchServer } from "$utils/api-client";
   import { formatCurrency, formatAccounting } from "$utils/formatters";
   import { TransactionType, type ResidentRecord } from "$lib/types";
@@ -132,6 +135,60 @@
         finalProofLink = data.url;
       }
 
+      // Split rule (prevents phantom UHO totals): dorm fees
+      // (water/assoc/maintenance) are always COLLECTION; only misc is
+      // COLLECTION_OTHERS. A mixed payment creates two requests so no single
+      // journal row ever mixes dorm amounts into an OTHERS type.
+      const hasDorm = water !== 0 || assoc !== 0 || maintenance !== 0;
+      const hasMisc = misc !== 0;
+
+      const baseNotes = formData.notes;
+      if (hasDorm && hasMisc) {
+        const dormId = crypto.randomUUID();
+        await addPaymentRequest({
+          id: dormId,
+          residentId,
+          date: formData.date,
+          waterFee: water,
+          assocFee: assoc,
+          maintenanceFee: maintenance,
+          misc: 0,
+          mop: formData.mop,
+          type: TransactionType.COLLECTION,
+          proofLink: finalProofLink,
+          status: "PENDING",
+          notes: baseNotes ? `${baseNotes} (Dorm 1/2)` : "(Dorm 1/2)"
+        });
+        try {
+          await addPaymentRequest({
+            id: crypto.randomUUID(),
+            residentId,
+            date: formData.date,
+            waterFee: 0,
+            assocFee: 0,
+            maintenanceFee: 0,
+            misc: misc,
+            mop: formData.mop,
+            type: TransactionType.COLLECTION_OTHERS,
+            proofLink: finalProofLink,
+            status: "PENDING",
+            notes: baseNotes ? `${baseNotes} (Misc 2/2)` : "(Misc 2/2)"
+          });
+        } catch (e: any) {
+          // Best-effort rollback so a failed split does not leave a lone half.
+          try {
+            await cancelPaymentRequest(dormId);
+          } catch {
+            // Leave the dorm half for the resident to cancel manually.
+          }
+          throw e;
+        }
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        toast.success("Payment submitted successfully as 2 requests (dorm + misc)");
+        goto("/resident/payment-requests");
+        return;
+      }
+
       await addPaymentRequest({
         id: crypto.randomUUID(),
         residentId,
@@ -141,10 +198,7 @@
         maintenanceFee: maintenance,
         misc: misc,
         mop: formData.mop,
-        type:
-          misc > 0 || maintenance > 0
-            ? TransactionType.COLLECTION_OTHERS
-            : TransactionType.COLLECTION,
+        type: hasMisc ? TransactionType.COLLECTION_OTHERS : TransactionType.COLLECTION,
         proofLink: finalProofLink,
         status: "PENDING",
         notes: formData.notes

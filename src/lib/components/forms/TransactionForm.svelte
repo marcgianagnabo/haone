@@ -579,6 +579,26 @@
       return;
     }
 
+    // Split rule (prevents phantom UHO totals): dorm fees
+    // (water/assoc/maintenance) belong to COLLECTION; only misc belongs to
+    // COLLECTION_OTHERS. A single row must never mix them, since the report
+    // buckets by row type.
+    const hasDorm = water !== 0 || assoc !== 0 || maintenance !== 0;
+    const hasMisc = misc !== 0;
+    if (hasDorm && hasMisc) {
+      error =
+        "Mixed dorm and misc fees must be split into two transactions: one Collection (water/assoc/maintenance) and one Collection (Others) for misc.";
+      return;
+    }
+    if (formData.type === TransactionType.COLLECTION_OTHERS && hasDorm) {
+      error = "Dorm fees (water/assoc/maintenance) must use Collection, not Collection (Others).";
+      return;
+    }
+    if (formData.type === TransactionType.COLLECTION && !hasDorm && hasMisc) {
+      error = "Misc-only payments must use Collection (Others), not Collection.";
+      return;
+    }
+
     const isTransfer =
       formData.type === TransactionType.FUND_TRANSFER ||
       formData.type === TransactionType.TRANSFER_FROM ||

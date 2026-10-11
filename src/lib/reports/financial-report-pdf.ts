@@ -208,10 +208,6 @@ export function computeFinancialReportData(
       (s, j) => s + (j.type === TransactionType.COLLECTION && j.water > 0 ? j.water : 0),
       0
     ),
-    uho: processedJournal.reduce(
-      (s, j) => s + (j.type === TransactionType.COLLECTION_OTHERS ? j.water : 0),
-      0
-    ),
     refunds: processedJournal.reduce(
       (s, j) => s + (j.type === TransactionType.COLLECTION && j.water < 0 ? Math.abs(j.water) : 0),
       0
@@ -590,7 +586,7 @@ export async function exportFinancialReportPDF(options: FinancialReportOptions) 
             [
               {
                 text: "WATER FEE",
-                rowSpan: waterColl.aquaAltria > 0 ? 10 : 9,
+                rowSpan: waterColl.aquaAltria > 0 ? 9 : 8,
                 bold: true,
                 alignment: "center",
                 verticalAlignment: "middle",
@@ -620,14 +616,9 @@ export async function exportFinancialReportPDF(options: FinancialReportOptions) 
             ] as TableCell[],
             [
               "",
-              { text: "TOTAL COLLECTION FROM UHO", fontSize: 9 },
-              { text: formatAccounting(waterColl.uho), alignment: "right", fontSize: 9 }
-            ] as TableCell[],
-            [
-              "",
               { text: "TOTAL COLLECTION", bold: true, fontSize: 9 },
               {
-                text: formatAccounting(waterColl.resident - waterColl.refunds + waterColl.uho),
+                text: formatAccounting(waterColl.resident - waterColl.refunds),
                 alignment: "right",
                 bold: true,
                 fontSize: 9

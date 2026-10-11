@@ -596,18 +596,18 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   [AccountType.TRANSIENT]: "Transient without classification",
   [AccountType.BOOTCAMP]: "Bootcamp/Associate Degree Candidate",
   [AccountType.ALUMNUS]: "Former Resident/Alum",
-  [AccountType.FACULTY]: "UHO Beneficiary: Faculty",
-  [AccountType.STAFF]: "UHO Beneficiary: Staff",
-  [AccountType.REPS]: "UHO Beneficiary: Research, Extension, and Professional Staff"
+  [AccountType.FACULTY]: "Faculty",
+  [AccountType.STAFF]: "Staff",
+  [AccountType.REPS]: "Research, Extension, and Professional Staff"
 };
 
 export const USER_TAG_LABELS: Record<string, string> = {
   [UserTag.STUDENT]: "Student",
   [UserTag.BOOTCAMP]: "Bootcamp/Associate Degree Candidate",
   [UserTag.ALUMNUS]: "Former Resident/Alum",
-  [UserTag.FACULTY]: "UHO Beneficiary: Faculty",
-  [UserTag.STAFF]: "UHO Beneficiary: Staff",
-  [UserTag.REPS]: "UHO Beneficiary: Research, Extension, and Professional Staff",
+  [UserTag.FACULTY]: "Faculty",
+  [UserTag.STAFF]: "Staff",
+  [UserTag.REPS]: "Research, Extension, and Professional Staff",
   [UserTag.INTERNAL]: "Internal (Do Not Use)",
   [UserTag.DECEASED]: "Deceased",
   [UserTag.BACKED_OUT]: "Backed-out",

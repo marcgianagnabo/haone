@@ -346,7 +346,7 @@
           options={programOptions}
           placeholder="Select Program…"
           searchPlaceholder="Search program…"
-          disabled={editingItem.college === "NO DATA" || editingItem.college === "UHO"}
+          disabled={editingItem.college === "NO DATA"}
           class="w-full"
         />
       </div>
