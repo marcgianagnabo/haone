@@ -103,7 +103,10 @@
               </span>
             </Card.Title>
             <Card.Content class="overflow-hidden">
-              <RichTextRenderer bind:content={a.content} />
+              <RichTextRenderer
+                bind:content={a.content}
+                class="prose prose-sm prose-slate dark:prose-invert max-w-none"
+              />
             </Card.Content>
 
             <!-- Gradient Fade Overlay -->
