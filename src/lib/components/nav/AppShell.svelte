@@ -9,7 +9,6 @@
   import { fly, fade } from "svelte/transition";
   import { createHeaderScrollState } from "$utils/scroll.svelte";
   import { pageState } from "$state/page-info.svelte";
-  import { pwaInstall } from "$state/pwa-install.svelte";
   import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
 
   let {
@@ -34,18 +33,6 @@
   // Mobile: header stays pinned (no auto-hide, always visible even on
   // subpages). Desktop keeps hide-on-scroll-down / show-on-scroll-up.
   const headerHidden = $derived(isMobile.current ? false : scrollState.headerHidden);
-  // PWA banner (h-10) sits sticky above the shell; push the fixed header
-  // down so it never overlaps the banner.
-  const bannerVisible = $derived(pwaInstall.shouldShowBanner);
-  const contentTop = $derived(
-    bannerVisible
-      ? headerHidden
-        ? "top-10"
-        : "top-[calc(4rem+2.5rem)]"
-      : headerHidden
-        ? "top-0"
-        : "top-16"
-  );
 </script>
 
 {#if isLoading}
@@ -60,14 +47,16 @@
 {#if !isLoading}
   <Sidebar.Provider class="h-svh w-full overflow-hidden bg-sidebar">
     <div
-      class="fixed inset-x-0 z-40 h-16 transition-all duration-300 ease-in-out {bannerVisible
-        ? 'top-10'
-        : 'top-0'} {headerHidden ? '-translate-y-full' : 'translate-y-0'}"
+      class="fixed inset-x-0 top-0 z-40 h-16 transition-transform duration-300 ease-in-out {headerHidden
+        ? '-translate-y-full'
+        : 'translate-y-0'}"
     >
       <AppHeader />
     </div>
     <div
-      class="absolute inset-x-0 bottom-0 flex overflow-hidden transition-[top] duration-300 ease-in-out {contentTop}"
+      class="absolute inset-x-0 bottom-0 flex overflow-hidden transition-[top] duration-300 ease-in-out {headerHidden
+        ? 'top-0'
+        : 'top-16'}"
     >
       <AppSidebar />
       <Sidebar.Inset class="relative flex flex-col overflow-hidden md:rounded-tl-4xl">

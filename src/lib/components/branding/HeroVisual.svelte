@@ -9,29 +9,37 @@
   let {
     isMobileHidden = false,
     captionMobileHidden = false,
+    heroItem: externalHero = undefined,
     heroId = undefined
   }: {
     isMobileHidden?: boolean;
     captionMobileHidden?: boolean;
+    heroItem?: FeaturedImageItem | null;
     heroId?: string;
   } = $props();
-  let heroItem = $state<FeaturedImageItem | null>(null);
+  let internalHero = $state<FeaturedImageItem | null>(null);
+  // A provided hero always wins so callers can keep a separate caption in sync
+  // with the photo actually shown.
+  const heroItem = $derived(externalHero ?? internalHero);
   let isExpanded = $state(false);
   let isImageLoaded = $state(false);
 
   onMount(() => {
+    if (externalHero) {
+      return;
+    }
     const allHeroes: FeaturedImageItem[] = brandingState.profile?.hero || [];
     if (heroId) {
       const found = allHeroes.find((h) => h.id === heroId);
       if (found) {
-        heroItem = found;
+        internalHero = found;
         return;
       }
     }
     const heroes = allHeroes.filter((h: FeaturedImageItem) => !h.hidden);
     if (heroes.length > 0) {
       const randomIndex = Math.floor(Math.random() * heroes.length);
-      heroItem = heroes[randomIndex];
+      internalHero = heroes[randomIndex];
     }
   });
 
