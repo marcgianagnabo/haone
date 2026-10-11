@@ -29,9 +29,7 @@
 
   async function chooseAdmin() {
     auth.clearWorkspaceChoice();
-    // Pass the known account so Google skips account re-selection and goes
-    // straight to the incremental consent screen.
-    await auth.signIn("admin", auth.user?.email ?? undefined);
+    await auth.signIn("admin");
   }
 
   async function useDifferentAccount() {

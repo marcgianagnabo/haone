@@ -12,13 +12,10 @@ import { generatePKCEChallenge, generatePKCEVerifier } from "$utils/crypto";
  * The spreadsheets scope is only requested for legacy Sheets-backend
  * installs (it probes workbook access with the user's own token).
  * Supabase installs skip it; gmail.send stays (officer mail sending).
- * `loginHint` (account email) lets Google skip account re-selection on
- * scope step-ups (e.g. workspace picker -> admin).
  */
 export async function signIn(
   type: "admin" | "resident",
-  redirectTo?: string | null,
-  loginHint?: string | null
+  redirectTo?: string | null
 ): Promise<void> {
   if (!browser) {
     return;
@@ -51,9 +48,6 @@ export async function signIn(
     code_challenge: challenge,
     code_challenge_method: "S256"
   });
-  if (loginHint) {
-    params.set("login_hint", loginHint);
-  }
 
   window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
