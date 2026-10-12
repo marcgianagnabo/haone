@@ -180,7 +180,11 @@
   {:else}
     <div class="space-y-4">
       <div class="space-y-3">
-        {#each groupedPreview as group}
+        <p class="text-sm text-muted-foreground">
+          <span class="font-bold text-foreground tabular-nums">{groupedPreview.length}</span>
+          {groupedPreview.length === 1 ? "resident" : "residents"} pending sync
+        </p>
+        {#each groupedPreview as group, i}
           {@const primaryAction = group.actions[0]}
           {@const isEntryProcessing = processingIndex === group.currIndex}
           <div class="rounded-xl border border-border bg-muted/20">
@@ -189,6 +193,9 @@
                 <!-- Header: Name + Account Type + Action Buttons -->
                 <div class="flex flex-wrap items-center justify-between gap-2">
                   <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-sm font-bold text-muted-foreground tabular-nums"
+                      >#{i + 1}</span
+                    >
                     <p class="text-sm font-bold text-foreground">{primaryAction.residentName}</p>
                     {#if primaryAction.accountType}
                       <Badge variant="outline" class="text-xs font-bold tracking-tighter uppercase">
