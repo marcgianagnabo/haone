@@ -7,18 +7,18 @@
     getLaundryGrid,
     formatSlotMinutes,
     isTwoWeekWindow,
-    getBookingWindowStart,
     BOOKING_FLOOR,
     type LaundryGrid
   } from "$utils/laundry-slots";
   import { browser } from "$app/environment";
 
-  // True only before the Oct 19 floor — once that floor is reached the
-  // current-week bound takes over and the promo copy no longer applies.
+  // True while today is still before the Oct 19 floor, i.e. while Oct 19-25 is
+  // genuinely "advance" booking. Once Oct 19 lands that week becomes the normal
+  // current-week window, so the promo line retires itself.
+  // PROMO-REMOVE-AFTER-2026-10-25: delete alongside the promo constants.
   const isBeforeBookingFloor = $derived.by(() => {
     const [fy, fm, fd] = BOOKING_FLOOR.split("-").map(Number);
-    const floor = new Date(fy, fm - 1, fd).getTime();
-    return getBookingWindowStart().getTime() < floor;
+    return Date.now() < new Date(fy, fm - 1, fd).getTime();
   });
 
   let isDialogOpen = $state(false);
@@ -70,6 +70,13 @@
 
     <div class="space-y-4 px-4 md:px-0">
       <ul class="list-inside list-disc space-y-2">
+        <!-- PROMO-REMOVE-AFTER-2026-10-25: two-week advance booking window
+             (Oct 12-25, 2026). Delete this bullet after the window ends.
+             Only advertise it before the Oct 19 floor; on and after Oct 19 that
+             week becomes the normal current-week window. -->
+        {#if isTwoWeekWindow() && isBeforeBookingFloor}
+          <li class="font-bold">October 19 - 25, 2026 is now available for advance booking!</li>
+        {/if}
         {#if grid}
           <li>
             Operating Hours: {formatSlotMinutes(grid.open, settings.clockFormat)} –
@@ -87,15 +94,6 @@
           One active booking at a time — finish or cancel your current booking before booking
           another day.
         </li>
-        <!-- PROMO-REMOVE-AFTER-2026-10-25: two-week advance booking window
-             (Oct 12-25, 2026). Delete this bullet after the window ends.
-             Only advertise it before the Oct 19 floor; on and after Oct 19 that
-             week becomes the normal current-week window. -->
-        {#if isTwoWeekWindow() && isBeforeBookingFloor}
-          <li class="font-bold">October 19 - 25, 2026 is now available for advance booking!</li>
-        {:else if isTwoWeekWindow()}
-          <li class="font-bold">Bookings for October 12 - 18 are closed.</li>
-        {/if}
       </ul>
 
       {#if extraBrandingRules.length > 0}
