@@ -1,4 +1,5 @@
 import { auth } from "$state/auth.svelte";
+import { authTrail } from "$utils/auth-trail";
 
 let serverCache: Record<string, any> = {};
 
@@ -31,7 +32,15 @@ export async function fetchServer<T = any>(
     headers.set("Authorization", `Bearer ${auth.credentialJwt}`);
   }
 
-  const response = await fetch(url, { ...options, headers });
+  // Strip query (may hold ids) — trail endpoint path + outcome only.
+  const trailPath = url.split("?")[0].slice(0, 60);
+  let response: Response;
+  try {
+    response = await fetch(url, { ...options, headers });
+  } catch (e: any) {
+    authTrail(`api:${trailPath}:network:${(e?.message || "failed").slice(0, 40)}`);
+    throw e;
+  }
 
   if (response.status === 401) {
     auth.signOutWithMessage("Session Expired", "Your session has expired. Please sign in again.");
@@ -45,6 +54,7 @@ export async function fetchServer<T = any>(
       (typeof data?.message === "string" ? data.message : null) ||
       (typeof data?.error === "string" ? data.error : null) ||
       `Server error: ${response.statusText}`;
+    authTrail(`api:${trailPath}:${response.status}`);
     throw new Error(errorMsg);
   }
 

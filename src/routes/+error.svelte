@@ -61,12 +61,37 @@
   const reportTrail = readAuthTrail();
   const reportPath = page.url.pathname;
 
+  // Raw pre-sanitized capture from the root layout listeners (may hold the
+  // true message/stack when the boundary shows a generic 500). Read once at
+  // init — never reassigned, so plain const is correct (no $state needed).
+  const rawCapture: { kind: string; message: string; stack: string } = (() => {
+    try {
+      const raw = localStorage.getItem("halsk.last_raw_error");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          kind: ((parsed.kind || "") as string).slice(0, 40),
+          message: ((parsed.message || "") as string).slice(0, 500),
+          stack: ((parsed.stack || "") as string).slice(0, 2000)
+        };
+      }
+    } catch {
+      /* diagnostics are best-effort */
+    }
+    return { kind: "", message: "", stack: "" };
+  })();
+  const rawKind = rawCapture.kind;
+  const rawMessage = rawCapture.message;
+  const rawStack = rawCapture.stack;
+
   function buildReport() {
     // Pathname only — never the query string (it may hold single-use OAuth codes).
     return (
       `Status: ${status}\n` +
       `Message: ${error?.message}\n` +
       `Stack: ${error?.stack}\n` +
+      `Raw: [${rawKind}] ${rawMessage}\n` +
+      `Raw stack: ${rawStack}\n` +
       `Path: ${reportPath}\n` +
       `Time: ${reportTime}\n` +
       `Build: ${reportBuild}\n` +
@@ -84,6 +109,7 @@
         JSON.stringify({
           status: status || 0,
           message: error?.message || "",
+          raw: rawKind || rawMessage ? `[${rawKind}] ${rawMessage}`.slice(0, 300) : "",
           path: reportPath,
           time: reportTime,
           build: reportBuild,
@@ -200,6 +226,9 @@
           <div>Path: {reportPath}</div>
           <div>Time: {reportTime}</div>
           <div>Build: {reportBuild}</div>
+          {#if rawMessage}
+            <div>Raw: [{rawKind}] {rawMessage}</div>
+          {/if}
           <div>Auth trail: {reportTrail}</div>
         </div>
         <Button

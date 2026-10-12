@@ -20,6 +20,7 @@
     lastError = null;
     try {
       localStorage.removeItem("halsk.last_error");
+      localStorage.removeItem("halsk.last_raw_error");
     } catch {
       /* noop */
     }
@@ -33,6 +34,7 @@
         const parsed = JSON.parse(raw);
         lastError =
           `Status: ${parsed.status ?? ""}\n` +
+          (parsed.raw ? `Raw: ${parsed.raw}\n` : "") +
           `Path: ${parsed.path ?? ""}\n` +
           `Time: ${parsed.time ?? ""}\n` +
           `Build: ${parsed.build ?? ""}\n` +

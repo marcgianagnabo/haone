@@ -15,8 +15,42 @@
   import { brandingState } from "$state/branding.svelte";
   import { pwaInstall } from "$state/pwa-install.svelte";
   import { sessionTimeout } from "$state/session-timeout.svelte";
+  import { authTrail } from "$utils/auth-trail";
 
   let { children } = $props();
+
+  /** Persist the raw pre-sanitized error so reports show the true cause. */
+  function persistRawError(kind: string, reason: unknown) {
+    try {
+      let message = "";
+      let stack = "";
+      if (reason instanceof Error) {
+        message = reason.message || reason.name || "Error";
+        stack = reason.stack || "";
+      } else if (reason === undefined || reason === null) {
+        message = "(empty rejection reason)";
+      } else if (typeof reason === "string") {
+        message = reason;
+      } else {
+        try {
+          message = JSON.stringify(reason)?.slice(0, 300) || String(reason);
+        } catch {
+          message = String(reason);
+        }
+      }
+      localStorage.setItem(
+        "halsk.last_raw_error",
+        JSON.stringify({
+          kind,
+          message: message.slice(0, 500),
+          stack: stack.slice(0, 2000),
+          time: new Date().toISOString()
+        })
+      );
+    } catch {
+      /* diagnostics are best-effort */
+    }
+  }
 
   onMount(async () => {
     pwaInstall.init();
@@ -55,14 +89,20 @@
       window.location.reload();
     };
     window.addEventListener("error", (e) => {
-      if (isChunkError(e.message || "")) recoverChunk();
+      if (isChunkError(e.message || "")) {
+        recoverChunk();
+        return;
+      }
+      persistRawError("error", e.error || e.message);
     });
     window.addEventListener("unhandledrejection", (e) => {
       const msg = (e.reason as Error)?.message || String(e.reason || "");
       if (isChunkError(msg)) {
         e.preventDefault();
         recoverChunk();
+        return;
       }
+      persistRawError("unhandledrejection", e.reason);
     });
     // Service Worker Registration
     if ("serviceWorker" in navigator) {
@@ -76,18 +116,28 @@
     if (!auth.accessToken) {
       return;
     }
-    features.load();
-    try {
-      settings.syncFromServer().then(() => {
+    // Fully guarded: every await lives inside try/catch so a suspended or
+    // failed background fetch (iOS killing standby sockets) can never escape
+    // as an unhandled rejection into the error boundary.
+    (async () => {
+      try {
+        await features.load();
+      } catch (e: any) {
+        console.error("Failed to load features:", e);
+        authTrail(`sync:features:${(e?.message || "network").slice(0, 50)}`);
+      }
+      try {
+        await settings.syncFromServer();
         if (settings.theme === "system") {
           resetMode();
         } else {
           setMode(settings.theme as any);
         }
-      });
-    } catch (e) {
-      console.error("Failed to sync settings:", e);
-    }
+      } catch (e: any) {
+        console.error("Failed to sync settings:", e);
+        authTrail(`sync:settings:${(e?.message || "network").slice(0, 50)}`);
+      }
+    })();
   });
 
   $effect(() => {
