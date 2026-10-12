@@ -7,8 +7,8 @@ root causes, fixes, and verification. Newest entries first.
 
 ## 2026-10-12 — Post-sign-in error boundary on iPhone Safari
 
-**Status:** Fixed by `411157b` (`master` + `production`). Verified working on 1 of
-4 affected iPhones; observability retained for the remaining confirmations.
+**Status:** **Resolved** — verified working on the affected iPhones as of
+`352e756` (`master` + `production`).
 
 **Scope:** `https://haone-nfrh.pages.dev` (Cloudflare Pages, no custom domain).
 All iPhone models 11–17 (iOS Safari / WebKit, incl. Messenger in-app browser).
@@ -41,6 +41,14 @@ Windows and Android unaffected throughout.
   so a suspended-then-killed iOS fetch rejected straight into the boundary.
 - Workspace-picker handoff kept in memory only (wiped by the full-page
   post-login navigation this incident introduced).
+- Overlapping `goto()` calls from reactive navigation-guard effects racing
+  SvelteKit's client router, surfacing as a stackless `500`. The failing
+  device's edge log showed the error boundary mounting three times in ~22
+  seconds while every document/chunk/asset request returned `200` — pages
+  rendering successfully and *then* flipping, repeatedly, across `/` and
+  `/resident`.
+- The error boundary re-mounting in a loop once triggered, so a single
+  failure could never settle on a readable page.
 
 ### Fix chain (all on `master` + `production`)
 
@@ -59,6 +67,20 @@ Windows and Android unaffected throughout.
 - `411157b` — Awaited root background syncs in real `try/catch` (trailed);
   `fetchServer` trails every non-OK/rejection; pre-sanitize raw-error
   capture shown in report and sign-in surface.
+- `352e756` — **Closed the incident.** Loop-aware boundary auto-heal (first
+  stackless flip still reports; a repeat within 60s triggers exactly one full
+  reload, and if that doesn't clear it the report is shown with a note instead
+  of looping); redirect debounce (`shouldRedirect`) suppressing repeat
+  same-target `goto()`s across all layouts; admin-bounce tripwire; ISO
+  timestamps plus `boundary:` trail entries; `.catch` added to every dynamic
+  `import().then()` chain and the floating `supabase.auth.signOut()`.
+
+### Observability retained (intentional)
+
+The trail, `POST /api/client-log` beacon, raw-error capture, and the visible
+error report stay in production. They are inert on healthy paths (one small
+beacon POST per error-page view), and they are what made this diagnosable
+without device access.
 
 ### Mechanism notes (for future reference)
 
@@ -76,7 +98,15 @@ Windows and Android unaffected throughout.
 
 ### Verification
 
-- 2026-10-12: first affected iPhone retested OK after `411157b` deployed.
-- Remaining: confirm on the other 3 iPhones (new-resident onboarding +
-  onboarded-resident login). If any still flips, its on-page report
-  (`Raw:` / `sync:` / `api:` lines) dictates the follow-up.
+- 2026-10-12: first affected iPhone retested OK after `411157b`; the remaining
+  affected devices retested OK after `352e756` (new-resident onboarding and
+  onboarded-resident login both). Incident closed.
+- **Caveat, recorded honestly:** the trigger was never isolated to a single
+  line of code. Login, PKCE, session, guards, workspace, onboarding, service
+  worker, and edge routing were each ruled out by evidence (live `200` probes,
+  edge request logs, intact auth trails). The leading remaining cause is
+  client-runtime level on WebKit — stale/navigating router state interacting
+  with the guard redirects, likely compounded by cached client state
+  accumulated across the rapid deploy chain above. `352e756` removes the race
+  and the loop regardless of which of those it was, which is why it closed
+  the incident.
