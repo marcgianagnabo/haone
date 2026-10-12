@@ -114,6 +114,8 @@
 <svelte:head>
   <title>{getEffectiveTitle()}</title>
   <link rel="icon" href={favicon} />
+  <link rel="apple-touch-icon" href="/icon-180x180.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
   <link

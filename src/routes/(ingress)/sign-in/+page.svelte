@@ -14,9 +14,33 @@
   let isLoadingAuth = $state(true);
   let rememberMe = $state(true);
   let callbackHandled = false;
+  let lastError = $state<string | null>(null);
+
+  function dismissLastError() {
+    lastError = null;
+    try {
+      localStorage.removeItem("halsk.last_error");
+    } catch {
+      /* noop */
+    }
+  }
 
   onMount(async () => {
     pageState.title = "Sign In";
+    try {
+      const raw = localStorage.getItem("halsk.last_error");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        lastError =
+          `Status: ${parsed.status ?? ""}\n` +
+          `Path: ${parsed.path ?? ""}\n` +
+          `Time: ${parsed.time ?? ""}\n` +
+          `Build: ${parsed.build ?? ""}\n` +
+          `Auth trail: ${parsed.trail ?? ""}`;
+      }
+    } catch {
+      /* diagnostics are best-effort */
+    }
     if (callbackHandled) {
       return;
     }
@@ -47,6 +71,7 @@
   });
 
   async function handleLogin() {
+    dismissLastError();
     isSigningIn = true;
     await auth.signIn("resident");
   }
@@ -76,6 +101,23 @@
           >
             Sign In
           </Button>
+          {#if lastError}
+            <div class="rounded-xl border bg-muted/30 p-3 text-left">
+              <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                Last error on this device
+              </p>
+              <pre
+                class="mt-1 max-h-40 overflow-auto font-mono text-xs break-all whitespace-pre-wrap text-muted-foreground">{lastError}</pre>
+              <Button
+                variant="ghost"
+                size="sm"
+                class="mt-2 h-7 w-full text-xs tracking-widest uppercase"
+                onclick={dismissLastError}
+              >
+                Dismiss
+              </Button>
+            </div>
+          {/if}
         </div>
       {/if}
     </div>

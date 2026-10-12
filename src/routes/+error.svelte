@@ -54,8 +54,45 @@
   const description =
     errorDescriptions[status] || error?.message || "Internal server error occurred.";
 
+  // Screenshot-friendly report: visible as plain text so a Messenger-
+  // forwarded screenshot alone carries the diagnosis (no Copy tap, no logs).
+  const reportTime = new Date().toISOString();
+  const reportBuild = `v${__APP_VERSION__} (${__COMMIT_SHA__.slice(0, 7)})`;
+  const reportTrail = readAuthTrail();
+  const reportPath = page.url.pathname;
+
+  function buildReport() {
+    // Pathname only — never the query string (it may hold single-use OAuth codes).
+    return (
+      `Status: ${status}\n` +
+      `Message: ${error?.message}\n` +
+      `Stack: ${error?.stack}\n` +
+      `Path: ${reportPath}\n` +
+      `Time: ${reportTime}\n` +
+      `Build: ${reportBuild}\n` +
+      `Auth trail: ${reportTrail}`
+    );
+  }
+
   onMount(() => {
     pageState.title = `${status || 500} - ${title}`;
+    // Persist the last error locally so /sign-in can surface it even after
+    // the user navigates away from this page.
+    try {
+      localStorage.setItem(
+        "halsk.last_error",
+        JSON.stringify({
+          status: status || 0,
+          message: error?.message || "",
+          path: reportPath,
+          time: reportTime,
+          build: reportBuild,
+          trail: reportTrail
+        })
+      );
+    } catch {
+      /* diagnostics are best-effort */
+    }
     // One-shot client error beacon (keepalive: survives page close). PII-free:
     // pathname only, never the query string (it may hold OAuth codes).
     try {
@@ -97,16 +134,7 @@
   }
 
   function copyToClipboard() {
-    // Pathname only — never the query string (it may hold single-use OAuth codes).
-    const info =
-      `Status: ${status}\n` +
-      `Message: ${error?.message}\n` +
-      `Stack: ${error?.stack}\n` +
-      `Path: ${page.url.pathname}\n` +
-      `Time: ${new Date().toISOString()}\n` +
-      `Build: v${__APP_VERSION__} (${__COMMIT_SHA__.slice(0, 7)})\n` +
-      `Auth trail: ${readAuthTrail()}`;
-    navigator.clipboard.writeText(info);
+    navigator.clipboard.writeText(buildReport());
     toast.success("Error details copied to clipboard");
   }
 </script>
@@ -167,7 +195,13 @@
       <div
         class="overflow-hidden rounded-md border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground"
       >
-        <div class="font-mono break-all">Path: {page.url.pathname}</div>
+        <div class="max-h-50 space-y-1 overflow-auto font-mono break-all whitespace-pre-wrap">
+          <div>Status: {status}</div>
+          <div>Path: {reportPath}</div>
+          <div>Time: {reportTime}</div>
+          <div>Build: {reportBuild}</div>
+          <div>Auth trail: {reportTrail}</div>
+        </div>
         <Button
           variant="ghost"
           size="sm"

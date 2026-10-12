@@ -8,6 +8,7 @@
   import { pageState } from "$state/page-info.svelte";
   import { LoaderCircleIcon } from "@lucide/svelte";
   import { namecase } from "@compwright/namecase";
+  import { authTrail } from "$utils/auth-trail";
 
   let isChecking = $state(true);
 
@@ -28,6 +29,7 @@
   onMount(async () => {
     pageState.title = "Onboarding";
     if (!auth.accessToken) {
+      authTrail("guard:/sign-in from:onboarding");
       goto("/sign-in");
       return;
     }
@@ -37,6 +39,7 @@
     }
 
     if (!residentState.needsOnboarding && !residentState.forceOnboarding) {
+      authTrail("guard:/resident from:onboarding");
       goto("/resident");
       return;
     }

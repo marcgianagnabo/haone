@@ -2,6 +2,7 @@ import { browser } from "$app/environment";
 import { goto } from "$app/navigation";
 import { LS_KEYS } from "$lib/constants";
 import { auth } from "$state/auth.svelte";
+import { authTrail } from "$utils/auth-trail";
 
 /** Idle time after which the session is signed out. */
 export const SESSION_TIMEOUT_MS = 10 * 60 * 1000;
@@ -67,6 +68,7 @@ class SessionTimeout {
       return;
     }
     if (Date.now() - last >= SESSION_TIMEOUT_MS) {
+      authTrail("timeout_signout goto:/sign-in");
       auth.signOutWithMessage(
         "You have been signed out",
         "We've detected inactivity. Please sign in again."

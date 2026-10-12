@@ -5,6 +5,7 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { globalDialog } from "$state/dialog.svelte";
+  import { authTrail } from "$utils/auth-trail";
 
   let { children } = $props();
 
@@ -23,9 +24,11 @@
             "Access Denied",
             "Instance administrator accounts must sign in as a House Council Officer."
           );
+          authTrail("guard:/sign-in from:admin-layout");
           goto("/sign-in");
           return;
         }
+        authTrail("guard:/resident from:admin-layout");
         goto("/resident");
       }
       return;
@@ -33,6 +36,7 @@
 
     // Save path for restoration
     auth.redirectTo = page.url.pathname + page.url.search;
+    authTrail("guard:/sign-in from:admin-layout");
     goto("/sign-in");
   });
 </script>

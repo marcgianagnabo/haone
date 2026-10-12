@@ -6,6 +6,7 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { isResidentRouteAllowed } from "$api/controllers/resident-controller";
+  import { authTrail } from "$utils/auth-trail";
 
   let { children } = $props();
   let isLoadingAuth = $state(true);
@@ -38,18 +39,21 @@
 
     if (!auth.accessToken && !isSignInPage) {
       auth.redirectTo = page.url.pathname + page.url.search;
+      authTrail("guard:/sign-in from:resident-layout");
       goto("/sign-in");
       return;
     }
 
     if (auth.accessToken) {
       if (auth.isInstanceAdmin && pathname.startsWith("/resident")) {
+        authTrail("guard:/admin from:resident-layout");
         goto("/admin");
         return;
       }
 
       if (residentState.status) {
         if (residentState.needsOnboarding) {
+          authTrail("guard:/onboarding from:resident-layout");
           goto("/onboarding");
           return;
         }
@@ -58,6 +62,7 @@
           residentState.status?.account?.type || residentState.status?.currEntry?.accountType || "";
         const room = residentState.status?.account?.room || "";
         if (!isResidentRouteAllowed(pathname, accountType, room)) {
+          authTrail("guard:/resident from:resident-layout");
           goto("/resident");
           return;
         }
