@@ -12,9 +12,14 @@
   let isSigningIn = $state(false);
   let isLoadingAuth = $state(true);
   let rememberMe = $state(true);
+  let callbackHandled = false;
 
   onMount(async () => {
     pageState.title = "Sign In";
+    if (callbackHandled) {
+      return;
+    }
+    callbackHandled = true;
     if (window.location.search.includes("code=")) {
       isSigningIn = true;
     }
@@ -22,11 +27,18 @@
     try {
       redirecting = await auth.handleCallback(rememberMe);
     } catch (e: any) {
+      // Never let callback failures reach the SvelteKit error boundary
+      // (+error.svelte 404/500). Stay on /sign-in with an actionable dialog.
+      // Query params are already stripped by exchangeAuthCode, so reload is safe.
       globalDialog.show("Sign-in Failed", e.message || "An unexpected error occurred.");
     } finally {
       if (!redirecting) {
         isSigningIn = false;
-        replaceState(window.location.pathname, {});
+        try {
+          replaceState(window.location.pathname, {});
+        } catch {
+          /* noop */
+        }
         isLoadingAuth = false;
       }
     }

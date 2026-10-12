@@ -48,23 +48,27 @@ class AuthState {
 
   constructor() {
     if (browser) {
-      const savedToken = localStorage.getItem(LS_KEYS.ACCESS_TOKEN);
-      const savedCredentialJwt = localStorage.getItem(LS_KEYS.CREDENTIAL_JWT);
-      const savedUser = localStorage.getItem(LS_KEYS.USER);
-      const remembered = localStorage.getItem(LS_KEYS.REMEMBER) === "true";
+      try {
+        const savedToken = localStorage.getItem(LS_KEYS.ACCESS_TOKEN);
+        const savedCredentialJwt = localStorage.getItem(LS_KEYS.CREDENTIAL_JWT);
+        const savedUser = localStorage.getItem(LS_KEYS.USER);
+        const remembered = localStorage.getItem(LS_KEYS.REMEMBER) === "true";
 
-      if (remembered && savedToken && savedCredentialJwt && savedUser) {
-        this.accessToken = savedToken;
-        this.credentialJwt = savedCredentialJwt;
-        try {
-          this.user = JSON.parse(savedUser);
-        } catch {
-          this.user = null;
+        if (remembered && savedToken && savedCredentialJwt && savedUser) {
+          this.accessToken = savedToken;
+          this.credentialJwt = savedCredentialJwt;
+          try {
+            this.user = JSON.parse(savedUser);
+          } catch {
+            this.user = null;
+          }
+          this.isRemembered = true;
+          this.avatarUrl = localStorage.getItem(LS_KEYS.CACHED_PICTURE);
+          this.authType = (localStorage.getItem(LS_KEYS.AUTH_TYPE) as "admin" | "resident") || null;
+          this.isInstanceAdmin = localStorage.getItem(LS_KEYS.IS_ADMIN) === "true";
         }
-        this.isRemembered = true;
-        this.avatarUrl = localStorage.getItem(LS_KEYS.CACHED_PICTURE);
-        this.authType = (localStorage.getItem(LS_KEYS.AUTH_TYPE) as "admin" | "resident") || null;
-        this.isInstanceAdmin = localStorage.getItem(LS_KEYS.IS_ADMIN) === "true";
+      } catch {
+        // Storage unavailable (Private mode / locked webview): start signed out.
       }
       this.initialized = true;
     }
@@ -83,7 +87,11 @@ class AuthState {
         const base64data = reader.result as string;
         this.avatarUrl = base64data;
         if (this.isRemembered) {
-          localStorage.setItem(LS_KEYS.CACHED_PICTURE, base64data);
+          try {
+            localStorage.setItem(LS_KEYS.CACHED_PICTURE, base64data);
+          } catch {
+            /* persistence unavailable */
+          }
         }
       };
       reader.readAsDataURL(blob);
@@ -120,12 +128,19 @@ class AuthState {
     this.isInstanceAdmin = isInstanceAdmin;
 
     if (browser && remember) {
-      localStorage.setItem(LS_KEYS.ACCESS_TOKEN, token);
-      localStorage.setItem(LS_KEYS.CREDENTIAL_JWT, this.credentialJwt);
-      localStorage.setItem(LS_KEYS.USER, JSON.stringify(user));
-      localStorage.setItem(LS_KEYS.REMEMBER, "true");
-      localStorage.setItem(LS_KEYS.AUTH_TYPE, type);
-      localStorage.setItem(LS_KEYS.IS_ADMIN, String(isInstanceAdmin));
+      // Persistence is best-effort: in-memory session above is authoritative
+      // so immediate navigation still sees auth.accessToken even when
+      // localStorage throws (Safari Private / locked in-app webview).
+      try {
+        localStorage.setItem(LS_KEYS.ACCESS_TOKEN, token);
+        localStorage.setItem(LS_KEYS.CREDENTIAL_JWT, this.credentialJwt);
+        localStorage.setItem(LS_KEYS.USER, JSON.stringify(user));
+        localStorage.setItem(LS_KEYS.REMEMBER, "true");
+        localStorage.setItem(LS_KEYS.AUTH_TYPE, type);
+        localStorage.setItem(LS_KEYS.IS_ADMIN, String(isInstanceAdmin));
+      } catch {
+        /* persistence unavailable; session continues in memory */
+      }
       this.fetchAvatarUrl();
     }
 
@@ -165,7 +180,11 @@ class AuthState {
       import("$utils/api-client").then(({ invalidateServerCache }) => {
         invalidateServerCache();
       });
-      localStorage.clear();
+      try {
+        localStorage.clear();
+      } catch {
+        /* noop */
+      }
       this.avatarUrl = null;
       this.authType = null;
       this.isInstanceAdmin = false;

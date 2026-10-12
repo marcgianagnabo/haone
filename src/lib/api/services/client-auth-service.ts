@@ -6,6 +6,202 @@ import { PUBLIC_DB_PROVIDER, PUBLIC_GI_CLIENT_ID } from "$env/static/public";
 import type { AuthExchangeResult, TokenExchangeResponse, UserRecord } from "$lib/types";
 import { generatePKCEChallenge, generatePKCEVerifier } from "$utils/crypto";
 
+const PKCE_LOCAL_KEY = "halsk.auth.pkce";
+const PKCE_COOKIE = "ha_pkce";
+const PKCE_TTL_MS = 10 * 60 * 1000;
+// Targets the app is allowed to navigate to after sign-in. Anything else
+// falls back to the role default so a mangled `state` param can never push
+// SvelteKit to an unknown route (which renders +error.svelte 404).
+const SAFE_TARGETS = ["/resident", "/admin", "/onboarding", "/sign-in/workspace", "/sign-in", "/"];
+
+function safeGetLS(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSetLS(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Private mode / locked webview: keep in-memory session, skip persistence.
+  }
+}
+
+function safeRemoveLS(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* noop */
+  }
+}
+
+function safeGetSS(key: string): string | null {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSetSS(key: string, value: string): void {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    /* noop */
+  }
+}
+
+function safeRemoveSS(key: string): void {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    /* noop */
+  }
+}
+
+function setCookie(name: string, value: string, maxAgeSec: number): void {
+  try {
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAgeSec}; SameSite=Lax${secure}`;
+  } catch {
+    /* cookies unavailable in some webviews */
+  }
+}
+
+function getCookie(name: string): string | null {
+  try {
+    const parts = document.cookie.split("; ");
+    for (const part of parts) {
+      const eq = part.indexOf("=");
+      if (eq < 0) continue;
+      if (part.slice(0, eq) === name) {
+        return decodeURIComponent(part.slice(eq + 1));
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function deleteCookie(name: string): void {
+  try {
+    document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+  } catch {
+    /* noop */
+  }
+}
+
+interface PersistedPKCE {
+  verifier: string;
+  type: "admin" | "resident";
+  nonce: string;
+  exp: number;
+}
+
+function generateNonce(): string {
+  try {
+    const bytes = new Uint8Array(12);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return `${Date.now().toString(36)}${Math.floor(Math.random() * 1e9).toString(36)}`;
+  }
+}
+
+function persistPKCE(verifier: string, type: "admin" | "resident", nonce: string): void {
+  const payload: PersistedPKCE = { verifier, type, nonce, exp: Date.now() + PKCE_TTL_MS };
+  const raw = JSON.stringify(payload);
+  // sessionStorage first (legacy readers), then localStorage (survives iOS
+  // Safari tab discard / OAuth bounce), then cookie (in-app webview fallback).
+  safeSetSS("pkce_verifier", verifier);
+  safeSetSS("pkce_auth_type", type);
+  safeSetLS(PKCE_LOCAL_KEY, raw);
+  setCookie(PKCE_COOKIE, raw, 600);
+}
+
+function readPKCE(): { record: PersistedPKCE; source: "session" | "local" | "cookie" } | null {
+  // Legacy session shape (pre-nonce deploys still in flight).
+  const ssVerifier = safeGetSS("pkce_verifier");
+  if (ssVerifier) {
+    const ssType = (safeGetSS("pkce_auth_type") as "admin" | "resident") || "resident";
+    const localRaw = safeGetLS(PKCE_LOCAL_KEY);
+    if (localRaw) {
+      try {
+        const parsed = JSON.parse(localRaw) as PersistedPKCE;
+        if (parsed.verifier === ssVerifier && parsed.exp > Date.now()) {
+          return { record: parsed, source: "session" };
+        }
+      } catch {
+        /* fall through to legacy shape */
+      }
+    }
+    // Legacy record without nonce: accept once, migrate callers to new shape.
+    return {
+      record: { verifier: ssVerifier, type: ssType, nonce: "", exp: Date.now() + PKCE_TTL_MS },
+      source: "session"
+    };
+  }
+
+  const localRaw = safeGetLS(PKCE_LOCAL_KEY);
+  if (localRaw) {
+    try {
+      const parsed = JSON.parse(localRaw) as PersistedPKCE;
+      if (parsed.verifier && parsed.exp > Date.now()) {
+        return { record: parsed, source: "local" };
+      }
+    } catch {
+      /* corrupted payload */
+    }
+  }
+
+  const cookieRaw = getCookie(PKCE_COOKIE);
+  if (cookieRaw) {
+    try {
+      const parsed = JSON.parse(cookieRaw) as PersistedPKCE;
+      if (parsed.verifier && parsed.exp > Date.now()) {
+        return { record: parsed, source: "cookie" };
+      }
+    } catch {
+      /* corrupted payload */
+    }
+  }
+
+  return null;
+}
+
+function clearPKCE(): void {
+  safeRemoveSS("pkce_verifier");
+  safeRemoveSS("pkce_auth_type");
+  safeRemoveLS(PKCE_LOCAL_KEY);
+  deleteCookie(PKCE_COOKIE);
+}
+
+function sanitizeTarget(raw: string | null, fallback: string): string {
+  if (!raw) return fallback;
+  const target = raw.trim();
+  if (!target.startsWith("/")) return fallback;
+  if (target.startsWith("//")) return fallback;
+  if (target.includes("\\") || target.includes("\n") || target.includes("\r")) return fallback;
+  if (SAFE_TARGETS.some((p) => target === p || target.startsWith(p + "/") || p === "/" && target === "/")) {
+    return target;
+  }
+  // Allow "/" exactly; otherwise fall back so we never goto() an unknown route.
+  return fallback;
+}
+
+async function safeGoto(target: string): Promise<void> {
+  try {
+    await goto(target);
+  } catch {
+    // SvelteKit client navigation can reject on WebKit after an OAuth bounce.
+    window.location.assign(target);
+  }
+}
+
 /**
  * Initiates Google OAuth sign-in flow.
  *
@@ -34,16 +230,24 @@ export async function signIn(
   const scopes = (type === "admin" ? adminScopes : residentScopes).join(" ");
 
   const verifier = generatePKCEVerifier();
-  sessionStorage.setItem("pkce_verifier", verifier);
-  sessionStorage.setItem("pkce_auth_type", type);
+  const nonce = generateNonce();
+  persistPKCE(verifier, type, nonce);
   const challenge = await generatePKCEChallenge(verifier);
+
+  const defaultTarget = type === "admin" ? "/admin" : "/resident";
+  const rawTarget = redirectTo || defaultTarget;
+  const safeTarget = sanitizeTarget(rawTarget, defaultTarget);
+  // Nonce is embedded so the callback can prove the ?code= belongs to the
+  // PKCE verifier stored in this browser (iOS Safari / in-app webviews often
+  // lose sessionStorage on the Google bounce; local + cookie survive).
+  const state = `${nonce}.${safeTarget}`;
 
   const params = new URLSearchParams({
     client_id: PUBLIC_GI_CLIENT_ID,
     redirect_uri: window.location.origin + "/sign-in",
     response_type: "code",
     scope: scopes,
-    state: redirectTo || (type === "admin" ? "/admin" : "/resident"),
+    state,
     include_granted_scopes: "true",
     code_challenge: challenge,
     code_challenge_method: "S256"
@@ -63,16 +267,53 @@ async function exchangeAuthCode(): Promise<AuthExchangeResult | null> {
   const urlParams = new URLSearchParams(window.location.search);
   const code = urlParams.get("code");
   const state = urlParams.get("state");
-  const savedType =
-    (sessionStorage.getItem("pkce_auth_type") as "admin" | "resident") || "resident";
 
   if (!code) {
     return null;
   }
 
-  const verifier = sessionStorage.getItem("pkce_verifier");
+  // Strip single-use query params immediately so a reload / double-mount can
+  // never replay the same code (Google rejects replays with invalid_grant).
+  try {
+    window.history.replaceState({}, "", window.location.pathname);
+  } catch {
+    /* noop */
+  }
+
+  const stored = readPKCE();
+  if (!stored) {
+    throw new Error("Sign-in session expired in this browser. Please tap Sign In again.");
+  }
+  const { record, source } = stored;
+  const savedType = record.type || "resident";
+  const verifier = record.verifier;
   if (!verifier) {
-    throw new Error("Missing PKCE verifier");
+    clearPKCE();
+    throw new Error("Sign-in session expired in this browser. Please tap Sign In again.");
+  }
+
+  // Validate the state nonce when present. Legacy states (pre-nonce deploys,
+  // just "/resident" or "/admin") skip the check once for backwards compat.
+  let stateTarget: string | null = null;
+  if (state) {
+    const dot = state.indexOf(".");
+    if (dot > 0) {
+      const nonceFromState = state.slice(0, dot);
+      stateTarget = state.slice(dot + 1) || null;
+      if (record.nonce && nonceFromState !== record.nonce) {
+        clearPKCE();
+        throw new Error("Sign-in session expired in this browser. Please tap Sign In again.");
+      }
+    } else {
+      stateTarget = state;
+    }
+  }
+  if (record.exp <= Date.now()) {
+    clearPKCE();
+    throw new Error("Sign-in session expired in this browser. Please tap Sign In again.");
+  }
+  if (source === "local" || source === "cookie") {
+    console.info(`[auth] PKCE verifier recovered from ${source} (sessionStorage was lost)`);
   }
 
   const tokenResp = await fetch("/api/auth/token", {
@@ -86,17 +327,29 @@ async function exchangeAuthCode(): Promise<AuthExchangeResult | null> {
   });
 
   if (!tokenResp.ok) {
-    const err = await tokenResp.json();
-    throw new Error(err.error_description || "Token exchange failed");
+    let err: any = {};
+    try {
+      err = await tokenResp.json();
+    } catch {
+      /* non-JSON error body */
+    }
+    const desc: string = err.error_description || err.error || "Token exchange failed";
+    // Single-use codes rejected on replay (double-mount, reload, back-button)
+    // surface as invalid_grant — translate to an actionable message.
+    if (/invalid_grant|already.*redeem|expired/i.test(desc)) {
+      clearPKCE();
+      throw new Error("This sign-in link was already used or expired. Please tap Sign In again.");
+    }
+    throw new Error(desc);
   }
 
   const { tokenData, user, isInstanceAdmin, credentialJwt } =
     (await tokenResp.json()) as TokenExchangeResponse;
 
-  sessionStorage.removeItem("pkce_verifier");
-  sessionStorage.removeItem("pkce_auth_type");
+  clearPKCE();
 
-  let target = state || (savedType === "admin" ? "/admin" : "/resident");
+  const fallbackTarget = savedType === "admin" ? "/admin" : "/resident";
+  let target = sanitizeTarget(stateTarget || state, fallbackTarget);
   if (savedType === "resident" && target.startsWith("/admin")) {
     target = "/resident";
   }
@@ -185,8 +438,9 @@ export async function handleCallback(options: CallbackOptions): Promise<boolean>
   } = options;
 
   if (accessToken && !window.location.search.includes("code=")) {
-    const target = redirectTo || (authType === "admin" ? "/admin" : "/resident");
-    await goto(target);
+    const fallback = authType === "admin" ? "/admin" : "/resident";
+    const target = sanitizeTarget(redirectTo, fallback);
+    await safeGoto(target);
     return true;
   }
 
@@ -195,11 +449,12 @@ export async function handleCallback(options: CallbackOptions): Promise<boolean>
 
   if (!code) {
     if (accessToken) {
-      let target = redirectTo || (authType === "admin" ? "/admin" : "/resident");
+      const fallback = authType === "admin" ? "/admin" : "/resident";
+      let target = sanitizeTarget(redirectTo, fallback);
       if (authType === "resident" && target.startsWith("/admin")) {
         target = "/resident";
       }
-      await goto(target);
+      await safeGoto(target);
       return true;
     }
     return false;
@@ -249,12 +504,12 @@ export async function handleCallback(options: CallbackOptions): Promise<boolean>
   if (savedType === "resident" && onWorkspaceRequired) {
     const isOfficer = isInstanceAdmin || (await resolveOfficerRole(user.email));
     if (isOfficer) {
-      let pendingTarget = redirectTo || exchangeTarget;
+      let pendingTarget = sanitizeTarget(redirectTo || exchangeTarget, "/resident");
       if (pendingTarget.startsWith("/admin")) {
         pendingTarget = "/resident";
       }
       onWorkspaceRequired(pendingTarget);
-      await goto("/sign-in/workspace");
+      await safeGoto("/sign-in/workspace");
       return true;
     }
   }
@@ -263,11 +518,11 @@ export async function handleCallback(options: CallbackOptions): Promise<boolean>
     await settingsService.verifyAccess(newAccessToken);
   }
 
-  let finalTarget = redirectTo || exchangeTarget;
+  let finalTarget = sanitizeTarget(redirectTo || exchangeTarget, exchangeTarget);
   if (savedType === "resident" && finalTarget.startsWith("/admin")) {
     finalTarget = "/resident";
   }
-  await goto(finalTarget);
+  await safeGoto(finalTarget);
   return true;
 }
 
