@@ -13,6 +13,7 @@
     sendRegistrationOnHoldEmail
   } from "$api/controllers/registration-notification-controller";
   import { normalizeStudentNo } from "$utils/student-no";
+  import { syncCount } from "$state/sync-count.svelte";
   import { translateCollege, translatePeriod, translateProgram } from "$utils/translators";
   import ContentHeader from "$components/content/ContentHeader.svelte";
   import LoadingView from "$components/content/LoadingView.svelte";
@@ -66,6 +67,13 @@
         return;
       }
       previewActions = await getSyncPreview(settings.activeTerm);
+      // Publish to the shared badge so the other Residents pages (and the tab
+      // bar here) show the count without repeating this uncached fetch.
+      const groups = new Set<number>();
+      for (const action of previewActions) {
+        groups.add(action.currIndex ?? -1);
+      }
+      syncCount.set(groups.size);
     } catch (e: any) {
       error = e.message || "Failed to load sync preview.";
     } finally {

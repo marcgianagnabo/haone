@@ -212,6 +212,9 @@ class AuthState {
       this.authType = null;
       this.isInstanceAdmin = false;
     }
+
+    // Per-session admin state must not survive a sign-out.
+    import("$state/sync-count.svelte").then(({ syncCount }) => syncCount.reset()).catch(() => {});
   }
 
   signOutWithMessage(title: string, description: string) {
