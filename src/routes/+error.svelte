@@ -56,9 +56,43 @@
 
   onMount(() => {
     pageState.title = `${status || 500} - ${title}`;
+    // One-shot client error beacon (keepalive: survives page close). PII-free:
+    // pathname only, never the query string (it may hold OAuth codes).
+    try {
+      const payload = JSON.stringify({
+        status: status || 0,
+        path: page.url.pathname,
+        build: `v${__APP_VERSION__} (${__COMMIT_SHA__.slice(0, 7)})`,
+        trail: readAuthTrail()
+      });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(
+          "/api/client-log",
+          new Blob([payload], { type: "application/json" })
+        );
+      } else {
+        fetch("/api/client-log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true
+        }).catch(() => {});
+      }
+    } catch {
+      /* diagnostics are best-effort */
+    }
   });
 
   function reload() {
+    // Never replay a dead OAuth callback: a retried ?code= is already
+    // consumed (invalid_grant), so strip it before reloading.
+    try {
+      if (page.url.pathname === "/sign-in") {
+        window.history.replaceState({}, "", "/sign-in");
+      }
+    } catch {
+      /* noop */
+    }
     window.location.reload();
   }
 
@@ -125,6 +159,24 @@
           </Button>
         </div>
       {/if}
+    </div>
+  {/if}
+
+  {#if !error?.stack}
+    <div class="space-y-2">
+      <div
+        class="overflow-hidden rounded-md border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground"
+      >
+        <div class="font-mono break-all">Path: {page.url.pathname}</div>
+        <Button
+          variant="ghost"
+          size="sm"
+          class="mt-2 h-7 w-full text-xs tracking-widest uppercase"
+          onclick={copyToClipboard}
+        >
+          Copy
+        </Button>
+      </div>
     </div>
   {/if}
 

@@ -21,6 +21,49 @@
   onMount(async () => {
     pwaInstall.init();
     sessionTimeout.init();
+    // One-shot stale-chunk recovery: if a client-side navigation fails to
+    // load its JS chunk (common right after a deploy, esp. on WebKit), a
+    // single full reload fetches fresh chunks instead of stranding the user
+    // on +error.svelte. Guarded so it can never loop.
+    const chunkReloaded = (() => {
+      try {
+        return sessionStorage.getItem("halsk.chunk_reloaded") === "1";
+      } catch {
+        return true;
+      }
+    })();
+    // Clear the flag once this load proves healthy: a chunk failure before
+    // then keeps the flag and shows the error page instead of looping.
+    window.setTimeout(() => {
+      try {
+        sessionStorage.removeItem("halsk.chunk_reloaded");
+      } catch {
+        /* noop */
+      }
+    }, 5000);
+    const isChunkError = (message: string) =>
+      /failed to fetch dynamically imported module|importing a module script failed|loading chunk \d+ failed/i.test(
+        message
+      );
+    const recoverChunk = () => {
+      if (chunkReloaded) return;
+      try {
+        sessionStorage.setItem("halsk.chunk_reloaded", "1");
+      } catch {
+        return;
+      }
+      window.location.reload();
+    };
+    window.addEventListener("error", (e) => {
+      if (isChunkError(e.message || "")) recoverChunk();
+    });
+    window.addEventListener("unhandledrejection", (e) => {
+      const msg = (e.reason as Error)?.message || String(e.reason || "");
+      if (isChunkError(msg)) {
+        e.preventDefault();
+        recoverChunk();
+      }
+    });
     // Service Worker Registration
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch((err) => {

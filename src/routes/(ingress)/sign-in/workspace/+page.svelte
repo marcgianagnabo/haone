@@ -30,9 +30,11 @@
   });
 
   async function chooseResident() {
+    // Post-login transition: full page load so WebKit never client-routes
+    // into a dead chunk right after the OAuth bounce (stackless 404 class).
     const target = auth.pendingWorkspaceTarget || "/resident";
     auth.clearWorkspaceChoice();
-    await goto(target);
+    window.location.assign(target);
   }
 
   async function chooseAdmin() {

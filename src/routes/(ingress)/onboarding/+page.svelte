@@ -50,7 +50,9 @@
       throw new Error(residentState.error);
     }
     if (!residentState.needsOnboarding) {
-      goto("/resident");
+      // Post-onboarding transition: full page load, same WebKit-bounce
+      // reasoning as the post-login hops.
+      window.location.assign("/resident");
     }
   }
 </script>
