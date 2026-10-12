@@ -13,6 +13,14 @@
     pointer-events: none;
   }
 
+  /* An empty paragraph serializes to a bare <p></p>, which renders at zero
+     height once Tailwind's preflight resets paragraph margins — blank
+     separator lines typed in the editor would vanish for readers. em-based so
+     the gap scales with the surrounding prose size. */
+  :global(.tiptap p:empty) {
+    min-height: 1.5em;
+  }
+
   :global(.tiptap ul) {
     list-style-type: disc !important;
     padding-left: 1.5rem !important;
