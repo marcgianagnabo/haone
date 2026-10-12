@@ -7,18 +7,26 @@
   import { goto } from "$app/navigation";
   import { pageState } from "$state/page-info.svelte";
   import { fade, fly } from "svelte/transition";
+  import { LoaderCircleIcon } from "@lucide/svelte";
+
+  // Gate the choices until the handoff check completes so a redirecting
+  // visitor never sees the picker flash before leaving.
+  let isChecking = $state(true);
 
   onMount(() => {
     pageState.title = "Choose Workspace";
     // No session (e.g. direct URL access or reload without remember-me):
-    // there is no pending choice to make.
+    // there is no pending choice to make — drop any stale handoff.
     if (!auth.accessToken || !auth.user) {
+      auth.clearWorkspaceChoice();
       goto("/sign-in");
       return;
     }
     if (!auth.workspaceChoiceRequired) {
       goto(auth.authType === "admin" ? "/admin" : "/resident");
+      return;
     }
+    isChecking = false;
   });
 
   async function chooseResident() {
@@ -48,7 +56,11 @@
 
     <div in:fly={{ y: 16, duration: 500 }} class="grid pt-6">
       <div transition:fade={{ duration: 300 }} class="col-start-1 row-start-1 space-y-3">
-        {#if auth.user}
+        {#if isChecking}
+          <div class="flex h-30 items-center justify-center">
+            <LoaderCircleIcon class="h-5 w-5 animate-spin text-foreground" />
+          </div>
+        {:else if auth.user}
           <div class="flex flex-col items-center gap-1 text-center">
             {#if auth.avatarUrl}
               <img

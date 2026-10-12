@@ -28,7 +28,9 @@ export const LS_KEYS = {
   UI_NAV_ADMIN: "halsk.ui.nav.adm",
   PWA_INSTALLED: "halsk.pwa.installed",
   PWA_BANNER_DISMISSED_AT: "halsk.pwa.banner_dismissed_at",
-  SESSION_LAST_ACTIVITY: "halsk.auth.last_activity"
+  SESSION_LAST_ACTIVITY: "halsk.auth.last_activity",
+  WORKSPACE_REQUIRED: "halsk.auth.workspace_required",
+  WORKSPACE_TARGET: "halsk.auth.workspace_target"
 } as const;
 
 export const SYSTEM_IDS = {

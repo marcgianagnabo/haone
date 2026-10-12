@@ -67,6 +67,17 @@ class AuthState {
           this.authType = (localStorage.getItem(LS_KEYS.AUTH_TYPE) as "admin" | "resident") || null;
           this.isInstanceAdmin = localStorage.getItem(LS_KEYS.IS_ADMIN) === "true";
         }
+        // Workspace handoff survives the full-page post-login navigation so
+        // the picker still shows after the reload that fixes WebKit 404s.
+        try {
+          if (localStorage.getItem(LS_KEYS.WORKSPACE_REQUIRED) === "1") {
+            this.workspaceChoiceRequired = true;
+            this.pendingWorkspaceTarget =
+              localStorage.getItem(LS_KEYS.WORKSPACE_TARGET) || "/resident";
+          }
+        } catch {
+          /* persistence unavailable */
+        }
       } catch {
         // Storage unavailable (Private mode / locked webview): start signed out.
       }
@@ -215,6 +226,12 @@ class AuthState {
       onWorkspaceRequired: (pendingTarget) => {
         this.workspaceChoiceRequired = true;
         this.pendingWorkspaceTarget = pendingTarget;
+        try {
+          localStorage.setItem(LS_KEYS.WORKSPACE_REQUIRED, "1");
+          localStorage.setItem(LS_KEYS.WORKSPACE_TARGET, pendingTarget);
+        } catch {
+          /* persistence unavailable; in-memory handoff still works pre-reload */
+        }
       }
     });
 
@@ -228,6 +245,14 @@ class AuthState {
   clearWorkspaceChoice() {
     this.workspaceChoiceRequired = false;
     this.pendingWorkspaceTarget = null;
+    if (browser) {
+      try {
+        localStorage.removeItem(LS_KEYS.WORKSPACE_REQUIRED);
+        localStorage.removeItem(LS_KEYS.WORKSPACE_TARGET);
+      } catch {
+        /* noop */
+      }
+    }
   }
 }
 
