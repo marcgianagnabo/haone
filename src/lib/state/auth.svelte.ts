@@ -124,14 +124,20 @@ class AuthState {
     this.user = user;
 
     // A new session means a different identity; drop cached sheet/server data
-    // so the previous user's data is never served.
+    // so the previous user's data is never served. Every dynamic import and
+    // promise is guarded: a suspended/failed fetch (iOS kills standby sockets)
+    // must never escape as an unhandled rejection.
     if (browser) {
-      import("$api/services/common").then(({ invalidateCache }) => {
-        invalidateCache();
-      });
-      import("$utils/api-client").then(({ invalidateServerCache }) => {
-        invalidateServerCache();
-      });
+      import("$api/services/common")
+        .then(({ invalidateCache }) => {
+          invalidateCache();
+        })
+        .catch(() => {});
+      import("$utils/api-client")
+        .then(({ invalidateServerCache }) => {
+          invalidateServerCache();
+        })
+        .catch(() => {});
     }
 
     this.isRemembered = remember;
@@ -162,14 +168,16 @@ class AuthState {
     if (browser && user.avatarUrl && user.email) {
       const avatarUrl = user.avatarUrl;
       const email = user.email;
-      import("$api/services/common").then(({ isSupabase }) => {
-        if (!isSupabase) {
-          return;
-        }
-        import("$api/services/officer-service").then(({ officerService }) => {
-          officerService.fillAutoPhoto(email, avatarUrl).catch(() => {});
-        });
-      });
+      import("$api/services/common")
+        .then(({ isSupabase }) => {
+          if (!isSupabase) {
+            return;
+          }
+          return import("$api/services/officer-service")
+            .then(({ officerService }) => officerService.fillAutoPhoto(email, avatarUrl))
+            .catch(() => {});
+        })
+        .catch(() => {});
     }
   }
 
@@ -182,15 +190,19 @@ class AuthState {
     this.pendingWorkspaceTarget = null;
 
     if (browser) {
-      import("$api/services/common").then(({ supabase, invalidateCache }) => {
-        invalidateCache();
-        if (supabase) {
-          supabase.auth.signOut();
-        }
-      });
-      import("$utils/api-client").then(({ invalidateServerCache }) => {
-        invalidateServerCache();
-      });
+      import("$api/services/common")
+        .then(({ supabase, invalidateCache }) => {
+          invalidateCache();
+          // Floating promise: guard so a rejected sign-out (aborted by iOS on
+          // suspend) can't become an unhandled rejection.
+          return supabase ? supabase.auth.signOut() : undefined;
+        })
+        .catch(() => {});
+      import("$utils/api-client")
+        .then(({ invalidateServerCache }) => {
+          invalidateServerCache();
+        })
+        .catch(() => {});
       try {
         localStorage.clear();
       } catch {

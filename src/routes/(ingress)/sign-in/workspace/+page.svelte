@@ -8,7 +8,7 @@
   import { pageState } from "$state/page-info.svelte";
   import { fade, fly } from "svelte/transition";
   import { LoaderCircleIcon } from "@lucide/svelte";
-  import { authTrail } from "$utils/auth-trail";
+  import { authTrail, shouldRedirect } from "$utils/auth-trail";
 
   // Gate the choices until the handoff check completes so a redirecting
   // visitor never sees the picker flash before leaving.
@@ -21,12 +21,13 @@
     if (!auth.accessToken || !auth.user) {
       auth.clearWorkspaceChoice();
       authTrail("guard:/sign-in from:workspace");
-      goto("/sign-in");
+      if (shouldRedirect("/sign-in", 0)) goto("/sign-in");
       return;
     }
     if (!auth.workspaceChoiceRequired) {
       authTrail("guard:bounce from:workspace");
-      goto(auth.authType === "admin" ? "/admin" : "/resident");
+      const target = auth.authType === "admin" ? "/admin" : "/resident";
+      if (shouldRedirect(target)) goto(target);
       return;
     }
     isChecking = false;

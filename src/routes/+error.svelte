@@ -18,7 +18,8 @@
   import HeroLayout from "$components/branding/HeroLayout.svelte";
   import { pageState } from "$state/page-info.svelte";
   import { onMount } from "svelte";
-  import { readAuthTrail } from "$utils/auth-trail";
+  import { readAuthTrail, markBoundaryMount, consumeReloadMark, setReloadedMark } from "$utils/auth-trail";
+  import { authTrail } from "$utils/auth-trail";
 
   let showDetails = $state(false);
 
@@ -99,8 +100,26 @@
     );
   }
 
+  // Loop-aware heal: stackless failures that keep re-flipping on one device
+  // get a single full reload (fresh chunks/state); if that reload didn't clear
+  // it, we stop here so the report stays readable instead of looping.
+  let healedByReload = $state(false);
+
   onMount(() => {
     pageState.title = `${status || 500} - ${title}`;
+    authTrail(`boundary:${status || 0}:${page.url.pathname}`);
+
+    if (!error?.stack) {
+      const occurrence = markBoundaryMount();
+      if (occurrence === "repeat" && !consumeReloadMark()) {
+        authTrail("boundary_rereload");
+        setReloadedMark();
+        window.location.reload();
+        return;
+      }
+      healedByReload = occurrence === "repeat";
+    }
+
     // Persist the last error locally so /sign-in can surface it even after
     // the user navigates away from this page.
     try {
@@ -229,7 +248,10 @@
           {#if rawMessage}
             <div>Raw: [{rawKind}] {rawMessage}</div>
           {/if}
-          <div>Auth trail: {reportTrail}</div>
+          {#if healedByReload}
+            <div>Note: repeated failure — auto-reload already attempted</div>
+          {/if}
+          <div>Auth trail: {readAuthTrail()}</div>
         </div>
         <Button
           variant="ghost"
