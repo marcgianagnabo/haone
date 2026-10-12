@@ -5,6 +5,7 @@ import { goto } from "$app/navigation";
 import { PUBLIC_DB_PROVIDER, PUBLIC_GI_CLIENT_ID } from "$env/static/public";
 import type { AuthExchangeResult, TokenExchangeResponse, UserRecord } from "$lib/types";
 import { generatePKCEChallenge, generatePKCEVerifier } from "$utils/crypto";
+import { authTrail } from "$utils/auth-trail";
 
 const PKCE_LOCAL_KEY = "halsk.auth.pkce";
 const PKCE_COOKIE = "ha_pkce";
@@ -203,6 +204,17 @@ async function safeGoto(target: string): Promise<void> {
 }
 
 /**
+ * Full-page navigation for post-login redirects. After a cross-origin OAuth
+ * bounce, WebKit's client-side router can fail to load the destination chunk
+ * and render +error.svelte 404; a full reload guarantees a server render
+ * with fresh chunks. Costs one non-SPA transition per sign-in.
+ */
+function goPostLogin(target: string): void {
+  authTrail(`goto:${target}`);
+  window.location.assign(target);
+}
+
+/**
  * Initiates Google OAuth sign-in flow.
  *
  * The spreadsheets scope is only requested for legacy Sheets-backend
@@ -232,6 +244,7 @@ export async function signIn(
   const verifier = generatePKCEVerifier();
   const nonce = generateNonce();
   persistPKCE(verifier, type, nonce);
+  authTrail(`signin_start ${type}`);
   const challenge = await generatePKCEChallenge(verifier);
 
   const defaultTarget = type === "admin" ? "/admin" : "/resident";
@@ -271,6 +284,7 @@ async function exchangeAuthCode(): Promise<AuthExchangeResult | null> {
   if (!code) {
     return null;
   }
+  authTrail("code_seen");
 
   // Strip single-use query params immediately so a reload / double-mount can
   // never replay the same code (Google rejects replays with invalid_grant).
@@ -315,6 +329,7 @@ async function exchangeAuthCode(): Promise<AuthExchangeResult | null> {
   if (source === "local" || source === "cookie") {
     console.info(`[auth] PKCE verifier recovered from ${source} (sessionStorage was lost)`);
   }
+  authTrail(`pkce:${source}`);
 
   const tokenResp = await fetch("/api/auth/token", {
     method: "POST",
@@ -333,6 +348,7 @@ async function exchangeAuthCode(): Promise<AuthExchangeResult | null> {
     } catch {
       /* non-JSON error body */
     }
+    authTrail(`token:${tokenResp.status}`);
     const desc: string = err.error_description || err.error || "Token exchange failed";
     // Single-use codes rejected on replay (double-mount, reload, back-button)
     // surface as invalid_grant — translate to an actionable message.
@@ -345,6 +361,7 @@ async function exchangeAuthCode(): Promise<AuthExchangeResult | null> {
 
   const { tokenData, user, isInstanceAdmin, credentialJwt } =
     (await tokenResp.json()) as TokenExchangeResponse;
+  authTrail("token:200");
 
   clearPKCE();
 
@@ -509,7 +526,7 @@ export async function handleCallback(options: CallbackOptions): Promise<boolean>
         pendingTarget = "/resident";
       }
       onWorkspaceRequired(pendingTarget);
-      await safeGoto("/sign-in/workspace");
+      goPostLogin("/sign-in/workspace");
       return true;
     }
   }
@@ -522,7 +539,7 @@ export async function handleCallback(options: CallbackOptions): Promise<boolean>
   if (savedType === "resident" && finalTarget.startsWith("/admin")) {
     finalTarget = "/resident";
   }
-  await safeGoto(finalTarget);
+  goPostLogin(finalTarget);
   return true;
 }
 

@@ -8,6 +8,7 @@
   import { globalDialog } from "$state/dialog.svelte";
   import { pageState } from "$state/page-info.svelte";
   import { fade, fly } from "svelte/transition";
+  import { authTrail } from "$utils/auth-trail";
 
   let isSigningIn = $state(false);
   let isLoadingAuth = $state(true);
@@ -30,6 +31,7 @@
       // Never let callback failures reach the SvelteKit error boundary
       // (+error.svelte 404/500). Stay on /sign-in with an actionable dialog.
       // Query params are already stripped by exchangeAuthCode, so reload is safe.
+      authTrail(`callback_error:${(e.message || "unknown").slice(0, 60)}`);
       globalDialog.show("Sign-in Failed", e.message || "An unexpected error occurred.");
     } finally {
       if (!redirecting) {

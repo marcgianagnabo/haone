@@ -18,6 +18,7 @@
   import HeroLayout from "$components/branding/HeroLayout.svelte";
   import { pageState } from "$state/page-info.svelte";
   import { onMount } from "svelte";
+  import { readAuthTrail } from "$utils/auth-trail";
 
   let showDetails = $state(false);
 
@@ -62,7 +63,15 @@
   }
 
   function copyToClipboard() {
-    const info = `Status: ${status}\nMessage: ${error?.message}\nStack: ${error?.stack}`;
+    // Pathname only — never the query string (it may hold single-use OAuth codes).
+    const info =
+      `Status: ${status}\n` +
+      `Message: ${error?.message}\n` +
+      `Stack: ${error?.stack}\n` +
+      `Path: ${page.url.pathname}\n` +
+      `Time: ${new Date().toISOString()}\n` +
+      `Build: v${__APP_VERSION__} (${__COMMIT_SHA__.slice(0, 7)})\n` +
+      `Auth trail: ${readAuthTrail()}`;
     navigator.clipboard.writeText(info);
     toast.success("Error details copied to clipboard");
   }
