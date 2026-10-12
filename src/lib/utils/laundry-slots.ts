@@ -223,6 +223,12 @@ export function getAdminLaundryGrid(): LaundryGrid {
 export const BOOKING_PROMO_START = "2026-10-12";
 export const BOOKING_HARD_CAP = "2026-10-25";
 
+// PROMO-REMOVE-AFTER-2026-10-25: Oct 12-18, 2026 is closed for booking.
+// Only Oct 19-25 stays open, then the normal current-week window takes over
+// on Oct 19 on its own (the lower bound derives from `startOfMonday(now)`), so
+// this constant goes inert by itself and needs no expiry check.
+export const BOOKING_FLOOR = "2026-10-19";
+
 /** True while today falls inside the one-time Oct 12-25, 2026 promo. */
 export function isTwoWeekWindow(now = new Date()): boolean {
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
@@ -261,18 +267,34 @@ export function getBookingWindowEnd(now = new Date()): Date {
   return nextSunday < cap ? nextSunday : cap;
 }
 
+/**
+ * Earliest bookable instant: Monday of the current week, raised to the promo
+ * floor while the floor is still in the future. Once the clock passes the
+ * floor this collapses back to `startOfMonday(now)` automatically.
+ */
+export function getBookingWindowStart(now = new Date()): Date {
+  const monday = startOfMonday(now);
+  const [fy, fm, fd] = BOOKING_FLOOR.split("-").map(Number);
+  const floor = new Date(fy, fm - 1, fd);
+  return floor > monday ? floor : monday;
+}
+
 /** Monday of the current week through the booking window end. */
 export function isBookingDateAllowed(dateStr: string, now = new Date()): boolean {
   const parts = (dateStr || "").split("-").map(Number);
   if (parts.length < 3 || parts.some((n) => !Number.isFinite(n))) {
     return false;
   }
-  const monday = startOfMonday(now);
   const selDay = new Date(parts[0], parts[1] - 1, parts[2]);
-  return selDay >= monday && selDay <= getBookingWindowEnd(now);
+  return selDay >= getBookingWindowStart(now) && selDay <= getBookingWindowEnd(now);
 }
 
 export function bookingWindowMessage(now = new Date()): string {
+  const floor = getBookingWindowStart(now);
+  const [fy, fm, fd] = BOOKING_FLOOR.split("-").map(Number);
+  if (floor.getFullYear() === fy && floor.getMonth() === fm - 1 && floor.getDate() === fd) {
+    return "Bookings for October 12-18 are closed. Bookings reopen on October 19";
+  }
   if (isTwoWeekWindow(now)) {
     return "Bookings are open until Oct 25";
   }

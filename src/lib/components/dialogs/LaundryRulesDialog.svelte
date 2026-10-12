@@ -7,9 +7,19 @@
     getLaundryGrid,
     formatSlotMinutes,
     isTwoWeekWindow,
+    getBookingWindowStart,
+    BOOKING_FLOOR,
     type LaundryGrid
   } from "$utils/laundry-slots";
   import { browser } from "$app/environment";
+
+  // True only before the Oct 19 floor — once that floor is reached the
+  // current-week bound takes over and the promo copy no longer applies.
+  const isBeforeBookingFloor = $derived.by(() => {
+    const [fy, fm, fd] = BOOKING_FLOOR.split("-").map(Number);
+    const floor = new Date(fy, fm - 1, fd).getTime();
+    return getBookingWindowStart().getTime() < floor;
+  });
 
   let isDialogOpen = $state(false);
   let grid = $state<LaundryGrid | null>(null);
@@ -78,9 +88,13 @@
           another day.
         </li>
         <!-- PROMO-REMOVE-AFTER-2026-10-25: two-week advance booking window
-             (Oct 12-25, 2026). Delete this bullet after the window ends. -->
-        {#if isTwoWeekWindow()}
+             (Oct 12-25, 2026). Delete this bullet after the window ends.
+             Only advertise it before the Oct 19 floor; on and after Oct 19 that
+             week becomes the normal current-week window. -->
+        {#if isTwoWeekWindow() && isBeforeBookingFloor}
           <li class="font-bold">October 19 - 25, 2026 is now available for advance booking!</li>
+        {:else if isTwoWeekWindow()}
+          <li class="font-bold">Bookings for October 12 - 18 are closed.</li>
         {/if}
       </ul>
 

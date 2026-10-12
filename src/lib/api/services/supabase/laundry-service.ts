@@ -6,9 +6,11 @@ import { formatTime } from "$utils/formatters";
 import {
   LAUNDRY_BUFFER_MINUTES,
   LAUNDRY_SLOT_MINUTES,
+  bookingWindowMessage,
   buildLaundrySlots,
   getLaundryHoursConfig,
   getUnfinishedBooking,
+  isBookingDateAllowed,
   isFixedLaundrySlot
 } from "$utils/laundry-slots";
 import { isUuid, parseDbUuid, parseTimeMinutes } from "$utils/parsers";
@@ -199,6 +201,14 @@ export const supabaseLaundryService: LaundryServiceInterface = {
       }
       if (endMinutes - startMinutes > LAUNDRY_SLOT_MINUTES) {
         throw new Error("Reservations cannot exceed 2 hours");
+      }
+
+      // Booking-window enforcement (current week / promo floor + hard cap).
+      // Mirrors the controller gate so the rule holds for direct Supabase
+      // callers, not just the UI.
+      // PROMO-REMOVE-AFTER-2026-10-25: delete alongside the promo constants.
+      if (!isBookingDateAllowed(date)) {
+        throw new Error(bookingWindowMessage());
       }
 
       const { data: existingRows, error: fetchError } = await supabase

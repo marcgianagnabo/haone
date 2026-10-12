@@ -17,7 +17,8 @@
   import {
     buildLaundrySlots,
     getAdminLaundryGrid,
-    getBookingWindowEnd
+    getBookingWindowEnd,
+    getBookingWindowStart
   } from "$utils/laundry-slots";
   import { formatTimeRange, laundryMachineLabel } from "$utils/formatters";
   import { settings } from "$state/settings.svelte";
@@ -188,6 +189,17 @@
   // limited to this horizon; later days render blocked.
   const weekEndStr = $derived.by(() => {
     return formatDate(getBookingWindowEnd(now));
+  });
+
+  // Earliest bookable date: Monday of the current week, raised to the promo
+  // floor (Oct 19, 2026) while that floor is still in the future. Earlier days
+  // — Oct 12-18 during the closure — render blocked.
+  const weekStartStr = $derived.by(() => {
+    return formatDate(getBookingWindowStart(now));
+  });
+
+  const isDayBeforeWindowStart = $derived.by(() => {
+    return (dateStr: string) => !isAdminView && dateStr < weekStartStr;
   });
 
   const monthWeeks = $derived.by(() => {
@@ -602,7 +614,8 @@
             {@const dateStr = formatDate(day)}
             {@const isPastDay = dateStr < formatDate(now)}
             {@const isOutsideHours = hour < opStartHour || hour >= opEndHour}
-            {@const isOutsideWeek = !isAdminView && dateStr > weekEndStr}
+            {@const isOutsideWeek =
+              !isAdminView && (dateStr < weekStartStr || dateStr > weekEndStr)}
             {@const isBlocked = isPastDay || (!isAdminView && isOutsideHours) || isOutsideWeek}
             {@const isSlotOccupiedByMachine = isSlotOccupied(dateStr, hour)}
             <!-- Slot Button (Background) -->
@@ -765,6 +778,7 @@
               {@const isCurrentMonth = day.getMonth() === selectedDate.getMonth()}
               {@const isToday = dateStr === formatDate(now)}
               {@const isPastDay = dateStr < formatDate(now)}
+              {@const isClosedDay = isPastDay || isDayBeforeWindowStart(dateStr)}
               {@const dayReservations = getActiveReservationsForDay(dateStr)}
               {@const maxVisible = 3}
               {@const remainingCount = dayReservations.length - maxVisible}
@@ -772,9 +786,9 @@
                 class={cn(
                   "flex min-h-32 flex-col p-2 transition-colors",
                   !isCurrentMonth && "bg-muted/10 opacity-40",
-                  isPastDay &&
+                  isClosedDay &&
                     "bg-muted/40 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,var(--color-border)_6px,var(--color-border)_7px)]",
-                  isCurrentMonth && !isPastDay && "hover:bg-muted/5"
+                  isCurrentMonth && !isClosedDay && "hover:bg-muted/5"
                 )}
               >
                 <!-- Day Header -->
@@ -794,7 +808,7 @@
                     {day.getDate()}
                   </button>
 
-                  {#if onSelectSlot && isCurrentMonth && !isPastDay}
+                  {#if onSelectSlot && isCurrentMonth && !isClosedDay}
                     <button
                       type="button"
                       class="text-[10px] font-semibold text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-primary focus:opacity-100"
