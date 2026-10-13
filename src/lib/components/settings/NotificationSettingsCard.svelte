@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as Card from "$ui/card";
   import { Bell, LoaderCircleIcon, TriangleAlert } from "@lucide/svelte";
-  import { notifications } from "$state/notifications.svelte";
+  import { NOTIF_PROMPT_DISMISSED_KEY, notifications } from "$state/notifications.svelte";
   import { PUBLIC_VAPID_PUBLIC_KEY } from "$env/static/public";
   import { toast } from "svelte-sonner";
   import SettingsSwitchItem from "$components/settings/SettingsSwitchItem.svelte";
@@ -21,7 +21,14 @@
         return;
       }
 
-      await notifications.subscribe(PUBLIC_VAPID_PUBLIC_KEY);
+      const ok = await notifications.subscribe(PUBLIC_VAPID_PUBLIC_KEY);
+      if (ok) {
+        try {
+          localStorage.removeItem(NOTIF_PROMPT_DISMISSED_KEY);
+        } catch {
+          /* noop */
+        }
+      }
     } else {
       await notifications.unsubscribe();
     }

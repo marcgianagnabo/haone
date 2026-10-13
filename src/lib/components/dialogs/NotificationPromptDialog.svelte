@@ -2,23 +2,40 @@
   import { ResponsiveDialog } from "$ui/haone";
   import { Button } from "$ui/button";
   import { Bell, BellRing, Settings } from "@lucide/svelte";
-  import { notifications } from "$state/notifications.svelte";
+  import { NOTIF_PROMPT_DISMISSED_KEY, notifications } from "$state/notifications.svelte";
   import { PUBLIC_VAPID_PUBLIC_KEY } from "$env/static/public";
   import { toast } from "svelte-sonner";
   import { goto } from "$app/navigation";
 
   let isDialogOpen = $state(false);
-  // "ask" -> Allow / Not now. "info" -> find it in Settings + Done.
+  // "ask" -> Allow / Not now. "info" -> denied: find it in Settings + Done.
   let step = $state<"ask" | "info">("ask");
   let isWorking = $state(false);
-  // Only our own buttons may close the dialog; outside click / Escape is
-  // bounced back so the prompt cannot be skipped past.
+  let errorMsg = $state<string | null>(null);
   let unlocked = $state(false);
 
+  function rememberDismissal() {
+    try {
+      localStorage.setItem(NOTIF_PROMPT_DISMISSED_KEY, String(Date.now()));
+    } catch {
+      /* persistence unavailable */
+    }
+  }
+
+  function clearDismissal() {
+    try {
+      localStorage.removeItem(NOTIF_PROMPT_DISMISSED_KEY);
+    } catch {
+      /* noop */
+    }
+  }
+
   export function open() {
+    notifications.refreshStatus();
     step = notifications.permission === "denied" ? "info" : "ask";
     unlocked = false;
     isWorking = false;
+    errorMsg = null;
     isDialogOpen = true;
   }
 
@@ -27,10 +44,15 @@
     isDialogOpen = false;
   }
 
+  function dismissRespectfully() {
+    rememberDismissal();
+    close();
+  }
+
   function handleOpenChange(next: boolean) {
     if (!next && !unlocked) {
-      // Bounce back dismiss attempts (overlay click / Escape / swipe).
-      isDialogOpen = true;
+      // Respect overlay click / Escape as "not now" — never force.
+      dismissRespectfully();
       return;
     }
     isDialogOpen = next;
@@ -39,10 +61,15 @@
   async function handleAllow() {
     if (isWorking) return;
     isWorking = true;
+    errorMsg = null;
     try {
       const granted = await notifications.requestPermission();
       if (!granted) {
-        step = "info";
+        if (notifications.permission === "denied") {
+          step = "info";
+        } else {
+          errorMsg = "Browser dismissed the prompt — click Allow again to retry.";
+        }
         return;
       }
       if (!PUBLIC_VAPID_PUBLIC_KEY) {
@@ -50,15 +77,20 @@
         step = "info";
         return;
       }
-      await notifications.subscribe(PUBLIC_VAPID_PUBLIC_KEY);
-      close();
+      const ok = await notifications.subscribe(PUBLIC_VAPID_PUBLIC_KEY);
+      if (ok) {
+        clearDismissal();
+        close();
+      } else {
+        errorMsg = "Couldn't enable notifications — click Allow again to retry.";
+      }
     } finally {
       isWorking = false;
     }
   }
 
   function handleNotNow() {
-    step = "info";
+    dismissRespectfully();
   }
 
   function handleGoToSettings() {
@@ -88,6 +120,9 @@
             You can change this anytime later.
           </p>
         </div>
+        {#if errorMsg}
+          <p class="text-sm leading-relaxed text-destructive">{errorMsg}</p>
+        {/if}
       {:else}
         <div class="flex items-start gap-3">
           <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
@@ -109,7 +144,7 @@
           Allow notifications
         </Button>
       {:else}
-        <Button variant="outline" class="w-full" disabled={isWorking} onclick={close}>Done</Button>
+        <Button variant="outline" class="w-full" disabled={isWorking} onclick={dismissRespectfully}>Done</Button>
         <Button class="w-full" disabled={isWorking} icon={Settings} onclick={handleGoToSettings}>
           Open Settings
         </Button>

@@ -30,7 +30,7 @@
   import { settings } from "$state/settings.svelte";
   import ErrorView from "$components/content/ErrorView.svelte";
   import { features } from "$state/features.svelte";
-  import { notifications } from "$state/notifications.svelte";
+  import { NOTIF_PROMPT_DISMISSED_KEY, notifications } from "$state/notifications.svelte";
   import { PUBLIC_VAPID_PUBLIC_KEY } from "$env/static/public";
   import NotificationPromptDialog from "$components/dialogs/NotificationPromptDialog.svelte";
 
@@ -135,15 +135,23 @@
     maybePromptNotifications();
   });
 
-  // Forced notification prompt: every dashboard visit while unsubscribed.
-  // Skipped when unsupported, unconfigured, or still resolving. Denied
-  // origins open straight at the info step (re-prompting them is a dead end).
+  // Respectful notification prompt: once per browser until the user acts.
+  // Skipped when unsupported, unconfigured, still resolving, or previously
+  // dismissed via Not now / Done / overlay / Escape. Re-entry is only via
+  // Settings → Notifications. Denied origins open straight at the info step.
   // Note: permission persists per origin, so an already-granted user who
   // unsubscribed re-subscribes silently with no visible browser prompt.
   async function maybePromptNotifications() {
     try {
       if (!notifications.isSupported || !PUBLIC_VAPID_PUBLIC_KEY) {
         return;
+      }
+      try {
+        if (localStorage.getItem(NOTIF_PROMPT_DISMISSED_KEY)) {
+          return;
+        }
+      } catch {
+        /* persistence unavailable: fall through to prompt */
       }
       while (notifications.isChecking) {
         await new Promise((r) => setTimeout(r, 150));
