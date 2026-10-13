@@ -9,7 +9,8 @@
   const mobilePhotoBackground = $derived(
     page.url.pathname === "/" ||
       page.url.pathname === "/sign-in" ||
-      page.url.pathname === "/sign-in/workspace"
+      page.url.pathname === "/sign-in/workspace" ||
+      page.url.pathname === "/onboarding"
   );
 </script>
 

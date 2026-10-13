@@ -12,7 +12,7 @@
 </script>
 
 <div
-  class="rounded-2xl bg-background/85 p-6 shadow-xl backdrop-blur-md md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none"
+  class="rounded-2xl bg-transparent p-6 shadow-none md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none"
 >
   <div class="flex flex-col space-y-4 text-center md:text-left">
     <div class="space-y-2">

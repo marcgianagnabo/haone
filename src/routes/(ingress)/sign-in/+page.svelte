@@ -81,10 +81,15 @@
 
 <div class="flex flex-col items-center justify-center">
   <div
-    class="relative z-10 w-full max-w-sm space-y-6 rounded-2xl bg-background/85 p-6 shadow-xl backdrop-blur-md md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none"
+    class="relative z-10 w-full max-w-sm space-y-6 rounded-2xl bg-transparent p-6 shadow-none md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none"
   >
     <div class="flex flex-col items-center space-y-8 text-center">
-      <BrandingLogo class="h-28 w-auto" />
+      <div class="md:hidden">
+        <BrandingLogo mode="dark" class="h-28 w-auto" />
+      </div>
+      <div class="hidden md:block">
+        <BrandingLogo class="h-28 w-auto" />
+      </div>
     </div>
 
     <div in:fly={{ y: 16, duration: 500 }} class="grid pt-6">
