@@ -61,10 +61,10 @@ DROP POLICY IF EXISTS "registrations_update" ON public.registrations;
 DROP POLICY IF EXISTS "registrations_delete" ON public.registrations;
 
 CREATE POLICY "registrations_select" ON public.registrations FOR SELECT TO authenticated
-  USING (is_officer() OR LOWER(email) = LOWER(COALESCE(auth.jwt()->>'email', auth.jwt()->'user_metadata'->>'email', '')));
+  USING (is_officer() OR LOWER(email) = LOWER(COALESCE(auth.jwt()->>'email', '')));
 
 CREATE POLICY "registrations_insert" ON public.registrations FOR INSERT TO authenticated
-  WITH CHECK (is_officer() OR LOWER(email) = LOWER(COALESCE(auth.jwt()->>'email', auth.jwt()->'user_metadata'->>'email', '')));
+  WITH CHECK (is_officer() OR LOWER(email) = LOWER(COALESCE(auth.jwt()->>'email', '')));
 
 CREATE POLICY "registrations_update" ON public.registrations FOR UPDATE TO authenticated
   USING (is_officer()) WITH CHECK (is_officer());

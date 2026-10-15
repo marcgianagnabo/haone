@@ -13,12 +13,10 @@ RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
     SELECT 1 FROM public.officers
     WHERE LOWER(email) = LOWER(COALESCE(
       auth.jwt()->>'email',
-      auth.jwt()->'user_metadata'->>'email',
       ''
     ))
   ) OR LOWER(COALESCE(
       auth.jwt()->>'email',
-      auth.jwt()->'user_metadata'->>'email',
       ''
     )) = LOWER((SELECT value FROM public.constants WHERE key = 'INSTANCE_ADMIN_EMAIL'));
 $$;

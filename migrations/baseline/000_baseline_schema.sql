@@ -429,15 +429,17 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 
 -- Is the caller an officer? The backbone of every write policy.
 CREATE OR REPLACE FUNCTION public.is_officer()
-RETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.officers
     WHERE LOWER(email) = LOWER(COALESCE(
       auth.jwt()->>'email',
-      auth.jwt()->'user_metadata'->>'email',
       ''
     ))
-  );
+  ) OR LOWER(COALESCE(
+      auth.jwt()->>'email',
+      ''
+    )) = LOWER((SELECT value FROM public.constants WHERE key = 'INSTANCE_ADMIN_EMAIL'));
 $$;
 
 -- Resolve the caller's public profile from their auth identity.
@@ -547,7 +549,6 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
       AND LOWER(email) <> LOWER(
         COALESCE(
           auth.jwt()->>'email',
-          auth.jwt()->'user_metadata'->>'email',
           ''
         )
       )
@@ -819,10 +820,10 @@ CREATE POLICY constants_write ON public.constants FOR ALL TO authenticated
 
 -- ── registrations ────────────────────────────────────────────────────────────
 CREATE POLICY registrations_select ON public.registrations FOR SELECT TO authenticated
-  USING (is_officer() OR LOWER(email) = LOWER(COALESCE(auth.jwt()->>'email', auth.jwt()->'user_metadata'->>'email', '')));
+  USING (is_officer() OR LOWER(email) = LOWER(COALESCE(auth.jwt()->>'email', '')));
 
 CREATE POLICY registrations_insert ON public.registrations FOR INSERT TO authenticated
-  WITH CHECK (is_officer() OR LOWER(email) = LOWER(COALESCE(auth.jwt()->>'email', auth.jwt()->'user_metadata'->>'email', '')));
+  WITH CHECK (is_officer() OR LOWER(email) = LOWER(COALESCE(auth.jwt()->>'email', '')));
 
 CREATE POLICY registrations_update ON public.registrations FOR UPDATE TO authenticated
   USING (is_officer()) WITH CHECK (is_officer());

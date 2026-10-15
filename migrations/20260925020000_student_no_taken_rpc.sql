@@ -22,7 +22,6 @@ AS $$
       AND LOWER(email) <> LOWER(
         COALESCE(
           auth.jwt()->>'email',
-          auth.jwt()->'user_metadata'->>'email',
           ''
         )
       )

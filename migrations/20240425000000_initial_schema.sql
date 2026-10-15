@@ -320,7 +320,6 @@ RETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER AS $$
     SELECT 1 FROM officers
     WHERE LOWER(email) = LOWER(COALESCE(
       auth.jwt()->>'email',
-      auth.jwt()->'user_metadata'->>'email',
       ''
     ))
   );
@@ -349,8 +348,10 @@ CREATE POLICY "accounts_write" ON accounts FOR ALL TO authenticated
   USING (is_officer()) WITH CHECK (is_officer());
 
 -- ── journal ──────────────────────────────────────────────────
+-- NOTE: legacy email-based journal_select is superseded by
+-- 20260815000000_journal_drop_emails_use_ids.sql (ID-based RLS) on migrated DBs.
 CREATE POLICY "journal_select" ON journal FOR SELECT TO authenticated
-  USING (is_officer() OR LOWER(account_email) = LOWER(COALESCE(auth.jwt()->>'email', auth.jwt()->'user_metadata'->>'email', '')));
+  USING (is_officer() OR LOWER(account_email) = LOWER(COALESCE(auth.jwt()->>'email', '')));
 CREATE POLICY "journal_write" ON journal FOR ALL TO authenticated
   USING (is_officer()) WITH CHECK (is_officer());
 
