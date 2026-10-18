@@ -30,6 +30,7 @@
   import { features } from "$state/features.svelte";
   import { page } from "$app/state";
   import { isResidentRouteAllowed } from "$api/controllers/resident-controller";
+import { canManageAcademicTerms } from "$utils/permissions";
   import { getCustomServices } from "$lib/services";
   import { AccountType } from "$lib/types";
   import { namecase } from "@compwright/namecase";
@@ -41,15 +42,17 @@
   let imgError = $state(false);
 
   // --- Admin Navigation Items ---
-  const adminMgmtItems = [
+  const adminMgmtItems = $derived([
     { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
     { title: "Financial Report", url: "/admin/financial-report", icon: HandCoins },
     { title: "Transactions", url: "/admin/transactions", icon: RotateCcwClock },
     { title: "Residents", url: "/admin/residents", icon: Users },
     { title: "Users", url: "/admin/users", icon: Contact },
     { title: "Demographics", url: "/admin/demographics", icon: ChartPie },
-    { title: "Academic Terms", url: "/admin/academic-terms", icon: GraduationCap }
-  ];
+    ...(canManageAcademicTerms()
+      ? [{ title: "Academic Terms", url: "/admin/academic-terms", icon: GraduationCap }]
+      : [])
+  ]);
 
   const adminServiceItems = $derived([
     { title: "Laundry", url: "/admin/laundry", icon: WashingMachine },

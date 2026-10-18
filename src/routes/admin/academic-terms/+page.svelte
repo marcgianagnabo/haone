@@ -9,6 +9,9 @@
   } from "$api/controllers/constants-controller";
   import { translatePeriod } from "$utils/translators";
   import { sortPeriods, isNextSemester } from "$utils/sort";
+  import { canManageAcademicTerms } from "$utils/permissions";
+  import { authTrail, shouldRedirect } from "$utils/auth-trail";
+  import { auth } from "$state/auth.svelte";
   import { Button } from "$ui/button";
   import { Plus, GraduationCap, Coins, CircleCheck, ArrowRightLeft } from "@lucide/svelte";
   import { goto } from "$app/navigation";
@@ -252,6 +255,26 @@
       }
     );
   }
+
+  // Officer-only. Term and fee schedules are administered centrally; the
+  // backend already gates the writes (the `constants_write` RLS policy is
+  // `is_officer()`), so this only keeps non-officer sessions off the page
+  // when one arrives via a direct URL or a stale link.
+  let denied = false;
+  $effect(() => {
+    if (!auth.accessToken || canManageAcademicTerms() || denied) {
+      return;
+    }
+    denied = true;
+    authTrail("guard:/admin from:academic-terms");
+    globalDialog.show(
+      "Access Denied",
+      "Only House Council officers can manage academic terms."
+    );
+    if (shouldRedirect("/admin", 0)) {
+      goto("/admin");
+    }
+  });
 </script>
 
 <div class="mx-auto max-w-7xl space-y-3">

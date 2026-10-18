@@ -12,6 +12,7 @@
   import ErrorView from "$components/content/ErrorView.svelte";
   import RichTextEditor from "$components/editor/RichTextEditor.svelte";
   import { formatCurrency, formatAmount } from "$utils/formatters";
+  import { canSendReceipts } from "$utils/permissions";
   import {
     Play,
     RefreshCcw,
@@ -83,6 +84,14 @@
   async function runBatch() {
     if (!auth.accessToken) {
       error = "Authentication required. Please refresh or sign in again.";
+      return;
+    }
+
+    // Acknowledgement receipts are officer-only. A batch may have been staged
+    // by an officer and then flushed from a session that is not one, so the
+    // check belongs here rather than only at the point of staging.
+    if (emailDispatcher.batchType === "ACKNOWLEDGMENT" && !canSendReceipts()) {
+      error = "Only House Council officers can send acknowledgement receipts.";
       return;
     }
 

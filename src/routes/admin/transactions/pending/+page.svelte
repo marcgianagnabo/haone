@@ -12,6 +12,8 @@
     updateJournalReceiptInfo
   } from "$api/controllers/journal-controller";
   import { parseDateWeight } from "$utils/parsers";
+  import { canSendReceipts } from "$utils/permissions";
+  import { globalDialog } from "$state/dialog.svelte";
   import * as InputGroup from "$ui/input-group";
   import { Label } from "$ui/label/index.js";
   import { Button } from "$ui/button/index.js";
@@ -91,6 +93,13 @@
   });
 
   async function prepareDispatch() {
+    if (!canSendReceipts()) {
+      globalDialog.show(
+        "Access Denied",
+        "Only House Council officers can send acknowledgement receipts."
+      );
+      return;
+    }
     if (selectedIndices.size === 0) {
       return;
     }
@@ -219,7 +228,9 @@
         sorting={[{ id: "date", desc: true }]}
       >
         {#snippet actions()}
-          <Button size="sm" onclick={prepareDispatch} {isLoading} icon={FileCheck}>Settle</Button>
+          {#if canSendReceipts()}
+            <Button size="sm" onclick={prepareDispatch} {isLoading} icon={FileCheck}>Settle</Button>
+          {/if}
         {/snippet}
       </DataTable>
     {:else}
