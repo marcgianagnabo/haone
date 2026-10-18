@@ -516,21 +516,6 @@ export async function handleCallback(options: CallbackOptions): Promise<boolean>
 
   onSession(newAccessToken, rememberMe, user, savedType, isInstanceAdmin, credentialJwt);
 
-  // Officers and instance admins choose a workspace after sign-in instead of
-  // dropping straight into Resident View. Residents skip this entirely.
-  if (savedType === "resident" && onWorkspaceRequired) {
-    const isOfficer = isInstanceAdmin || (await resolveOfficerRole(user.email));
-    if (isOfficer) {
-      let pendingTarget = sanitizeTarget(redirectTo || exchangeTarget, "/resident");
-      if (pendingTarget.startsWith("/admin")) {
-        pendingTarget = "/resident";
-      }
-      onWorkspaceRequired(pendingTarget);
-      goPostLogin("/sign-in/workspace");
-      return true;
-    }
-  }
-
   if (savedType === "admin") {
     await settingsService.verifyAccess(newAccessToken);
   }

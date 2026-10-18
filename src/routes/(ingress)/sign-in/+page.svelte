@@ -2,7 +2,7 @@
   import { auth } from "$state/auth.svelte";
   import { onMount } from "svelte";
   import { Button } from "$ui/button";
-  import { LoaderCircleIcon } from "@lucide/svelte";
+  import { LoaderCircleIcon, ShieldCheckIcon } from "@lucide/svelte";
   import { replaceState } from "$app/navigation";
   import BrandingLogo from "$components/branding/BrandingLogo.svelte";
   import { globalDialog } from "$state/dialog.svelte";
@@ -15,6 +15,9 @@
   let rememberMe = $state(true);
   let callbackHandled = false;
   let lastError = $state<string | null>(null);
+  // "View other options" swaps in place for the House Council sign-in, which
+  // requests the wider admin scope set on the next Google round-trip.
+  let isHouseCouncilRevealed = $state(false);
 
   function dismissLastError() {
     lastError = null;
@@ -77,6 +80,16 @@
     isSigningIn = true;
     await auth.signIn("resident");
   }
+
+  async function handleOtherOptions() {
+    if (!isHouseCouncilRevealed) {
+      isHouseCouncilRevealed = true;
+      return;
+    }
+    dismissLastError();
+    isSigningIn = true;
+    await auth.signIn("admin");
+  }
 </script>
 
 <div class="flex flex-col items-center justify-center">
@@ -107,6 +120,15 @@
             class="h-14 w-full rounded-xl bg-foreground text-base font-bold text-background transition-opacity hover:opacity-90"
           >
             Sign In
+          </Button>
+          <Button
+            variant="link"
+            size="sm"
+            class="h-auto w-full justify-center text-xs font-semibold text-muted-foreground"
+            onclick={handleOtherOptions}
+            icon={isHouseCouncilRevealed ? ShieldCheckIcon : undefined}
+          >
+            {isHouseCouncilRevealed ? "Sign in as House Council" : "View other options"}
           </Button>
           {#if lastError}
             <div class="rounded-xl border bg-muted/30 p-3 text-left">
