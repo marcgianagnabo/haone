@@ -2,7 +2,6 @@
   import { goto } from "$app/navigation";
   import * as Tabs from "$ui/tabs";
   import { List, Receipt, Banknote } from "@lucide/svelte";
-  import { canSendReceipts } from "$utils/permissions";
 
   let {
     active = "all"
@@ -27,7 +26,7 @@
       <List class="h-3.5 w-3.5" />
       All
     </Tabs.Trigger>
-    <Tabs.Trigger value="receipts" class="flex items-center gap-1.5" hidden={!canSendReceipts()}>
+    <Tabs.Trigger value="receipts" class="flex items-center gap-1.5">
       <Receipt class="h-3.5 w-3.5" />
       Receipts
     </Tabs.Trigger>

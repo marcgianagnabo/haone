@@ -27,7 +27,6 @@
   import { fetchResidents } from "$api/controllers/resident-controller";
   import { formatCurrency } from "$utils/formatters";
   import { translatePeriod } from "$utils/translators";
-  import { canManageAcademicTerms } from "$utils/permissions";
   import DashboardActionCard from "$components/dashboard/DashboardActionCard.svelte";
   import { onMount } from "svelte";
   import { pageState } from "$state/page-info.svelte";
@@ -106,16 +105,12 @@
       href: "/admin/demographics",
       icon: ChartPie
     },
-    ...(canManageAcademicTerms()
-      ? [
-          {
-            title: "Academic Terms",
-            description: "Configure academic terms, fee schedules, and active periods.",
-            href: "/admin/academic-terms",
-            icon: GraduationCap
-          }
-        ]
-      : []),
+    {
+      title: "Academic Terms",
+      description: "Configure academic terms, fee schedules, and active periods.",
+      href: "/admin/academic-terms",
+      icon: GraduationCap
+    },
     {
       title: "Laundry",
       description: "Monitor and manage laundry schedule reservations.",

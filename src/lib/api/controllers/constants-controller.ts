@@ -1,5 +1,4 @@
 import { constantsService } from "$api/services/constants-service";
-import { canManageAcademicTerms } from "$utils/permissions";
 import { type ConstantRecord } from "$lib/types";
 
 export async function fetchConstants(bypassCache = false): Promise<ConstantRecord[]> {
@@ -40,28 +39,11 @@ export async function fetchTerms(
     }));
 }
 
-/**
- * Academic term definitions and their fee schedules are officer-managed.
- * The constant key is the only thing identifying the feature — there is no
- * route context at this layer — so gate on the key prefix. Reads stay open:
- * every session needs the term list for balance calculations and the global
- * term filter.
- */
-const OFFICER_ONLY_PREFIXES = ["TERM_", "FEES_"];
-
-function assertOfficerCanWrite(key: string): void {
-  if (OFFICER_ONLY_PREFIXES.some((p) => key.startsWith(p)) && !canManageAcademicTerms()) {
-    throw new Error(`Only officers can modify the "${key}" constant.`);
-  }
-}
-
 export async function addConstant(key: string, value: string, description = ""): Promise<void> {
-  assertOfficerCanWrite(key);
   return constantsService.addConstant(key, value, description);
 }
 
 export async function updateConstant(key: string, value: string): Promise<void> {
-  assertOfficerCanWrite(key);
   return constantsService.updateConstant(key, value);
 }
 

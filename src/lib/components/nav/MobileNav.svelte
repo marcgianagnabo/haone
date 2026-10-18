@@ -28,7 +28,6 @@
   import { residentState } from "$state/resident-state.svelte";
   import { isResidentRouteAllowed } from "$api/controllers/resident-controller";
   import { features } from "$state/features.svelte";
-import { canManageAcademicTerms } from "$utils/permissions";
 
   const MAP_RESIDENT: Record<string, any> = {
     home: { label: "Home", href: "/resident", icon: LayoutDashboard },
@@ -82,10 +81,7 @@ import { canManageAcademicTerms } from "$utils/permissions";
         });
 
     if (isAdmin) {
-      if (canManageAcademicTerms()) {
-        return filtered;
-      }
-      return filtered.filter((item) => item.href !== "/admin/academic-terms");
+      return filtered;
     }
 
     const type = residentState.status?.account?.type || "";
