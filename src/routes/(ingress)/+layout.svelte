@@ -14,6 +14,10 @@
   );
 </script>
 
-<HeroLayout contentClass={isOnboarding ? "max-w-xl" : "max-w-100"} {mobilePhotoBackground}>
+<HeroLayout
+  contentClass={isOnboarding ? "max-w-xl" : "max-w-100"}
+  {mobilePhotoBackground}
+  forceDarkOnMobile={isOnboarding}
+>
   {@render children()}
 </HeroLayout>

@@ -16,18 +16,21 @@
   } from "@lucide/svelte";
   import { slide } from "svelte/transition";
   import { brandingState } from "$state/branding.svelte";
+  import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
   import type { FeaturedImageItem } from "$lib/types";
 
   let {
     children,
     heroId = undefined,
     contentClass = "max-w-100",
-    mobilePhotoBackground = false
+    mobilePhotoBackground = false,
+    forceDarkOnMobile = false
   }: {
     children: Snippet;
     heroId?: string;
     contentClass?: string;
     mobilePhotoBackground?: boolean;
+    forceDarkOnMobile?: boolean;
   } = $props();
 
   const LEGAL_LINKS = [
@@ -45,6 +48,11 @@
   );
 
   let isMobileHeroOpen = $state(false);
+  const isMobile = new IsMobile();
+  // Photo-backdrop routes render content over a dark scrim, so light-mode
+  // text (near-black --foreground) is unreadable there. Opted-in routes
+  // force the dark palette below the md breakpoint only.
+  const forceDarkContent = $derived(mobilePhotoBackground && forceDarkOnMobile && isMobile.current);
   let isCaptionExpanded = $state(false);
   // Background mode (mobile sign-in): pick the backdrop photo here so the
   // bottom caption bar always describes the photo actually shown.
@@ -265,7 +273,7 @@
   <div
     class="relative order-1 flex flex-1 flex-col items-center overflow-y-auto p-6 md:h-full md:p-8 {mobilePhotoBackground
       ? 'z-10 pb-24 md:pb-8'
-      : ''} pt-20 md:pt-8"
+      : ''} pt-20 md:pt-8 {forceDarkContent ? 'dark' : ''}"
   >
     <div class="my-auto flex w-full {contentClass} flex-col justify-center space-y-8 py-8">
       {@render children()}
