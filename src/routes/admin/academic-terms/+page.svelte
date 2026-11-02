@@ -8,10 +8,9 @@
     fetchTerms
   } from "$api/controllers/constants-controller";
   import { translatePeriod } from "$utils/translators";
-  import { sortPeriods, isNextSemester } from "$utils/sort";
+  import { sortPeriods } from "$utils/sort";
   import { Button } from "$ui/button";
-  import { Plus, GraduationCap, Coins, CircleCheck, ArrowRightLeft } from "@lucide/svelte";
-  import { goto } from "$app/navigation";
+  import { Plus, GraduationCap, Coins, CircleCheck } from "@lucide/svelte";
   import ContentHeader from "$components/content/ContentHeader.svelte";
   import { Badge } from "$ui/badge";
   import LoadingView from "$components/content/LoadingView.svelte";
@@ -310,17 +309,6 @@
                   disabled={isSaving}
                 >
                   Set Active
-                </Button>
-              {/if}
-              {#if activeTermCode !== term.value && isNextSemester(activeTermCode, term.value)}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  class="h-8 gap-2 text-xs font-bold tracking-wider uppercase"
-                  onclick={() => goto(`/admin/transactions/carry-over?target=${term.value}`)}
-                >
-                  <ArrowRightLeft class="h-3.5 w-3.5" />
-                  Carry Over
                 </Button>
               {/if}
               <Button

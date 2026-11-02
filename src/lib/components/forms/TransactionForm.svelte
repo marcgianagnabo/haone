@@ -11,7 +11,7 @@
   import { normalizeStudentNo } from "$utils/student-no";
   import { parseRef } from "$utils/parsers";
   import { formatAmount, formatAccounting } from "$utils/formatters";
-  import { sortPeriods, isNextSemester } from "$utils/sort";
+  import { sortPeriods } from "$utils/sort";
   import * as Card from "$ui/card";
   import { Button } from "$ui/button";
   import { Input } from "$ui/input";
@@ -129,7 +129,6 @@
     prRefNo: ""
   });
 
-  let carryoverTerm = $state("");
   const isEos = $derived(
     formData.type === TransactionType.EOS || formData.type === TransactionType.EOS_UNSETTLED
   );
@@ -140,7 +139,6 @@
         return true;
       }
       return (
-        t.value !== TransactionType.CARRYOVER &&
         t.value !== TransactionType.TRANSFER_FROM &&
         t.value !== TransactionType.TRANSFER_TO
       );
@@ -157,16 +155,8 @@
   const isTypeDisabled = $derived(
     isSubmitting ||
       formData.type === TransactionType.TRANSFER_FROM ||
-      formData.type === TransactionType.TRANSFER_TO ||
-      formData.type === TransactionType.CARRYOVER
+      formData.type === TransactionType.TRANSFER_TO
   );
-
-  const carryoverAcademicTerms = $derived.by(() => {
-    if (!formData.period) {
-      return [];
-    }
-    return academicTerms.filter((t) => isNextSemester(formData.period, t.value));
-  });
 
   $effect(() => {
     if (isEos && formData.mop) {
@@ -782,40 +772,7 @@
       row[JOR.CREATOR_ID] = formData.creatorId || "";
       row[JOR.ACCOUNT_ID] = formData.accountId || "";
 
-      if (mode === "add" && isEos && carryoverTerm) {
-        const carryoverRow = new Array(24).fill("");
-        carryoverRow[JOR.DATE] = formData.date;
-        carryoverRow[JOR.CREATOR] = "";
-        carryoverRow[JOR.ACCOUNT] = "";
-        carryoverRow[JOR.WATER] = water !== 0 ? (-water).toString() : "0";
-        carryoverRow[JOR.ASSOC] = assoc !== 0 ? (-assoc).toString() : "0";
-        carryoverRow[JOR.MAINTENANCE] = maintenance !== 0 ? (-maintenance).toString() : "0";
-        carryoverRow[JOR.MISC] = misc !== 0 ? (-misc).toString() : "0";
-        carryoverRow[JOR.MOP] = formData.mop;
-        carryoverRow[JOR.PERIOD] = carryoverTerm;
-        const mappedCarryoverType =
-          TRANSACTION_TYPE_OPTIONS.find((t) => {
-            return t.value === TransactionType.CARRYOVER;
-          })?.value || TransactionType.CARRYOVER;
-        carryoverRow[JOR.TYPE] = mappedCarryoverType;
-        carryoverRow[JOR.NOTES] = "";
-        carryoverRow[JOR.NOTES_PRIVATE] = "";
-        carryoverRow[JOR.MOP_REFNO] = row[JOR.MOP_REFNO];
-        carryoverRow[JOR.PR_DATE_ISSUED] = "";
-        carryoverRow[JOR.PR_REFNO] = "N/A";
-        carryoverRow[JOR.CREATOR_NAME] = "";
-        carryoverRow[JOR.NAME] = "";
-        carryoverRow[JOR.STNO] = "";
-        carryoverRow[JOR.RECEIPT_URL] = "";
-        carryoverRow[JOR.WAS_AUDITED] = "FALSE";
-        carryoverRow[JOR.ID] = crypto.randomUUID();
-        carryoverRow[JOR.CREATOR_ID] = formData.creatorId || "";
-        carryoverRow[JOR.ACCOUNT_ID] = formData.accountId || "";
-
-        await onSave([row, carryoverRow]);
-      } else {
-        await onSave(row);
-      }
+      await onSave(row);
     } catch (e: any) {
       error = `Submission failed: ${e.message}`;
     }
@@ -885,18 +842,6 @@
                 </p>
               {/if}
             </div>
-
-            {#if isEos && mode === "add"}
-              <div class="animate-in space-y-2 duration-200 fade-in">
-                <Label>Carryover Academic Term</Label>
-                <Combobox
-                  bind:value={carryoverTerm}
-                  options={carryoverAcademicTerms}
-                  placeholder="Select term to carry over entries to…"
-                  class="w-full"
-                />
-              </div>
-            {/if}
           </div>
 
           <div class="space-y-4 border-t pt-4">
