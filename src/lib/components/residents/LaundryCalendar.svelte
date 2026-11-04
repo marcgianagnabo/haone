@@ -191,7 +191,8 @@
     return formatDate(getBookingWindowEnd(now));
   });
 
-  // Earliest bookable date: Monday of the current week, raised to the promo
+  // Earliest bookable date: Monday of the open booking week (the next week
+  // opens Sunday at 5 PM), raised to the promo
   // floor (Oct 19, 2026) while that floor is still in the future. Earlier days
   // — Oct 12-18 during the closure — render blocked.
   const weekStartStr = $derived.by(() => {

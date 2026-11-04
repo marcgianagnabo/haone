@@ -66,7 +66,7 @@
         </li>
         <li>
           <strong>Financial transactions</strong>: Payment amounts, payment methods
-          (cash/GCash/Maya), transaction dates
+          (cash/GCash/Maya/Gotyme Bank/MariBank), transaction dates
         </li>
         <li>
           <strong>Account balances</strong>: Water fees, association fees, miscellaneous charges,

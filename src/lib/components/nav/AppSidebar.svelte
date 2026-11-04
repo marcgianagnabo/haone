@@ -22,7 +22,8 @@
     CirclePlus,
     X,
     CircleUserIcon,
-    LogOutIcon
+    LogOutIcon,
+    Globe2
   } from "@lucide/svelte";
   import { Button } from "$ui/button";
   import { auth } from "$state/auth.svelte";
@@ -34,8 +35,10 @@
   import { AccountType } from "$lib/types";
   import { namecase } from "@compwright/namecase";
   import PwaInstallCard from "$components/branding/PwaInstallCard.svelte";
+  import { env as publicEnv } from "$env/dynamic/public";
 
   const sidebar = Sidebar.useSidebar();
+  const portalFeatureEnabled = publicEnv.PUBLIC_PORTAL_FEATURE_ENABLED !== "false";
 
   const isAdminView = $derived(page.url.pathname.startsWith("/admin"));
   let imgError = $state(false);
@@ -63,6 +66,8 @@
       : []),
     ...getCustomServices("admin")
   ]);
+
+  const adminPortalItems = [{ title: "Publications & Sync", url: "/admin/portal", icon: Globe2 }];
 
   const adminSecondaryItems = $derived(
     [
@@ -104,7 +109,10 @@
           { title: "Leaderboards", url: "/resident/leaderboards", icon: ListOrdered }
         ]
       : []),
-    { title: "Officers", url: "/resident/officers", icon: BookUser }
+    { title: "Officers", url: "/resident/officers", icon: BookUser },
+    ...(portalFeatureEnabled
+      ? [{ title: "Portal", url: "https://nfrh.pages.dev", icon: Globe2, external: true }]
+      : [])
   ]);
 
   const isAlum = $derived(residentState.status?.currEntry?.accountType === AccountType.ALUMNUS);
@@ -113,7 +121,7 @@
     const type = residentState.status?.account?.type || "";
     const room = residentState.status?.account?.room || "";
     return residentServiceItems.filter((item) => {
-      return isResidentRouteAllowed(item.url, type, room);
+      return "external" in item || isResidentRouteAllowed(item.url, type, room);
     });
   });
 
@@ -263,6 +271,30 @@
         {/each}
       </Sidebar.Menu>
     </Sidebar.Group>
+
+    {#if isAdminView && portalFeatureEnabled}
+      <Sidebar.Group>
+        <Sidebar.GroupLabel>Portal</Sidebar.GroupLabel>
+        <Sidebar.Menu>
+          {#each adminPortalItems as item}
+            <Sidebar.MenuItem>
+              <Sidebar.MenuButton
+                size={sidebar.isMobile ? "lg" : "default"}
+                isActive={page.url.pathname.startsWith(item.url)}
+                onclick={() => sidebar.setOpenMobile(false)}
+              >
+                {#snippet child({ props })}
+                  <a href={item.url} {...props} onclick={() => sidebar.setOpenMobile(false)}>
+                    <item.icon />
+                    <span>{item.title}</span>
+                  </a>
+                {/snippet}
+              </Sidebar.MenuButton>
+            </Sidebar.MenuItem>
+          {/each}
+        </Sidebar.Menu>
+      </Sidebar.Group>
+    {/if}
   </Sidebar.Content>
   <Sidebar.Rail />
 </Sidebar.Root>

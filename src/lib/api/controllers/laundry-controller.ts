@@ -17,6 +17,7 @@ import {
   bookingWindowMessage,
   buildLaundrySlots,
   getAdminLaundryGrid,
+  getLaundryBookingWeekStart,
   getLaundryHoursConfig,
   getUnfinishedBooking,
   isBookingDateAllowed,
@@ -40,17 +41,15 @@ export interface ValidateLaundryOptions {
 }
 
 /**
- * Current calendar-week window (Monday 00:00 → Sunday 23:59, local time).
- * Resident bookings are limited to the week containing today.
+ * Currently open Monday-Sunday booking window. The next week opens every
+ * Sunday at 5:00 PM local time.
  */
 export function isDateInCurrentWeek(dateStr: string, now = new Date()): boolean {
   const parts = (dateStr || "").split("-").map(Number);
   if (parts.length < 3 || parts.some((n) => !Number.isFinite(n))) {
     return false;
   }
-  const monday = new Date(now);
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const monday = getLaundryBookingWeekStart(now);
   const sunday = new Date(monday);
   sunday.setDate(sunday.getDate() + 6);
   sunday.setHours(23, 59, 59, 999);

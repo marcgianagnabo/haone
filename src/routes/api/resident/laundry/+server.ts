@@ -20,6 +20,7 @@ import {
   USER_COL
 } from "$lib/types";
 import { formatTime } from "$utils/formatters";
+import { bookingWindowMessage, isBookingDateAllowed } from "$utils/laundry-slots";
 import { parseTimeMinutes } from "$utils/parsers";
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
@@ -160,6 +161,10 @@ export const POST: RequestHandler = async ({ request }) => {
     const duration = endMinutes - startMinutes;
     if (duration > 180) {
       return json({ error: "Reservations cannot exceed 3 hours" }, { status: 400 });
+    }
+
+    if (!isBookingDateAllowed(date)) {
+      return json({ error: bookingWindowMessage() }, { status: 400 });
     }
 
     const [resRows] = await fetchSheetsData(client, ["laundry!A:J"]);

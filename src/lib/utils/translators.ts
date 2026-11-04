@@ -18,6 +18,12 @@ export function translateMop(mop: string) {
   if (val === "MAYA") {
     return "MAYA PHILIPPINES, INC./MAYA WALLET";
   }
+  if (val === "GOTYME") {
+    return "GOTYME BANK";
+  }
+  if (val === "MARIBANK") {
+    return "MARIBANK";
+  }
   if (val === "") {
     return "N/A";
   }

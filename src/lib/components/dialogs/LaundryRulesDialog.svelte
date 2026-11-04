@@ -46,10 +46,23 @@
   // Hall-specific prose from branding, minus the lines now generated above
   // (operating hours / 2-hour cap) so they are never duplicated.
   const extraBrandingRules = $derived(
-    (brandingState.profile.laundryRules || []).filter((rule: string) => {
-      const r = rule.trim().toLowerCase();
-      return !r.startsWith("operating hours") && !r.startsWith("maximum of two (2) hours");
-    })
+    (() => {
+      const absenceRule =
+        "A resident can occupy your slot if you are not present after 15 minutes from the start of booking.";
+      const rules = (brandingState.profile.laundryRules || []).filter((rule: string) => {
+        const r = rule.trim().toLowerCase();
+        return (
+          !r.startsWith("operating hours") &&
+          !r.startsWith("maximum of two (2) hours") &&
+          r !== absenceRule.toLowerCase()
+        );
+      });
+      const presentIndex = rules.findIndex((rule: string) =>
+        rule.trim().toLowerCase().startsWith("be present")
+      );
+      rules.splice(presentIndex >= 0 ? presentIndex + 1 : rules.length, 0, absenceRule);
+      return rules;
+    })()
   );
 
   // Remember dismissal so the rules auto-popup only shows once.

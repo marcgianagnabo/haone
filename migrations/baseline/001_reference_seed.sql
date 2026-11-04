@@ -81,9 +81,11 @@ ON CONFLICT (key) DO UPDATE
 -- Add further rows the same way, e.g. ('MOP_BANK', 'BANK', 'Bank Transfer').
 -- =============================================================================
 INSERT INTO public.constants (key, value, description) VALUES
-  ('MOP_CASH',  'CASH',  'Cash'),
-  ('MOP_GCASH', 'GCASH', 'G-XCHANGE/GCASH'),
-  ('MOP_MAYA',  'MAYA',  'MAYA PHILIPPINES, INC./MAYA WALLET')
+  ('MOP_CASH',     'CASH',     'Cash'),
+  ('MOP_GCASH',    'GCASH',    'G-XCHANGE/GCASH'),
+  ('MOP_MAYA',     'MAYA',     'MAYA PHILIPPINES, INC./MAYA WALLET'),
+  ('MOP_GOTYME',   'GOTYME',   'GOTYME BANK'),
+  ('MOP_MARIBANK', 'MARIBANK', 'MARIBANK')
 ON CONFLICT (key) DO UPDATE
   SET value = EXCLUDED.value, description = EXCLUDED.description;
 

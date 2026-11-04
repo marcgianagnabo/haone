@@ -158,6 +158,8 @@
         <li>Cash payments</li>
         <li>GCash transfers</li>
         <li>Maya transfers</li>
+        <li>Gotyme Bank transfers</li>
+        <li>MariBank transfers</li>
       </ul>
       <p class="pt-2 leading-relaxed">
         The Platform does not directly process or interface with payment gateways. It stores payment

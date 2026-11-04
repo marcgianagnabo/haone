@@ -222,23 +222,47 @@ export function getAdminLaundryGrid(): LaundryGrid {
 // lists every line. Behavior reverts to current-week-only automatically.
 export const BOOKING_PROMO_START = "2026-10-12";
 export const BOOKING_HARD_CAP = "2026-10-25";
+const LAUNDRY_TIME_ZONE = "Asia/Manila";
+
+function laundryLocalParts(now: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: LAUNDRY_TIME_ZONE,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    hourCycle: "h23"
+  }).formatToParts(now);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+  return { year: value("year"), month: value("month"), day: value("day"), hour: value("hour") };
+}
 
 // PROMO-REMOVE-AFTER-2026-10-25: Oct 12-18, 2026 is closed for booking.
 // Only Oct 19-25 stays open, then the normal current-week window takes over
-// on Oct 19 on its own (the lower bound derives from `startOfMonday(now)`), so
+// on Oct 18 at 5 PM on its own (the lower bound derives from the active booking
+// week), so
 // this constant goes inert by itself and needs no expiry check.
 export const BOOKING_FLOOR = "2026-10-19";
 
 /** True while today falls inside the one-time Oct 12-25, 2026 promo. */
 export function isTwoWeekWindow(now = new Date()): boolean {
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
-    now.getDate()
-  ).padStart(2, "0")}`;
+  const local = laundryLocalParts(now);
+  const today = `${local.year}-${String(local.month).padStart(2, "0")}-${String(local.day).padStart(2, "0")}`;
   return today >= BOOKING_PROMO_START && today <= BOOKING_HARD_CAP;
 }
 
-function startOfMonday(now: Date): Date {
-  const monday = new Date(now);
+/**
+ * Monday belonging to the currently open booking week. The next Monday-Sunday
+ * window opens at 5:00 PM on Sunday rather than at midnight on Monday.
+ */
+export function getLaundryBookingWeekStart(now = new Date()): Date {
+  const local = laundryLocalParts(now);
+  const reference = new Date(local.year, local.month - 1, local.day, local.hour);
+  if (reference.getDay() === 0 && local.hour >= 17) {
+    reference.setDate(reference.getDate() + 1);
+  }
+  const monday = new Date(reference);
   monday.setHours(0, 0, 0, 0);
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
   return monday;
@@ -256,7 +280,7 @@ function endOfWeekSunday(monday: Date): Date {
  * at Oct 25, 2026), otherwise end of the current week.
  */
 export function getBookingWindowEnd(now = new Date()): Date {
-  const thisSunday = endOfWeekSunday(startOfMonday(now));
+  const thisSunday = endOfWeekSunday(getLaundryBookingWeekStart(now));
   if (!isTwoWeekWindow(now)) {
     return thisSunday;
   }
@@ -268,18 +292,18 @@ export function getBookingWindowEnd(now = new Date()): Date {
 }
 
 /**
- * Earliest bookable instant: Monday of the current week, raised to the promo
+ * Earliest bookable instant: Monday of the currently open booking week, raised to the promo
  * floor while the floor is still in the future. Once the clock passes the
- * floor this collapses back to `startOfMonday(now)` automatically.
+ * floor this collapses back to the active booking week automatically.
  */
 export function getBookingWindowStart(now = new Date()): Date {
-  const monday = startOfMonday(now);
+  const monday = getLaundryBookingWeekStart(now);
   const [fy, fm, fd] = BOOKING_FLOOR.split("-").map(Number);
   const floor = new Date(fy, fm - 1, fd);
   return floor > monday ? floor : monday;
 }
 
-/** Monday of the current week through the booking window end. */
+/** Monday of the currently open booking week through its Sunday. */
 export function isBookingDateAllowed(dateStr: string, now = new Date()): boolean {
   const parts = (dateStr || "").split("-").map(Number);
   if (parts.length < 3 || parts.some((n) => !Number.isFinite(n))) {
@@ -298,7 +322,7 @@ export function bookingWindowMessage(now = new Date()): string {
   if (isTwoWeekWindow(now)) {
     return "Bookings are open until Oct 25";
   }
-  return "Bookings are only open for the current week (Monday to Sunday)";
+  return "The next Monday-to-Sunday booking week opens every Sunday at 5:00 PM";
 }
 
 /**

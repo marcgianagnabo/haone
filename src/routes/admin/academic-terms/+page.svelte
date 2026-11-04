@@ -219,7 +219,16 @@
   async function setActive(value: string) {
     const activeTermConstant = allConstants.find((c) => c.key === "TERM_CURR");
     if (activeTermConstant) {
-      await updateConstant("TERM_CURR", value);
+      try {
+        await updateConstant("TERM_CURR", value);
+      } catch (error: any) {
+        // The local constants list can be stale after TERM_CURR is removed or
+        // restored directly in Supabase. Recover by recreating the missing row.
+        if (!String(error?.message || "").includes('Constant "TERM_CURR" not found')) {
+          throw error;
+        }
+        await addConstant("TERM_CURR", value, "Active Term");
+      }
     } else {
       await addConstant("TERM_CURR", value, "Active Term");
     }

@@ -3,9 +3,9 @@
   import { pageState } from "$state/page-info.svelte";
   import ContentHeader from "$components/content/ContentHeader.svelte";
   import AppearanceCard from "$components/settings/AppearanceCard.svelte";
-import NavSettingsCard from "$components/settings/NavSettingsCard.svelte";
-import LaundryHoursCard from "$components/settings/LaundryHoursCard.svelte";
-import NotificationSettingsCard from "$components/settings/NotificationSettingsCard.svelte";
+  import NavSettingsCard from "$components/settings/NavSettingsCard.svelte";
+  import LaundryHoursCard from "$components/settings/LaundryHoursCard.svelte";
+  import NotificationSettingsCard from "$components/settings/NotificationSettingsCard.svelte";
   import DevConfigCard from "$components/settings/DevConfigCard.svelte";
   import VersionCard from "$components/settings/VersionCard.svelte";
 
