@@ -78,9 +78,9 @@ function documentUrl(id: string) {
 }
 
 async function saveImage(file: File) {
-  const allowed = ["image/jpeg", "image/png", "image/webp"];
+  const allowed = ["image/jpeg", "image/png"];
   const config = portalHomepageConfig();
-  if (!allowed.includes(file.type)) throw new PortalHomepageError("Use a JPEG, PNG, or WebP image");
+  if (!allowed.includes(file.type)) throw new PortalHomepageError("Hero images must be uploaded as JPEG or PNG");
   if (!file.size || file.size > config.maxImageBytes) {
     throw new PortalHomepageError(
       `Image must be ${Math.floor(config.maxImageBytes / 1024 / 1024)} MB or smaller`

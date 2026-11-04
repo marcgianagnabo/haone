@@ -40,7 +40,7 @@
   });
 
   function canvasBlob(canvas: HTMLCanvasElement, quality: number) {
-    return new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", quality));
+    return new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
   }
 
   async function optimizeImage(file: File) {
@@ -58,6 +58,8 @@
       if (!context) throw new Error("Your browser could not optimize this image");
       context.imageSmoothingEnabled = true;
       context.imageSmoothingQuality = "high";
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, width, height);
       context.drawImage(bitmap, 0, 0, width, height);
       blob = await canvasBlob(canvas, quality);
       if (blob && blob.size <= targetImageBytes) break;
@@ -72,7 +74,7 @@
       throw new Error("The image could not be reduced to a safe upload size");
     }
     const baseName = file.name.replace(/\.[^.]+$/, "") || "portal-hero";
-    return new File([blob], `${baseName}.webp`, { type: "image/webp" });
+    return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
   }
 
   async function selectImage(file?: File) {
@@ -116,11 +118,20 @@
   async function save() {
     saving = true;
     try {
+      let imageToUpload = selectedFile;
+      // Older versions optimized every hero to WebP, which Meta/Messenger does
+      // not consistently use for link previews. Migrate it on the next save.
+      if (!imageToUpload && savedPreview?.startsWith("data:image/webp")) {
+        const source = await (await fetch(savedPreview)).blob();
+        imageToUpload = await optimizeImage(
+          new File([source], "portal-hero.webp", { type: "image/webp" })
+        );
+      }
       const form = new FormData();
       form.set("heading", heading);
       form.set("subheading", subheading);
       form.set("removeImage", String(removeImage));
-      if (selectedFile) form.set("image", selectedFile);
+      if (imageToUpload) form.set("image", imageToUpload);
       const result = await fetchServer<any>(endpoint, {
         method: "PATCH",
         body: form
@@ -243,12 +254,15 @@
                       : "Drop an image or click to browse"}
                   </p>
                   <p class="text-xs text-muted-foreground">
-                    JPEG, PNG, or WebP · source up to 30 MB · optimized below 700 KB
+                     JPEG, PNG, or WebP · source up to 30 MB · optimized to a social-compatible JPEG below 700 KB
                   </p>
                 </div>
               </div>
             {/if}
           </div>
+          {#if savedPreview?.startsWith("data:image/webp") && !selectedFile && !removeImage}
+            <p class="text-xs text-amber-600 dark:text-amber-400">This legacy WebP hero will be converted to JPEG when you save, enabling reliable Messenger and social previews.</p>
+          {/if}
           {#if preview}
             <Button
               variant="outline"
