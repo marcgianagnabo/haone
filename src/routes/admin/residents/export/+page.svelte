@@ -313,7 +313,19 @@
               matchesStatusFilter(r, cat.toUpperCase())
           );
         })
-        .map((r) => ({ ...r, name: getNameToUse(r.residentId, r.name), isOfficer: false }));
+        .map((r) => ({ ...r, name: getNameToUse(r.residentId, r.name), isOfficer: false }))
+        .sort((a, b) => {
+          const nameCompare = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+          if (nameCompare !== 0) return nameCompare;
+
+          const roomCompare = a.room.localeCompare(b.room, undefined, {
+            numeric: true,
+            sensitivity: "base"
+          });
+          if (roomCompare !== 0) return roomCompare;
+
+          return a.bed.localeCompare(b.bed, undefined, { numeric: true, sensitivity: "base" });
+        });
     }
 
     if (selectedCategories.includes("officers")) {
