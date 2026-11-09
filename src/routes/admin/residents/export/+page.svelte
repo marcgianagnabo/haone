@@ -35,6 +35,7 @@
   import { fetchJournalEntries } from "$api/controllers/journal-controller";
   import { loadGapiScript } from "$api/services/gmail-service";
   import {
+    computeDisplayNames,
     matchesStatusFilter,
     fetchResidents,
     fetchUsers
@@ -185,15 +186,16 @@
     ...availableUnits.map((u) => ({ value: u, label: u }))
   ]);
 
-  function getNameToUse(residentId: string, legalName: string): string {
-    if (useLegalName) {
-      return legalName;
-    }
+  function getNameToUse(residentId: string, fallbackName: string): string {
     const user = rawUsers.find((u) => u.id === residentId);
     if (!user) {
-      return legalName;
+      return fallbackName;
     }
-    return user.overrideName || legalName;
+
+    // In Supabase, display_name already prefers override_name, so construct
+    // the legal name directly from the user's individual legal-name fields.
+    const legalName = computeDisplayNames(user).displayName || fallbackName;
+    return useLegalName ? legalName : user.overrideName.trim() || legalName;
   }
 
   function matchesUnitFilter(room: string): boolean {
