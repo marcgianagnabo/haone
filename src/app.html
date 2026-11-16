@@ -15,6 +15,72 @@
     <meta name="description" content="HAOne" />
     <meta name="application-name" content="HAOne" />
 
+    <script>
+      (() => {
+        function saveError(kind, reason, context = "") {
+          try {
+            let message = "";
+            let stack = "";
+            if (reason instanceof Error) {
+              message = reason.message || reason.name || "Error";
+              stack = reason.stack || "";
+            } else if (reason == null) {
+              message = "(empty error)";
+            } else if (typeof reason === "string") {
+              message = reason;
+            } else {
+              try {
+                message = JSON.stringify(reason) || String(reason);
+              } catch {
+                message = String(reason);
+              }
+            }
+            if (context) message += ` ${context}`;
+            localStorage.setItem(
+              "halsk.last_raw_error",
+              JSON.stringify({
+                kind,
+                message: message.slice(0, 500),
+                stack: stack.slice(0, 2000),
+                time: new Date().toISOString()
+              })
+            );
+          } catch {
+            /* Error reporting is best-effort when browser storage is blocked. */
+          }
+        }
+
+        window.addEventListener(
+          "error",
+          (event) => {
+            if (!(event instanceof ErrorEvent)) return;
+            let source = "unknown";
+            if (event.filename) {
+              try {
+                const url = new URL(event.filename, window.location.href);
+                source =
+                  url.protocol === "http:" || url.protocol === "https:"
+                    ? `${url.origin}${url.pathname}`
+                    : url.protocol;
+              } catch {
+                source = "unavailable";
+              }
+            }
+            saveError(
+              "error",
+              event.error || event.message || "Script error.",
+              `[source=${source} line=${event.lineno || 0} column=${event.colno || 0}]`
+            );
+          },
+          true
+        );
+
+        window.addEventListener("unhandledrejection", (event) => {
+          saveError("unhandledrejection", event.reason);
+        });
+      })();
+    </script>
+
     %sveltekit.head% %google_analytics% %google_site_verification%
   </head>
   <body data-sveltekit-preload-data="hover">
