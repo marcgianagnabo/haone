@@ -28,7 +28,11 @@
   onMount(async () => {
     isLoadingAuth = false;
     if (auth.accessToken) {
+      authTrail(`resident:layout_start type:${auth.authType || "unknown"}`);
       await residentState.refresh();
+      authTrail(`resident:layout_done status:${residentState.status ? "loaded" : "empty"}`);
+    } else {
+      authTrail("resident:layout_no_session");
     }
   });
 

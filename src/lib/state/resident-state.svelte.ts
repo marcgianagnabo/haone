@@ -89,6 +89,7 @@ export interface ResidentStatus {
 }
 
 import { fetchResidentStatus } from "$api/controllers/resident-controller";
+import { authTrail } from "$utils/auth-trail";
 
 class ResidentState {
   status = $state<ResidentStatus | null>(null);
@@ -99,10 +100,14 @@ class ResidentState {
     if (!auth.accessToken) return;
     this.isLoading = true;
     this.error = null;
+    authTrail("resident_status:start");
     try {
       this.status = await fetchResidentStatus(undefined, true);
+      authTrail("resident_status:ok");
     } catch (e: any) {
       this.error = e.message;
+      const errorName = typeof e?.name === "string" ? e.name.slice(0, 40) : "unknown";
+      authTrail(`resident_status:error:${errorName}`);
     } finally {
       this.isLoading = false;
     }

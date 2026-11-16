@@ -30,6 +30,7 @@
       if (shouldRedirect(target)) goto(target);
       return;
     }
+    authTrail("workspace:ready");
     isChecking = false;
   });
 
@@ -37,7 +38,9 @@
     // Post-login transition: full page load so WebKit never client-routes
     // into a dead chunk right after the OAuth bounce (stackless 404 class).
     const target = auth.pendingWorkspaceTarget || "/resident";
+    authTrail(`workspace:choose_resident target:${target}`);
     auth.clearWorkspaceChoice();
+    authTrail("workspace:handoff");
     window.location.assign(target);
   }
 

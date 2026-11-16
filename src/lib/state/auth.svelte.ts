@@ -3,6 +3,7 @@ import { browser } from "$app/environment";
 import { LS_KEYS } from "$lib/constants";
 import type { UserRecord } from "$lib/types";
 import { globalDialog } from "$state/dialog.svelte";
+import { authTrail } from "$utils/auth-trail";
 
 class AuthState {
   accessToken = $state<string | null>(null);
@@ -48,38 +49,82 @@ class AuthState {
 
   constructor() {
     if (browser) {
-      try {
-        const savedToken = localStorage.getItem(LS_KEYS.ACCESS_TOKEN);
-        const savedCredentialJwt = localStorage.getItem(LS_KEYS.CREDENTIAL_JWT);
-        const savedUser = localStorage.getItem(LS_KEYS.USER);
-        const remembered = localStorage.getItem(LS_KEYS.REMEMBER) === "true";
+      let savedToken: string | null = null;
+      let savedCredentialJwt: string | null = null;
+      let savedUser: string | null = null;
+      let remembered = false;
+      let storage: Storage | null = null;
+      let tabStorage: Storage | null = null;
 
-        if (remembered && savedToken && savedCredentialJwt && savedUser) {
-          this.accessToken = savedToken;
-          this.credentialJwt = savedCredentialJwt;
-          try {
-            this.user = JSON.parse(savedUser);
-          } catch {
-            this.user = null;
-          }
-          this.isRemembered = true;
-          this.avatarUrl = localStorage.getItem(LS_KEYS.CACHED_PICTURE);
-          this.authType = (localStorage.getItem(LS_KEYS.AUTH_TYPE) as "admin" | "resident") || null;
-          this.isInstanceAdmin = localStorage.getItem(LS_KEYS.IS_ADMIN) === "true";
-        }
-        // Workspace handoff survives the full-page post-login navigation so
-        // the picker still shows after the reload that fixes WebKit 404s.
+      try {
+        storage = localStorage;
+      } catch {
+        /* Safari Private Mode / locked webviews may deny localStorage. */
+      }
+      try {
+        tabStorage = sessionStorage;
+      } catch {
+        /* sessionStorage may also be unavailable in restricted webviews. */
+      }
+
+      const readSession = (store: Storage | null) => {
+        if (!store) return null;
         try {
-          if (localStorage.getItem(LS_KEYS.WORKSPACE_REQUIRED) === "1") {
+          const token = store.getItem(LS_KEYS.ACCESS_TOKEN);
+          const credentialJwt = store.getItem(LS_KEYS.CREDENTIAL_JWT);
+          const user = store.getItem(LS_KEYS.USER);
+          const shouldRemember = store.getItem(LS_KEYS.REMEMBER) === "true";
+          return token && credentialJwt && user && shouldRemember
+            ? { token, credentialJwt, user, store }
+            : null;
+        } catch {
+          return null;
+        }
+      };
+
+      const storedSession = readSession(storage) || readSession(tabStorage);
+      if (storedSession) {
+        authTrail(`session:restore:${storedSession.store === tabStorage ? "session" : "local"}`);
+        savedToken = storedSession.token;
+        savedCredentialJwt = storedSession.credentialJwt;
+        savedUser = storedSession.user;
+        remembered = true;
+      } else {
+        authTrail("session:restore:none");
+      }
+
+      if (remembered && savedToken && savedCredentialJwt && savedUser) {
+        this.accessToken = savedToken;
+        this.credentialJwt = savedCredentialJwt;
+        try {
+          this.user = JSON.parse(savedUser);
+        } catch {
+          this.user = null;
+        }
+        this.isRemembered = true;
+        try {
+          this.avatarUrl = storedSession?.store.getItem(LS_KEYS.CACHED_PICTURE) || null;
+          this.authType =
+            (storedSession?.store.getItem(LS_KEYS.AUTH_TYPE) as "admin" | "resident") || null;
+          this.isInstanceAdmin = storedSession?.store.getItem(LS_KEYS.IS_ADMIN) === "true";
+        } catch {
+          /* optional cached values */
+        }
+      }
+
+      // Persist the workspace handoff in the same fallback store as the
+      // session so it survives the full-page OAuth handoff in restricted Safari.
+      for (const store of [storage, tabStorage]) {
+        if (!store) continue;
+        try {
+          if (store.getItem(LS_KEYS.WORKSPACE_REQUIRED) === "1") {
             this.workspaceChoiceRequired = true;
-            this.pendingWorkspaceTarget =
-              localStorage.getItem(LS_KEYS.WORKSPACE_TARGET) || "/resident";
+            this.pendingWorkspaceTarget = store.getItem(LS_KEYS.WORKSPACE_TARGET) || "/resident";
+            break;
           }
         } catch {
-          /* persistence unavailable */
+          /* storage unavailable */
         }
-      } catch {
-        // Storage unavailable (Private mode / locked webview): start signed out.
       }
       this.initialized = true;
     }
@@ -156,7 +201,18 @@ class AuthState {
         localStorage.setItem(LS_KEYS.AUTH_TYPE, type);
         localStorage.setItem(LS_KEYS.IS_ADMIN, String(isInstanceAdmin));
       } catch {
-        /* persistence unavailable; session continues in memory */
+        // Full-page post-login navigation clears memory. Keep a tab-scoped
+        // fallback so the session can be restored when localStorage is blocked.
+        try {
+          sessionStorage.setItem(LS_KEYS.ACCESS_TOKEN, token);
+          sessionStorage.setItem(LS_KEYS.CREDENTIAL_JWT, this.credentialJwt);
+          sessionStorage.setItem(LS_KEYS.USER, JSON.stringify(user));
+          sessionStorage.setItem(LS_KEYS.REMEMBER, "true");
+          sessionStorage.setItem(LS_KEYS.AUTH_TYPE, type);
+          sessionStorage.setItem(LS_KEYS.IS_ADMIN, String(isInstanceAdmin));
+        } catch {
+          /* both persistence mechanisms unavailable */
+        }
       }
       this.fetchAvatarUrl();
     }
@@ -208,6 +264,23 @@ class AuthState {
       } catch {
         /* noop */
       }
+      for (const key of [
+        LS_KEYS.ACCESS_TOKEN,
+        LS_KEYS.CREDENTIAL_JWT,
+        LS_KEYS.USER,
+        LS_KEYS.REMEMBER,
+        LS_KEYS.CACHED_PICTURE,
+        LS_KEYS.AUTH_TYPE,
+        LS_KEYS.IS_ADMIN,
+        LS_KEYS.WORKSPACE_REQUIRED,
+        LS_KEYS.WORKSPACE_TARGET
+      ]) {
+        try {
+          sessionStorage.removeItem(key);
+        } catch {
+          /* noop */
+        }
+      }
       this.avatarUrl = null;
       this.authType = null;
       this.isInstanceAdmin = false;
@@ -241,11 +314,21 @@ class AuthState {
       onWorkspaceRequired: (pendingTarget) => {
         this.workspaceChoiceRequired = true;
         this.pendingWorkspaceTarget = pendingTarget;
+        let saved = false;
         try {
           localStorage.setItem(LS_KEYS.WORKSPACE_REQUIRED, "1");
           localStorage.setItem(LS_KEYS.WORKSPACE_TARGET, pendingTarget);
+          saved = true;
         } catch {
-          /* persistence unavailable; in-memory handoff still works pre-reload */
+          /* try tab-scoped persistence below */
+        }
+        if (!saved) {
+          try {
+            sessionStorage.setItem(LS_KEYS.WORKSPACE_REQUIRED, "1");
+            sessionStorage.setItem(LS_KEYS.WORKSPACE_TARGET, pendingTarget);
+          } catch {
+            /* persistence unavailable */
+          }
         }
       }
     });
@@ -264,6 +347,12 @@ class AuthState {
       try {
         localStorage.removeItem(LS_KEYS.WORKSPACE_REQUIRED);
         localStorage.removeItem(LS_KEYS.WORKSPACE_TARGET);
+      } catch {
+        /* noop */
+      }
+      try {
+        sessionStorage.removeItem(LS_KEYS.WORKSPACE_REQUIRED);
+        sessionStorage.removeItem(LS_KEYS.WORKSPACE_TARGET);
       } catch {
         /* noop */
       }
