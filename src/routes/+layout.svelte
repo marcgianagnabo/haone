@@ -20,7 +20,7 @@
   let { children } = $props();
 
   /** Persist the raw pre-sanitized error so reports show the true cause. */
-  function persistRawError(kind: string, reason: unknown) {
+  function persistRawError(kind: string, reason: unknown, context = "") {
     try {
       let message = "";
       let stack = "";
@@ -37,6 +37,9 @@
         } catch {
           message = String(reason);
         }
+      }
+      if (context) {
+        message = `${message} ${context}`;
       }
       localStorage.setItem(
         "halsk.last_raw_error",
@@ -79,6 +82,23 @@
       /failed to fetch dynamically imported module|importing a module script failed|loading chunk \d+ failed/i.test(
         message
       );
+    const errorLocation = (event: ErrorEvent) => {
+      let source = "unknown";
+      if (event.filename) {
+        try {
+          const url = new URL(event.filename, window.location.href);
+          source =
+            url.protocol === "http:" || url.protocol === "https:"
+              ? `${url.origin}${url.pathname}`
+              : url.protocol;
+        } catch {
+          source = "unavailable";
+        }
+      }
+      const line = Number.isFinite(event.lineno) ? event.lineno : 0;
+      const column = Number.isFinite(event.colno) ? event.colno : 0;
+      return `[source=${source} line=${line} column=${column}]`;
+    };
     const recoverChunk = () => {
       if (chunkReloaded) return;
       try {
@@ -93,7 +113,7 @@
         recoverChunk();
         return;
       }
-      persistRawError("error", e.error || e.message);
+      persistRawError("error", e.error || e.message, errorLocation(e));
     });
     window.addEventListener("unhandledrejection", (e) => {
       const msg = (e.reason as Error)?.message || String(e.reason || "");
