@@ -114,6 +114,10 @@
     setFontSize(currentFontSize() + 2);
   }
 
+  function decreaseFontSize() {
+    setFontSize(currentFontSize() - 2);
+  }
+
   // Link Dialog State
   let linkDialogOpen = $state(false);
   let linkUrl = $state("");
@@ -372,8 +376,8 @@
                 variant="outline"
                 size="sm"
                 class="h-8 px-2 font-bold"
-                onclick={increaseFontSize}
-                title="Increase selected text size">A+</Button
+                onclick={decreaseFontSize}
+                title="Decrease selected text size">A−</Button
               >
               <input
                 aria-label="Font size in pixels"
@@ -385,6 +389,13 @@
                 value={currentFontSize()}
                 onchange={(event) => setFontSize(Number(event.currentTarget.value))}
               />
+              <Button
+                variant="outline"
+                size="sm"
+                class="h-8 px-2 font-bold"
+                onclick={increaseFontSize}
+                title="Increase selected text size">A+</Button
+              >
               <span class="text-xs text-muted-foreground">px</span>
             </div>
           {/if}
