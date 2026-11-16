@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Editor } from "@tiptap/core";
+  import { Editor, Extension } from "@tiptap/core";
   import StarterKit from "@tiptap/starter-kit";
   import Link from "@tiptap/extension-link";
   import BulletList from "@tiptap/extension-bullet-list";
@@ -57,21 +57,62 @@
   import { cn } from "$lib/utils";
   import RichTextWrapper from "./RichTextWrapper.svelte";
 
+  const FontSizeExtension = Extension.create({
+    name: "emailFontSize",
+    addGlobalAttributes() {
+      return [
+        {
+          types: ["textStyle"],
+          attributes: {
+            fontSize: {
+              default: null,
+              parseHTML: (element) => element.style.fontSize || null,
+              renderHTML: (attributes) =>
+                attributes.fontSize ? { style: `font-size: ${attributes.fontSize}` } : {}
+            }
+          }
+        }
+      ];
+    }
+  });
+
   let {
     content = $bindable(),
     placeholder = "Start typing reminders…",
     editable = true,
+    enableFontSize = false,
     actions = $bindable()
   } = $props<{
     content: string;
     placeholder?: string;
     editable?: boolean;
-    actions?: { uploadImages: () => Promise<void> };
+    enableFontSize?: boolean;
+    actions?: { uploadImages: () => Promise<void>; insertText?: (text: string) => void };
   }>();
 
   let element: HTMLElement;
   let editor: Editor | undefined = $state();
   let selectionState = $state(0);
+
+  function currentFontSize() {
+    const value = editor?.getAttributes("textStyle").fontSize || "";
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : 16;
+  }
+
+  function setFontSize(value: number) {
+    if (!editor || !Number.isFinite(value)) return;
+    const size = Math.min(72, Math.max(8, Math.round(value)));
+    editor
+      .chain()
+      .focus()
+      .setMark("textStyle", { fontSize: `${size}px` })
+      .run();
+  }
+
+  function increaseFontSize() {
+    setFontSize(currentFontSize() + 2);
+  }
 
   // Link Dialog State
   let linkDialogOpen = $state(false);
@@ -136,7 +177,10 @@
   }
 
   $effect(() => {
-    actions = { uploadImages };
+    actions = {
+      uploadImages,
+      insertText: (text: string) => editor?.chain().focus().insertContent(text).run()
+    };
   });
 
   function applyImage() {
@@ -211,6 +255,7 @@
         }),
         Highlight.configure({ multicolor: true }),
         TextStyle,
+        ...(enableFontSize ? [FontSizeExtension] : []),
         Color,
         Subscript,
         Superscript,
@@ -321,6 +366,28 @@
             iconClass="size-3.5"
             title="Underline"
           />
+          {#if enableFontSize}
+            <div class="ml-1 flex h-8 items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                class="h-8 px-2 font-bold"
+                onclick={increaseFontSize}
+                title="Increase selected text size">A+</Button
+              >
+              <input
+                aria-label="Font size in pixels"
+                class="h-8 w-16 rounded-md border bg-background px-2 text-xs"
+                type="number"
+                min="8"
+                max="72"
+                step="1"
+                value={currentFontSize()}
+                onchange={(event) => setFontSize(Number(event.currentTarget.value))}
+              />
+              <span class="text-xs text-muted-foreground">px</span>
+            </div>
+          {/if}
 
           <!-- Color & Highlight -->
           <Popover.Root>

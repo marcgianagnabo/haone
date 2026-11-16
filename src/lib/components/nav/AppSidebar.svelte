@@ -22,8 +22,7 @@
     CirclePlus,
     X,
     CircleUserIcon,
-    LogOutIcon,
-    Globe2
+    LogOutIcon
   } from "@lucide/svelte";
   import { Button } from "$ui/button";
   import { auth } from "$state/auth.svelte";
@@ -35,10 +34,8 @@
   import { AccountType } from "$lib/types";
   import { namecase } from "@compwright/namecase";
   import PwaInstallCard from "$components/branding/PwaInstallCard.svelte";
-  import { env as publicEnv } from "$env/dynamic/public";
 
   const sidebar = Sidebar.useSidebar();
-  const portalFeatureEnabled = publicEnv.PUBLIC_PORTAL_FEATURE_ENABLED !== "false";
 
   const isAdminView = $derived(page.url.pathname.startsWith("/admin"));
   let imgError = $state(false);
@@ -67,7 +64,7 @@
     ...getCustomServices("admin")
   ]);
 
-  const adminPortalItems = [{ title: "Publications & Sync", url: "/admin/portal", icon: Globe2 }];
+  const adminPortalItems = [{ title: "Email Blaster", url: "/admin/email-blaster", icon: Mail }];
 
   const adminSecondaryItems = $derived(
     [
@@ -109,10 +106,7 @@
           { title: "Leaderboards", url: "/resident/leaderboards", icon: ListOrdered }
         ]
       : []),
-    { title: "Officers", url: "/resident/officers", icon: BookUser },
-    ...(portalFeatureEnabled
-      ? [{ title: "Portal", url: "https://nfrh.pages.dev", icon: Globe2, external: true }]
-      : [])
+    { title: "Officers", url: "/resident/officers", icon: BookUser }
   ]);
 
   const isAlum = $derived(residentState.status?.currEntry?.accountType === AccountType.ALUMNUS);
@@ -272,9 +266,9 @@
       </Sidebar.Menu>
     </Sidebar.Group>
 
-    {#if isAdminView && portalFeatureEnabled}
+    {#if isAdminView}
       <Sidebar.Group>
-        <Sidebar.GroupLabel>Portal</Sidebar.GroupLabel>
+        <Sidebar.GroupLabel>Communications</Sidebar.GroupLabel>
         <Sidebar.Menu>
           {#each adminPortalItems as item}
             <Sidebar.MenuItem>
