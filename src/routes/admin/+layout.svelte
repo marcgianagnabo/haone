@@ -43,7 +43,9 @@
     }
     authTrail("guard:/resident from:admin-layout");
     if (shouldRedirect("/resident")) {
-      goto("/resident");
+      // A full document navigation avoids WebKit client-router failures on
+      // this post-auth guard transition (seen as stackless 500s at /resident).
+      window.location.replace("/resident");
     }
   }
 
