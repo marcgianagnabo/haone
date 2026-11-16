@@ -18,7 +18,12 @@
   import HeroLayout from "$components/branding/HeroLayout.svelte";
   import { pageState } from "$state/page-info.svelte";
   import { onMount } from "svelte";
-  import { readAuthTrail, markBoundaryMount, consumeReloadMark, setReloadedMark } from "$utils/auth-trail";
+  import {
+    readAuthTrail,
+    markBoundaryMount,
+    consumeReloadMark,
+    setReloadedMark
+  } from "$utils/auth-trail";
   import { authTrail } from "$utils/auth-trail";
 
   let showDetails = $state(false);
@@ -65,25 +70,32 @@
   // Raw pre-sanitized capture from the root layout listeners (may hold the
   // true message/stack when the boundary shows a generic 500). Read once at
   // init — never reassigned, so plain const is correct (no $state needed).
-  const rawCapture: { kind: string; message: string; stack: string } = (() => {
+  const rawCapture: { kind: string; message: string; stack: string; time: string } = (() => {
     try {
       const raw = localStorage.getItem("halsk.last_raw_error");
       if (raw) {
         const parsed = JSON.parse(raw);
+        const capturedAt = Date.parse(parsed.time || "");
+        // Don't display a previous error as the cause of this boundary.
+        if (!Number.isFinite(capturedAt) || Date.now() - capturedAt > 120_000) {
+          return { kind: "", message: "", stack: "", time: "" };
+        }
         return {
           kind: ((parsed.kind || "") as string).slice(0, 40),
           message: ((parsed.message || "") as string).slice(0, 500),
-          stack: ((parsed.stack || "") as string).slice(0, 2000)
+          stack: ((parsed.stack || "") as string).slice(0, 2000),
+          time: parsed.time
         };
       }
     } catch {
       /* diagnostics are best-effort */
     }
-    return { kind: "", message: "", stack: "" };
+    return { kind: "", message: "", stack: "", time: "" };
   })();
   const rawKind = rawCapture.kind;
   const rawMessage = rawCapture.message;
   const rawStack = rawCapture.stack;
+  const rawTime = rawCapture.time;
 
   function buildReport() {
     // Pathname only — never the query string (it may hold single-use OAuth codes).
@@ -91,8 +103,9 @@
       `Status: ${status}\n` +
       `Message: ${error?.message}\n` +
       `Stack: ${error?.stack}\n` +
-      `Raw: [${rawKind}] ${rawMessage}\n` +
+      `Raw: ${rawMessage ? `[${rawKind}] ${rawMessage}` : "(no recent raw error captured)"}\n` +
       `Raw stack: ${rawStack}\n` +
+      `Raw captured: ${rawTime || "(none)"}\n` +
       `Path: ${reportPath}\n` +
       `Time: ${reportTime}\n` +
       `Build: ${reportBuild}\n` +
@@ -148,10 +161,7 @@
         trail: readAuthTrail()
       });
       if (navigator.sendBeacon) {
-        navigator.sendBeacon(
-          "/api/client-log",
-          new Blob([payload], { type: "application/json" })
-        );
+        navigator.sendBeacon("/api/client-log", new Blob([payload], { type: "application/json" }));
       } else {
         fetch("/api/client-log", {
           method: "POST",

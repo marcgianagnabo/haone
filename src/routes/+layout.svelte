@@ -19,42 +19,6 @@
 
   let { children } = $props();
 
-  /** Persist the raw pre-sanitized error so reports show the true cause. */
-  function persistRawError(kind: string, reason: unknown, context = "") {
-    try {
-      let message = "";
-      let stack = "";
-      if (reason instanceof Error) {
-        message = reason.message || reason.name || "Error";
-        stack = reason.stack || "";
-      } else if (reason === undefined || reason === null) {
-        message = "(empty rejection reason)";
-      } else if (typeof reason === "string") {
-        message = reason;
-      } else {
-        try {
-          message = JSON.stringify(reason)?.slice(0, 300) || String(reason);
-        } catch {
-          message = String(reason);
-        }
-      }
-      if (context) {
-        message = `${message} ${context}`;
-      }
-      localStorage.setItem(
-        "halsk.last_raw_error",
-        JSON.stringify({
-          kind,
-          message: message.slice(0, 500),
-          stack: stack.slice(0, 2000),
-          time: new Date().toISOString()
-        })
-      );
-    } catch {
-      /* diagnostics are best-effort */
-    }
-  }
-
   onMount(async () => {
     pwaInstall.init();
     sessionTimeout.init();
@@ -82,23 +46,6 @@
       /failed to fetch dynamically imported module|importing a module script failed|loading chunk \d+ failed/i.test(
         message
       );
-    const errorLocation = (event: ErrorEvent) => {
-      let source = "unknown";
-      if (event.filename) {
-        try {
-          const url = new URL(event.filename, window.location.href);
-          source =
-            url.protocol === "http:" || url.protocol === "https:"
-              ? `${url.origin}${url.pathname}`
-              : url.protocol;
-        } catch {
-          source = "unavailable";
-        }
-      }
-      const line = Number.isFinite(event.lineno) ? event.lineno : 0;
-      const column = Number.isFinite(event.colno) ? event.colno : 0;
-      return `[source=${source} line=${line} column=${column}]`;
-    };
     const recoverChunk = () => {
       if (chunkReloaded) return;
       try {
@@ -111,18 +58,14 @@
     window.addEventListener("error", (e) => {
       if (isChunkError(e.message || "")) {
         recoverChunk();
-        return;
       }
-      persistRawError("error", e.error || e.message, errorLocation(e));
     });
     window.addEventListener("unhandledrejection", (e) => {
       const msg = (e.reason as Error)?.message || String(e.reason || "");
       if (isChunkError(msg)) {
         e.preventDefault();
         recoverChunk();
-        return;
       }
-      persistRawError("unhandledrejection", e.reason);
     });
     // Service Worker Registration
     if ("serviceWorker" in navigator) {
