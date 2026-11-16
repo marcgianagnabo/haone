@@ -7,7 +7,11 @@
   import * as Card from "$ui/card";
   import { Input } from "$ui/input";
   import { Label } from "$ui/label";
-  import { fetchUsers } from "$api/controllers/resident-controller";
+  import {
+    fetchActiveTerm,
+    fetchResidents,
+    fetchUsers
+  } from "$api/controllers/resident-controller";
   import { createEmail, sendEmail } from "$api/services/gmail-service";
   import {
     listEmailBlastDrafts,
@@ -123,10 +127,7 @@
   function userToRecipient(user: Awaited<ReturnType<typeof fetchUsers>>[number]) {
     const firstName = user.firstName || "";
     const lastName = user.lastName || "";
-    const fullName =
-      user.displayNameFormal ||
-      user.displayName ||
-      [firstName, user.middleName, lastName, user.suffix].filter(Boolean).join(" ");
+    const fullName = [firstName, user.middleName, lastName, user.suffix].filter(Boolean).join(" ");
     const fields: Record<string, string> = {
       name: fullName,
       email: user.email || "",
@@ -154,14 +155,23 @@
   async function loadHaoneRecipients() {
     usersLoading = true;
     try {
-      const users = await fetchUsers(true);
+      const [users, activeTerm] = await Promise.all([fetchUsers(true), fetchActiveTerm(true)]);
+      const activeResidents = await fetchResidents(true, activeTerm);
+      const onboardedUserIds = new Set(
+        activeResidents
+          .filter((resident) => resident.bed?.trim())
+          .map((resident) => resident.residentId)
+      );
       const seen = new Set<string>();
-      recipients = users.map(userToRecipient).filter((recipient) => {
-        const email = recipient.email.toLowerCase();
-        if (!email || !email.includes("@") || seen.has(email)) return false;
-        seen.add(email);
-        return true;
-      });
+      recipients = users
+        .filter((user) => onboardedUserIds.has(user.id))
+        .map(userToRecipient)
+        .filter((recipient) => {
+          const email = recipient.email.toLowerCase();
+          if (!email || !email.includes("@") || seen.has(email)) return false;
+          seen.add(email);
+          return true;
+        });
       source = "haone";
       csvHeaders = [];
       csvRows = [];
